@@ -1,0 +1,39 @@
+.persistence-coordinator__error {
+  position: fixed;
+  z-index: 1000;
+  right: 20px;
+  bottom: 20px;
+  display: flex;
+  flex-wrap: wrap;
+  max-width: min(460px, calc(100vw - 40px));
+  align-items: center;
+  gap: 14px;
+  padding: 12px 14px;
+  border: 1px solid #d8a7a1;
+  border-radius: 10px;
+  background: #fff8f6;
+  box-shadow: 0 8px 24px rgb(68 36 30 / 14%);
+  color: #682a22;
+  font-size: 0.88rem;
+}
+
+.persistence-coordinator__error > span {
+  flex: 1 1 220px;
+}
+
+.persistence-coordinator__error button {
+  flex: 0 0 auto;
+  border: 1px solid currentColor;
+  border-radius: 7px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 650;
+  padding: 6px 9px;
+}
+
+.persistence-coordinator__error button:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}

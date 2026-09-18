@@ -1,0 +1,330 @@
+.paper-mind-map {
+  --mind-map-burgundy: #8f3641;
+  --mind-map-sage: #74806f;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 360px;
+  height: 100%;
+  overflow: hidden;
+  border: 1px solid #dedbd3;
+  border-radius: 12px;
+  color: #30312c;
+  background: #fbfaf6;
+}
+
+.paper-mind-map__composer {
+  z-index: 2;
+  padding: 12px 13px 10px;
+  border-bottom: 1px solid #e2dfd7;
+  background: rgba(252, 251, 247, 0.96);
+}
+
+.paper-mind-map__composer label {
+  display: grid;
+  gap: 6px;
+}
+
+.paper-mind-map__composer label > span {
+  color: #76766e;
+  font-size: 10px;
+  font-weight: 680;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.paper-mind-map__composer textarea {
+  width: 100%;
+  min-height: 48px;
+  padding: 8px 9px;
+  resize: vertical;
+  border: 1px solid #d9d6ce;
+  border-radius: 8px;
+  outline: none;
+  color: #383934;
+  background: #fffefb;
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.paper-mind-map__composer textarea:focus {
+  border-color: #98a193;
+  box-shadow: 0 0 0 3px rgba(116, 128, 111, 0.12);
+}
+
+.paper-mind-map__composer textarea:disabled {
+  color: #898981;
+  background: #f4f2ed;
+}
+
+.paper-mind-map__actions {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
+.paper-mind-map__actions span {
+  color: #9a9890;
+  font-size: 10px;
+}
+
+.paper-mind-map__actions span.is-over-limit {
+  color: var(--mind-map-burgundy);
+}
+
+.paper-mind-map button {
+  padding: 6px 10px;
+  border: 1px solid #bdc3b8;
+  border-radius: 7px;
+  color: #fff;
+  background: var(--mind-map-sage);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.paper-mind-map button:hover:not(:disabled) {
+  background: #657260;
+}
+
+.paper-mind-map button:disabled {
+  border-color: #dad7d0;
+  color: #aaa79f;
+  background: #eceae4;
+  cursor: default;
+}
+
+.paper-mind-map__canvas {
+  position: relative;
+  flex: 1;
+  min-height: 230px;
+}
+
+.paper-mind-map__canvas .react-flow {
+  background: #f7f5ef;
+}
+
+.paper-mind-map__canvas .react-flow__edge-path {
+  stroke: #899184;
+  stroke-width: 1.4;
+}
+
+.paper-mind-map__canvas .react-flow__controls {
+  overflow: hidden;
+  border: 1px solid #dedbd2;
+  border-radius: 8px;
+  box-shadow: 0 5px 16px rgba(49, 48, 43, 0.07);
+}
+
+.paper-mind-map__canvas .react-flow__controls-button {
+  width: 27px;
+  height: 27px;
+  border-bottom-color: #e6e3dc;
+  color: #62665e;
+  background: rgba(255, 254, 250, 0.97);
+}
+
+.mind-map-node {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  padding: 13px 14px;
+  overflow: hidden;
+  border: 1px solid #d5d4cd;
+  border-radius: 10px;
+  background: rgba(255, 254, 250, 0.98);
+  box-shadow:
+    0 1px 2px rgba(50, 49, 44, 0.05),
+    0 6px 17px rgba(50, 49, 44, 0.05);
+  transition:
+    border-color 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.mind-map-node.is-root {
+  border-color: #c9b1b4;
+  box-shadow:
+    inset 3px 0 var(--mind-map-burgundy),
+    0 7px 19px rgba(72, 41, 45, 0.07);
+}
+
+.mind-map-node.is-selected {
+  border-color: var(--mind-map-sage);
+  box-shadow:
+    0 0 0 3px rgba(116, 128, 111, 0.14),
+    0 8px 22px rgba(50, 49, 44, 0.08);
+}
+
+.mind-map-node__eyebrow {
+  display: block;
+  margin-bottom: 4px;
+  color: #8b8b83;
+  font-size: 8px;
+  font-weight: 750;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.mind-map-node.is-root .mind-map-node__eyebrow {
+  color: var(--mind-map-burgundy);
+}
+
+.mind-map-node h3 {
+  margin: 0;
+  overflow: hidden;
+  color: #33342f;
+  font-size: 12px;
+  font-weight: 680;
+  line-height: 1.28;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mind-map-node p {
+  display: -webkit-box;
+  margin: 5px 0 0;
+  overflow: hidden;
+  color: #77776f;
+  font-size: 9.5px;
+  line-height: 1.35;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.mind-map-node__handle {
+  width: 1px;
+  height: 1px;
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.paper-mind-map__empty {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  padding: 28px;
+  text-align: center;
+  pointer-events: none;
+}
+
+.paper-mind-map__empty > span {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  margin-bottom: 9px;
+  place-items: center;
+  border: 1px solid #d5d8d0;
+  border-radius: 50%;
+  color: var(--mind-map-sage);
+  background: #eef0ea;
+  font-size: 19px;
+}
+
+.paper-mind-map__empty h3,
+.paper-mind-map__empty p {
+  margin: 0;
+}
+
+.paper-mind-map__empty h3 {
+  color: #4b4c46;
+  font-size: 13px;
+}
+
+.paper-mind-map__empty p {
+  max-width: 260px;
+  margin-top: 6px;
+  color: #8a8981;
+  font-size: 10.5px;
+  line-height: 1.45;
+}
+
+.paper-mind-map__saving {
+  position: absolute;
+  z-index: 3;
+  right: 10px;
+  bottom: 10px;
+  padding: 5px 8px;
+  border: 1px solid #d8d6cf;
+  border-radius: 7px;
+  color: #74756e;
+  background: rgba(255, 254, 250, 0.94);
+  box-shadow: 0 4px 12px rgba(49, 48, 43, 0.06);
+  font-size: 10px;
+}
+
+.paper-mind-map__error,
+.paper-mind-map__provider-hint {
+  margin: 0;
+  padding: 8px 11px;
+  border-top: 1px solid #e4dfd8;
+  font-size: 10.5px;
+  line-height: 1.4;
+}
+
+.paper-mind-map__error {
+  color: #7d4644;
+  background: #fbf0ed;
+}
+
+.paper-mind-map__provider-hint {
+  color: #7c7d75;
+  background: #f5f3ed;
+}
+
+.paper-mind-map--message {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  text-align: center;
+}
+
+.paper-mind-map--message p {
+  max-width: 320px;
+  margin: 0;
+  color: #77776f;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.paper-mind-map__spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid #d9dad4;
+  border-top-color: var(--mind-map-sage);
+  border-radius: 50%;
+  animation: mind-map-spin 700ms linear infinite;
+}
+
+.paper-mind-map__error-mark {
+  display: grid;
+  width: 27px;
+  height: 27px;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--mind-map-burgundy);
+  background: #f5e7e5;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+@keyframes mind-map-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .paper-mind-map__spinner {
+    animation-duration: 0.01ms;
+    animation-iteration-count: 1;
+  }
+}

@@ -1,0 +1,338 @@
+:root {
+  font-family:
+    Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  color: #252521;
+  background: #f5f4f0;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+
+button {
+  font: inherit;
+}
+
+.app-shell {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
+  width: 100%;
+  height: 100%;
+  background: #f5f4f0;
+}
+
+
+
+.app-header__status > span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #7e9678;
+  box-shadow: 0 0 0 3px rgba(126, 150, 120, 0.13);
+}
+
+.canvas-workspace {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+}
+
+.canvas-workspace > .whiteboard,
+.canvas-workspace > .canvas-message {
+  flex: 1;
+}
+
+.whiteboard {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+}
+
+.whiteboard .react-flow {
+  background: #f7f6f2;
+}
+
+.paper-card {
+  display: flex;
+  gap: 13px;
+  align-items: flex-start;
+  width: 100%;
+  height: 100%;
+  padding: 18px;
+  overflow: visible;
+  border: 1px solid #d9d8d2;
+  border-radius: 11px;
+  background: rgba(255, 255, 253, 0.97);
+  box-shadow:
+    0 1px 2px rgba(37, 37, 33, 0.05),
+    0 7px 22px rgba(37, 37, 33, 0.045);
+  transition:
+    border-color 120ms ease,
+    box-shadow 120ms ease,
+    transform 120ms ease;
+}
+
+.paper-card:hover {
+  border-color: #c4c4bd;
+  box-shadow:
+    0 2px 4px rgba(37, 37, 33, 0.06),
+    0 10px 30px rgba(37, 37, 33, 0.065);
+}
+
+.paper-card__handle {
+  z-index: 2;
+  width: 24px;
+  height: 24px;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  cursor: crosshair;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.paper-card__handle::after {
+  position: absolute;
+  inset: 7px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: #6d7967;
+  box-shadow: 0 1px 4px rgba(37, 37, 33, 0.24);
+  content: "";
+  transition:
+    background 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.paper-card:hover .paper-card__handle,
+.paper-card.is-selected .paper-card__handle,
+.paper-card__handle.is-keyboard-active,
+.paper-card__handle:focus-visible {
+  opacity: 1;
+}
+
+.paper-card__handle:hover::after,
+.paper-card__handle.is-keyboard-active::after {
+  background: #52604e;
+  box-shadow:
+    0 0 0 3px rgba(109, 121, 103, 0.14),
+    0 1px 4px rgba(37, 37, 33, 0.24);
+}
+
+.paper-card__handle:focus-visible {
+  outline: 2px solid #52604e;
+  outline-offset: 2px;
+}
+
+.paper-card.is-selected {
+  border-color: #6d7967;
+  box-shadow:
+    0 0 0 2px rgba(109, 121, 103, 0.13),
+    0 10px 30px rgba(37, 37, 33, 0.07);
+}
+
+.react-flow__edge-path {
+  stroke: #8a9185;
+  stroke-width: 1.5;
+}
+
+.paper-card__icon {
+  display: grid;
+  flex: 0 0 30px;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border-radius: 8px;
+  color: #697064;
+  background: #eef0eb;
+}
+
+.paper-card__icon svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.5;
+}
+
+.paper-card__content {
+  min-width: 0;
+}
+
+.paper-card h2 {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  color: #2f302c;
+  font-size: 14px;
+  font-weight: 620;
+  line-height: 1.38;
+  letter-spacing: -0.012em;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.paper-card p {
+  margin: 10px 0 0;
+  overflow: hidden;
+  color: #82827a;
+  font-size: 11px;
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.react-flow__node-paper {
+  border: 0;
+  background: transparent;
+}
+
+.react-flow__controls {
+  overflow: hidden;
+  border: 1px solid #deddd7;
+  border-radius: 9px;
+  box-shadow: 0 5px 18px rgba(37, 37, 33, 0.07);
+}
+
+.react-flow__controls-button {
+  width: 30px;
+  height: 30px;
+  border-bottom-color: #e7e6e1;
+  color: #5f605a;
+  background: rgba(255, 255, 253, 0.96);
+}
+
+.react-flow__controls-button:hover {
+  background: #f0efeb;
+}
+
+.canvas-message {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  color: #73736c;
+  background: #f7f6f2;
+}
+
+.canvas-message h2,
+.canvas-message p {
+  margin: 0;
+}
+
+.canvas-message h2 {
+  color: #3e3f3a;
+  font-size: 15px;
+}
+
+.canvas-message p {
+  font-size: 12px;
+}
+
+.canvas-message button {
+  margin-top: 5px;
+  padding: 7px 12px;
+  border: 1px solid #d1d0ca;
+  border-radius: 7px;
+  color: #41423d;
+  background: #fff;
+  cursor: pointer;
+}
+
+.canvas-message__pulse {
+  width: 18px;
+  height: 18px;
+  border: 2px solid #d4d5d0;
+  border-top-color: #727a6d;
+  border-radius: 50%;
+  animation: spin 700ms linear infinite;
+}
+
+.canvas-message__mark {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border-radius: 50%;
+  color: #8b554f;
+  font-size: 13px;
+  font-weight: 700;
+  background: #f3e7e4;
+}
+
+.save-error {
+  position: absolute;
+  right: 18px;
+  bottom: 18px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  max-width: 360px;
+  padding: 10px 13px;
+  border: 1px solid #dfc8c3;
+  border-radius: 8px;
+  color: #714740;
+  background: rgba(255, 248, 246, 0.96);
+  box-shadow: 0 8px 24px rgba(76, 48, 43, 0.09);
+  font-size: 12px;
+}
+
+.workspace-error {
+  position: fixed;
+  z-index: 30;
+  right: 18px;
+  bottom: 18px;
+  max-width: 380px;
+  padding: 10px 13px;
+  border: 1px solid #dfc8c3;
+  border-radius: 8px;
+  color: #714740;
+  background: rgba(255, 248, 246, 0.98);
+  box-shadow: 0 8px 24px rgba(76, 48, 43, 0.09);
+  font-size: 12px;
+}
+
+.save-error button {
+  flex: 0 0 auto;
+  padding: 4px 8px;
+  border: 1px solid #d7bab4;
+  border-radius: 6px;
+  color: inherit;
+  background: #fff;
+  cursor: pointer;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -1,0 +1,108 @@
+.whiteboard__views {
+  position: absolute;
+  z-index: 6;
+  top: 14px;
+  left: 14px;
+  display: flex;
+  max-width: calc(100% - 28px);
+  gap: 4px;
+  padding: 4px;
+  overflow-x: auto;
+  border: 1px solid rgba(210, 209, 202, 0.9);
+  border-radius: 10px;
+  background: rgba(255, 255, 253, 0.92);
+  box-shadow: 0 4px 16px rgba(37, 37, 33, 0.07);
+  backdrop-filter: blur(8px);
+}
+
+.whiteboard__views button {
+  flex: 0 0 auto;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 7px;
+  color: #64675f;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+}
+
+.whiteboard__views button[aria-pressed="true"] {
+  color: #3f4c3b;
+  background: #e8ede5;
+}
+
+.whiteboard__edge-relations {
+  display: flex;
+  gap: 2px;
+  padding-left: 4px;
+  border-left: 1px solid #deddd7;
+}
+
+.whiteboard__edge-relations .is-support {
+  color: #2563a9;
+}
+
+.whiteboard__edge-relations .is-challenge {
+  color: #b13b3b;
+}
+
+.whiteboard .react-flow__edge.whiteboard__edge--support .react-flow__edge-path {
+  stroke: #3478c6;
+}
+
+.whiteboard .react-flow__edge.whiteboard__edge--challenge .react-flow__edge-path {
+  stroke: #cf4c4c;
+}
+
+.whiteboard__connection-status {
+  position: absolute;
+  z-index: 7;
+  top: 64px;
+  left: 50%;
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  padding: 8px 12px;
+  border: 1px solid rgba(80, 97, 75, 0.24);
+  border-radius: 9px;
+  color: #40503c;
+  background: rgba(241, 246, 239, 0.96);
+  box-shadow: 0 5px 18px rgba(37, 37, 33, 0.08);
+  transform: translateX(-50%);
+  font-size: 12px;
+  pointer-events: none;
+}
+
+.whiteboard__connection-status span {
+  color: #7a8176;
+}
+
+.whiteboard .react-flow__node.is-connection-source .paper-card {
+  border-color: #526b4d;
+  box-shadow:
+    0 0 0 3px rgba(82, 107, 77, 0.16),
+    0 10px 30px rgba(37, 37, 33, 0.07);
+}
+
+.whiteboard__domain-frame {
+  position: absolute;
+  z-index: -1;
+  box-sizing: border-box;
+  border: 1.5px dashed rgba(99, 115, 94, 0.48);
+  border-radius: 24px;
+  background: rgba(121, 145, 113, 0.035);
+  pointer-events: none;
+}
+
+.whiteboard__domain-frame span {
+  position: absolute;
+  top: -13px;
+  left: 20px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  color: #687462;
+  background: #f7f6f2;
+  font-size: 12px;
+  font-weight: 600;
+}
