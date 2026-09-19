@@ -1,4 +1,4 @@
-import { getCurrentWebview } from "@tauri-apps/api/webview";
+import { getCurrentWebview } from "../../platform/webview";
 import {
   type DragEvent,
   type KeyboardEvent,

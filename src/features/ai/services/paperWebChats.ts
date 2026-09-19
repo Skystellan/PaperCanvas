@@ -1,4 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "../../../platform/core";
 import { getDatabase } from "../../../data/sqliteDatabase";
 
 export interface PaperWebChat {
@@ -20,4 +20,20 @@ export function layoutPaperWebChat(id: string, bounds: { x: number; y: number; w
   const next = layoutQueue.then(() => invoke<void>("layout_paper_web_chat", { id, bounds }));
   layoutQueue = next.catch(() => {});
   return next;
+}
+
+export interface RecentPaperWebChat extends PaperWebChat {
+  paperTitle: string;
+}
+
+export async function listRecentPaperWebChats(limit = 6): Promise<RecentPaperWebChat[]> {
+  const database = await getDatabase();
+  return database.select<RecentPaperWebChat[]>(
+    `SELECT c.id, c.paper_id AS paperId, c.title, c.url,
+            c.last_opened_at AS lastOpenedAt, p.title AS paperTitle
+     FROM paper_web_chats c JOIN papers p ON p.id = c.paper_id
+     ORDER BY c.last_opened_at DESC, c.created_at DESC, c.id
+     LIMIT $1`,
+    [Math.max(0, Math.floor(limit))],
+  );
 }

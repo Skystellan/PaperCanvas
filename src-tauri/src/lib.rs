@@ -1,6 +1,8 @@
 use tauri_plugin_sql::{Migration, MigrationKind};
 
+pub mod backend;
 pub mod codex_runtime;
+mod markdown_notes;
 mod paper_import;
 mod web_chat;
 
@@ -154,9 +156,8 @@ fn reconcile_pdf_storage(app: tauri::AppHandle) -> Result<(), String> {
     .map_err(|error| error.to_string())
 }
 
-#[cfg_attr(mobile, tauri::mobile_entry_point)]
-pub fn run() {
-    let migrations = vec![
+pub fn migrations() -> Vec<Migration> {
+    vec![
         Migration {
             version: 1,
             description: "create the V0 paper canvas",
@@ -247,10 +248,15 @@ pub fn run() {
             sql: paper_web_chats_migration_sql(),
             kind: MigrationKind::Up,
         },
-    ];
+    ]
+}
 
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
+pub fn run() {
+    let migrations = migrations();
     tauri::Builder::default()
         .manage(CancellationRegistry::default())
+        .manage(markdown_notes::NoteFileState::default())
         .manage(web_chat::WebChatState::default())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
@@ -260,6 +266,9 @@ pub fn run() {
                 .build(),
         )
         .invoke_handler(tauri::generate_handler![
+            markdown_notes::load_markdown_note,
+            markdown_notes::save_markdown_note,
+            markdown_notes::reveal_markdown_note,
             import_pdf,
             delete_paper,
             reconcile_pdf_storage,
@@ -269,7 +278,9 @@ pub fn run() {
             web_chat::list_paper_web_chats,
             web_chat::save_paper_web_chat,
             web_chat::layout_paper_web_chat,
-            web_chat::restore_paper_web_chat
+            web_chat::open_paper_web_chat_external,
+            web_chat::restore_paper_web_chat,
+            web_chat::reload_paper_web_chat
         ])
         .run(tauri::generate_context!())
         .expect("PaperCanvas failed to start");

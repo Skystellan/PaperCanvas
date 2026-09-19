@@ -1,3 +1,4 @@
+import { MarkdownNoteEditor } from "./MarkdownNoteEditor";
 import { createPortal } from "react-dom";
 import { ReaderToolbarContext } from "./ReaderToolbarContext";
 import {
@@ -15,6 +16,7 @@ import type { PdfHighlight } from "./model/pdfHighlight";
 type ReaderWorkspace = "notes" | "mindmap" | "discussion";
 
 export interface ReaderSidebarProps {
+  initialWorkspace?: ReaderWorkspace;
   discussion?: ReactNode;
   errorMessage?: string | null;
   highlights: PdfHighlight[];
@@ -26,6 +28,9 @@ export interface ReaderSidebarProps {
   noteLoadError?: string | null;
   noteSaveError?: string | null;
   noteStatus: string;
+  noteFileName?: string;
+  onReloadNote?: () => void;
+  onRevealNote?: () => Promise<void>;
   notesRef?: Ref<HTMLTextAreaElement>;
   onDeleteHighlight: (highlight: PdfHighlight) => void;
   onNoteChange: (value: string) => void;
@@ -37,6 +42,7 @@ export interface ReaderSidebarProps {
 }
 
 export function ReaderSidebar({
+  initialWorkspace = "notes",
   discussion,
   errorMessage,
   highlights,
@@ -48,6 +54,9 @@ export function ReaderSidebar({
   noteLoadError,
   noteSaveError,
   noteStatus,
+  noteFileName,
+  onReloadNote,
+  onRevealNote,
   notesRef,
   onDeleteHighlight,
   onNoteChange,
@@ -60,7 +69,7 @@ export function ReaderSidebar({
   const toolbar = useContext(ReaderToolbarContext);
   const [search, setSearch] = useState("");
   const [activeWorkspace, setActiveWorkspace] =
-    useState<ReaderWorkspace>("notes");
+    useState<ReaderWorkspace>(initialWorkspace);
   const [hasOpenedMindMap, setHasOpenedMindMap] = useState(false);
   const tabIdPrefix = useId();
   const notesTabRef = useRef<HTMLButtonElement>(null);
@@ -200,13 +209,15 @@ export function ReaderSidebar({
               )}
             </div>
           ) : (
-            <textarea
-              aria-label="Paper notes"
+            <MarkdownNoteEditor
               disabled={isNoteDisabled}
-              onChange={(event) => onNoteChange(event.target.value)}
-              placeholder="Write notes about this paper…"
-              ref={notesRef}
+              onChange={onNoteChange}
+              editorRef={notesRef}
               value={noteDraft}
+              status={noteStatus}
+              fileName={noteFileName}
+              onReload={onReloadNote}
+              onReveal={onRevealNote}
             />
           )}
           {noteSaveError && (

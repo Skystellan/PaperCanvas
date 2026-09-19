@@ -1,4 +1,4 @@
-import { Channel, invoke } from "@tauri-apps/api/core";
+import { Channel, invoke } from "../../../platform/core";
 import type {
   AIProvider,
   AiStreamEvent,

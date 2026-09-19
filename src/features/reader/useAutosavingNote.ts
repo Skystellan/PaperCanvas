@@ -31,8 +31,10 @@ export function useAutosavingNote(
 
   return {
     ...snapshot,
+    hasUnsavedChanges: controller.isDirty(),
     flush: controller.flush,
     retryLoad: controller.load,
+    reload: () => controller.load(true),
     setDraft: controller.setDraft,
   };
 }

@@ -1,4 +1,5 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { EditorView } from "@codemirror/view";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PersistenceCoordinator } from "../persistence";
 import { PaperReader } from "./PaperReader";
@@ -55,7 +56,7 @@ function renderReader(
   repository: NoteRepository,
   onBack: () => void | Promise<void> = vi.fn(),
 ) {
-  return render(
+  const result = render(
     <PersistenceCoordinator>
       <PaperReader
         highlightRepository={createHighlightRepository()}
@@ -65,11 +66,29 @@ function renderReader(
       />
     </PersistenceCoordinator>,
   );
+  fireEvent.click(screen.getByRole("button", { name: "Source" }));
+  return result;
 }
 
 describe("PaperReader", () => {
   beforeEach(() => {
     mindMapHarness.props = null;
+  });
+
+  it("flushes edits from inline live preview before leaving the paper", async () => {
+    const repository: NoteRepository = {
+      load: vi.fn().mockResolvedValue("# Original"),
+      save: vi.fn().mockResolvedValue(undefined),
+    };
+    const onBack = vi.fn();
+    renderReader(repository, onBack);
+    fireEvent.click(screen.getByRole("button", { name: "Live preview" }));
+    fireEvent.mouseDown(await screen.findByRole("heading", { name: "Original" }), { button: 0 });
+    const view = EditorView.findFromDOM(screen.getByRole("textbox", { name: "Paper notes" }))!;
+    act(() => view.dispatch({ changes: { from: 2, to: 10, insert: "Changed inline" } }));
+    fireEvent.click(screen.getByRole("button", { name: "Back to canvas" }));
+    await waitFor(() => expect(onBack).toHaveBeenCalledOnce());
+    expect(repository.save).toHaveBeenCalledWith("paper-1", "# Changed inline");
   });
 
   it("loads and edits notes even when a legacy paper has no local PDF", async () => {
@@ -277,7 +296,7 @@ describe("PaperReader", () => {
     fireEvent.click(screen.getByRole("button", { name: "Retry loading note" }));
 
     await waitFor(() =>
-      expect(screen.getByRole("textbox", { name: "Paper notes" })).toHaveValue(
+      expect(screen.getByRole("textbox", { name: "Paper notes" })).toHaveTextContent(
         "Recovered note",
       ),
     );
@@ -397,6 +416,7 @@ describe("PaperReader", () => {
         />
       </PersistenceCoordinator>,
     );
+    fireEvent.click(screen.getByRole("button", { name: "Source" }));
     const notes = await screen.findByRole("textbox", { name: "Paper notes" });
     const textLayer = await screen.findByTestId("pdf-text-layer-1");
 
@@ -563,6 +583,7 @@ describe("PaperReader", () => {
     await waitFor(() =>
       expect(screen.queryByText(/A persisted passage/)).toBeNull(),
     );
+    fireEvent.click(screen.getByRole("button", { name: "Source" }));
     expect(screen.getByRole("textbox", { name: "Paper notes" })).toHaveValue(
       "Paper thought",
     );

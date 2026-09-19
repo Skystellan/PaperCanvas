@@ -2,6 +2,7 @@ import { useCallback, useRef, useState } from "react";
 import { ChatPanel, RecentDiscussions } from "./features/ai";
 import {
   PaperLibrary,
+  SqlitePaperRepository,
   type Paper,
   type PaperCatalogChange,
   type PaperDropIntent,
@@ -14,8 +15,11 @@ import { PaperReader } from "./features/reader";
 import { Whiteboard } from "./features/whiteboard/Whiteboard";
 import "./App.css";
 
+const paperRepository = new SqlitePaperRepository();
+
 function PaperCanvasApp() {
   const { flushPending, trackOperation } = usePersistenceCoordinator();
+  const [requestedWebChatId, setRequestedWebChatId] = useState<string | null>(null);
   const [selectedPaperId, setSelectedPaperId] = useState<string | null>(null);
   const [readingPaper, setReadingPaper] = useState<Paper | null>(null);
   const [activeDiscussionId, setActiveDiscussionId] = useState<string | null>(
@@ -40,13 +44,14 @@ function PaperCanvasApp() {
   );
 
   const openReader = useCallback(
-    async (paper: Paper) => {
+    async (paper: Paper, webChatId: string | null = null) => {
       if (openingReaderRef.current) return;
       openingReaderRef.current = true;
       setNavigationError(false);
       try {
         await flushPending();
         setSelectedPaperId(paper.id);
+        setRequestedWebChatId(webChatId);
         setReadingPaper(paper);
       } catch {
         setNavigationError(true);
@@ -61,11 +66,13 @@ function PaperCanvasApp() {
     <main className="app-shell">
       {readingPaper && (
         <PaperReader
+          initialDiscussionOpen={requestedWebChatId !== null}
           discussion={
             <ChatPanel
               currentPaper={readingPaper}
               embedded
               initialSessionId={activeDiscussionId}
+              initialWebChatId={requestedWebChatId}
               onActiveSessionChange={setActiveDiscussionId}
               paperCatalogChange={paperCatalogChange}
             />
@@ -113,7 +120,15 @@ function PaperCanvasApp() {
             paperCatalogChange={paperCatalogChange}
             paperDropIntent={paperDropIntent}
           />
-          <RecentDiscussions />
+          <RecentDiscussions
+            active={readingPaper === null}
+            catalogRevision={paperCatalogChange?.revision}
+            onOpenDiscussion={async (chat) => {
+              const paper = await paperRepository.getById(chat.paperId);
+              if (!paper) throw new Error("Paper no longer exists.");
+              await openReader(paper, chat.id);
+            }}
+          />
         </div>
       {navigationError && (
         <div className="workspace-error" role="alert">

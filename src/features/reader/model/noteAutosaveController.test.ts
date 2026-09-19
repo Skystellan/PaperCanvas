@@ -161,6 +161,22 @@ describe("NoteAutosaveController", () => {
     expect(controller.isDirty()).toBe(false);
   });
 
+  it("reloads an external file after a failed reload without losing the draft on failure", async () => {
+    const load = vi.fn().mockResolvedValueOnce("original")
+      .mockRejectedValueOnce(new Error("unavailable"))
+      .mockResolvedValueOnce("external edit");
+    const controller = new NoteAutosaveController("paper-1", createRepository({ load }));
+    await controller.load();
+    controller.setDraft("local draft");
+    await controller.load(true);
+    expect(controller.getSnapshot().draft).toBe("local draft");
+    expect(controller.getSnapshot().loadError).not.toBeNull();
+    await controller.load();
+    expect(controller.getSnapshot()).toMatchObject({ draft: "external edit", loadError: null, saveError: null });
+    expect(controller.isDirty()).toBe(false);
+    controller.dispose();
+  });
+
   it("ignores a stale load after disposal", async () => {
     const pendingLoad = deferred<string>();
     const controller = new NoteAutosaveController(

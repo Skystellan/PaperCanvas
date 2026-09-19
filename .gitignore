@@ -11,6 +11,7 @@ node_modules
 coverage
 dist
 dist-ssr
+release
 *.local
 
 # Local credentials and application data

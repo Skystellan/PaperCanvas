@@ -1,5 +1,5 @@
-import { invoke } from "@tauri-apps/api/core";
-import { open } from "@tauri-apps/plugin-dialog";
+import { invoke } from "../../../platform/core";
+import { open } from "../../../platform/dialog";
 
 import type { Paper } from "../model/paper";
 import type { PaperImporter, PaperImportOptions } from "./paperImporter";

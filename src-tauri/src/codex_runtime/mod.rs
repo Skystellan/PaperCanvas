@@ -322,9 +322,11 @@ pub async fn start_codex_turn(
     cancellations: tauri::State<'_, CancellationRegistry>,
 ) -> Result<(), String> {
     validate_turn_request(&request)?;
+    let resources = app.path().resource_dir().map_err(|e| e.to_string())?;
+    let cache = app.path().app_cache_dir().map_err(|e| e.to_string())?;
     let cancellation = cancellations.register(&request.request_id)?;
     let request_id = request.request_id.clone();
-    let result = run_codex_turn(&app, request, on_event, cancellation).await;
+    let result = run_codex_turn(&resources, &cache, request, on_event, cancellation).await;
     cancellations.finish(&request_id);
     result
 }
@@ -340,12 +342,17 @@ pub fn cancel_codex_turn(
     cancellations.cancel(&request_id)
 }
 
-async fn run_codex_turn(
-    app: &AppHandle,
+pub async fn run_codex_turn(
+    resources: &Path,
+    cache: &Path,
     request: StartCodexTurnRequest,
     on_event: Channel<CodexRuntimeEvent>,
     mut cancellation: oneshot::Receiver<()>,
 ) -> Result<(), String> {
+    if cancellation.try_recv().is_ok() {
+        let _ = on_event.send(CodexRuntimeEvent::Interrupted);
+        return Ok(());
+    }
     let (status, runtime) = tokio::select! {
         discovered = discover_runtime() => discovered,
         _ = &mut cancellation => {
@@ -364,7 +371,7 @@ async fn run_codex_turn(
     }
 
     let privacy_home = create_turn_privacy_home(&runtime.codex_home)?;
-    let assets = prepare_runtime_assets(app)?;
+    let assets = prepare_runtime_assets(resources, cache)?;
     if cancellation.try_recv().is_ok() {
         let _ = on_event.send(CodexRuntimeEvent::Interrupted);
         let _ = std::fs::remove_dir_all(&assets.root);
@@ -713,26 +720,23 @@ async fn discover_runtime() -> (CodexRuntimeStatus, Option<DiscoveredRuntime>) {
         select_compatible_node(node_candidates, &home_directory, &codex_home).await;
     let (selected_codex, detected_codex) =
         select_compatible_codex(codex_candidates, &home_directory, &codex_home).await;
-    let runtime_version = detected_codex
-        .as_ref()
-        .map(|(_, version)| version.clone());
+    let runtime_version = detected_codex.as_ref().map(|(_, version)| version.clone());
     let binaries_compatible = selected_node.is_some() && selected_codex.is_some();
-    let login_method = if let Some((codex_path, _)) =
-        selected_codex.as_ref().or(detected_codex.as_ref())
-    {
-        probe(
-            codex_path,
-            &["login", "status"],
-            &home_directory,
-            &codex_home,
-        )
-        .await
-        .as_deref()
-        .map(parse_login_method)
-        .unwrap_or(LoginMethod::Unknown)
-    } else {
-        LoginMethod::Unknown
-    };
+    let login_method =
+        if let Some((codex_path, _)) = selected_codex.as_ref().or(detected_codex.as_ref()) {
+            probe(
+                codex_path,
+                &["login", "status"],
+                &home_directory,
+                &codex_home,
+            )
+            .await
+            .as_deref()
+            .map(parse_login_method)
+            .unwrap_or(LoginMethod::Unknown)
+        } else {
+            LoginMethod::Unknown
+        };
     let auth_source_is_safe =
         login_method != LoginMethod::Chatgpt || validate_auth_source(&codex_home).is_ok();
     let status = build_runtime_status(
@@ -973,11 +977,8 @@ fn is_executable(path: &Path) -> bool {
     }
 }
 
-fn prepare_runtime_assets(app: &AppHandle) -> Result<RuntimeAssets, String> {
-    let cache_root = app
-        .path()
-        .app_cache_dir()
-        .map_err(|_| "The PaperCanvas runtime cache is unavailable.".to_string())?
+fn prepare_runtime_assets(resources: &Path, cache: &Path) -> Result<RuntimeAssets, String> {
+    let cache_root = cache
         .join(format!("codex-sdk-{EXPECTED_CODEX_VERSION}"))
         .join(uuid::Uuid::new_v4().to_string());
     let vendor_directory = cache_root.join("vendor");
@@ -997,7 +998,7 @@ fn prepare_runtime_assets(app: &AppHandle) -> Result<RuntimeAssets, String> {
             vendor_directory.join("LICENSE.codex-sdk"),
         ),
     ] {
-        let source = source_asset(app, relative)?;
+        let source = source_asset(resources, relative)?;
         std::fs::copy(source, destination).map_err(|_| {
             "The PaperCanvas Codex SDK resources could not be prepared.".to_string()
         })?;
@@ -1017,14 +1018,10 @@ fn prepare_runtime_assets(app: &AppHandle) -> Result<RuntimeAssets, String> {
     })
 }
 
-fn source_asset(app: &AppHandle, relative: &str) -> Result<PathBuf, String> {
-    let bundled = app
-        .path()
-        .resource_dir()
-        .ok()
-        .map(|directory| directory.join("sidecar").join(relative));
-    if let Some(path) = bundled.filter(|path| path.is_file()) {
-        return Ok(path);
+fn source_asset(resources: &Path, relative: &str) -> Result<PathBuf, String> {
+    let bundled = resources.join("sidecar").join(relative);
+    if bundled.is_file() {
+        return Ok(bundled);
     }
     #[cfg(debug_assertions)]
     {

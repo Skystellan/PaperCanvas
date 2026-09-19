@@ -253,6 +253,7 @@ function SettingsDialog({
 }
 
 export interface ChatPanelProps {
+  initialWebChatId?: string | null;
   currentPaper?: Paper | null;
   embedded?: boolean;
   initialSessionId?: string | null;
@@ -266,7 +267,7 @@ export interface ChatPanelProps {
 
 export function ChatPanel(props: ChatPanelProps) {
   if (props.embedded && props.currentPaper && !props.provider) {
-    return <WebChatPanel paper={props.currentPaper} />;
+    return <WebChatPanel paper={props.currentPaper} initialChatId={props.initialWebChatId} />;
   }
   return <CodexChatPanel {...props} />;
 }

@@ -1,5 +1,5 @@
-import { isTauri } from "@tauri-apps/api/core";
-import { getCurrentWindow } from "@tauri-apps/api/window";
+import { isTauri } from "../../platform/core";
+import { getCurrentWindow } from "../../platform/window";
 import {
   type ReactNode,
   useCallback,

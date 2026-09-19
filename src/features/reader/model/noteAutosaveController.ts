@@ -1,6 +1,13 @@
 export interface NoteRepository {
   load(paperId: string): Promise<string>;
   save(paperId: string, content: string): Promise<void>;
+  reveal?(paperId: string): Promise<void>;
+}
+
+export class NoteFileConflictError extends Error {
+  constructor() {
+    super("This Markdown file changed outside PaperCanvas. Copy your draft before reloading the file, then merge your changes.");
+  }
 }
 
 export interface NoteAutosaveSnapshot {
@@ -32,6 +39,7 @@ export class NoteAutosaveController {
   private saveOperation: Promise<void> | undefined;
   private loadGeneration = 0;
   private isDisposed = false;
+  private discardOnLoad = false;
 
   constructor(
     private readonly paperId: string,
@@ -48,19 +56,28 @@ export class NoteAutosaveController {
 
   isDirty = (): boolean => this.revision > this.persistedRevision;
 
-  load = async (): Promise<void> => {
+  load = async (discardDraft = false): Promise<void> => {
+    this.discardOnLoad ||= discardDraft;
     const generation = ++this.loadGeneration;
     this.updateSnapshot({ isLoading: true, loadError: null });
+    if (this.discardOnLoad) {
+      this.clearScheduledSave();
+      await this.saveOperation?.catch(() => undefined);
+    }
 
     try {
       const content = await this.repository.load(this.paperId);
       if (this.isDisposed || generation !== this.loadGeneration) return;
 
-      // A direct edit made while the load was in flight always wins.
-      if (this.revision === 0) {
+      // Preserve edits during initial loading; only an explicit reload discards them.
+      if (this.revision === 0 || this.discardOnLoad) {
+        this.revision = 0;
+        this.persistedRevision = 0;
+        this.discardOnLoad = false;
         this.snapshot = {
           ...this.snapshot,
           draft: content,
+          saveError: null,
           isLoading: false,
           loadError: null,
         };
@@ -123,7 +140,7 @@ export class NoteAutosaveController {
       }
       this.updateSnapshot({ isSaving: false, saveError: null });
     } catch (error) {
-      this.updateSnapshot({ isSaving: false, saveError: NOTE_SAVE_ERROR });
+      this.updateSnapshot({ isSaving: false, saveError: error instanceof NoteFileConflictError ? error.message : NOTE_SAVE_ERROR });
       throw error;
     }
   }

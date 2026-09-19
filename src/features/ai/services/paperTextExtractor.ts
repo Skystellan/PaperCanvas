@@ -1,4 +1,4 @@
-import { BaseDirectory, readFile } from "@tauri-apps/plugin-fs";
+import { BaseDirectory, readFile } from "../../../platform/fs";
 import type { Paper } from "../../library";
 import { isSupportedPdfPageCount } from "../../reader/model/pdfLimits";
 

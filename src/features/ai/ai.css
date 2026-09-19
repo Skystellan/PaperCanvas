@@ -31,6 +31,9 @@
 .web-chat-link-status { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
 .web-chat-browser { flex: 1; min-height: 120px; background: #fff; }
 .web-chat-browser > p { padding: 16px; font-size: 12px; color: #777268; }
+.web-chat-login-help { padding: 12px; background: #fff8e8; border-bottom: 1px solid #ded9cf; font-size: 12px; line-height: 1.5; }
+.web-chat-login-help p { margin: 6px 0; }
+.web-chat-login-help button { border: 1px solid #ded9cf; border-radius: 6px; padding: 5px 8px; background: #fffdf8; color: inherit; cursor: pointer; }
 .web-chat-footer { padding: 7px 12px; }
 
 .ai-panel__resizer {
@@ -238,6 +241,7 @@
 }
 
 .recent-discussions {
+  position: relative;
   display: flex;
   width: 270px;
   min-width: 240px;
@@ -256,14 +260,14 @@
   font-size: 14px;
 }
 
-.recent-discussions > p {
+.recent-discussions__content > p {
   margin: 18px 2px;
   color: #817a70;
   font-size: 11px;
   line-height: 1.5;
 }
 
-.recent-discussions > p[role="alert"] {
+.recent-discussions__content > p[role="alert"] {
   color: #8a3d32;
 }
 
@@ -706,3 +710,23 @@
 .paper-reader__toolbar-slot .web-chat-controls button { padding: 4px 7px; }
 .paper-reader__toolbar-slot .web-chat-form { flex-basis: 100%; }
 .web-chat-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+.recent-discussions__open { display: block; width: 100%; border: 0; padding: 0 6px; border-radius: 6px; background: transparent; text-align: left; font: inherit; cursor: pointer; }
+.recent-discussions__open:hover:not(:disabled) { background: #eee8dd; }
+.recent-discussions__open:focus-visible { outline: 2px solid #9b243d; outline-offset: 2px; }
+.recent-discussions__open:disabled { cursor: default; }
+.recent-discussions__paper { margin: 5px 0 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #81776b; font-size: 10px; }
+
+
+.recent-discussions > header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.recent-discussions > header > div { min-width: 0; }
+.recent-discussions__content { display: flex; flex: 1; flex-direction: column; min-height: 0; }
+.recent-discussions__content[hidden] { display: none; }
+.recent-discussions.is-collapsed { min-width: 36px; padding: 18px 4px; }
+.recent-discussions__toggle { flex: 0 0 26px; width: 26px; height: 26px; padding: 0; border: 1px solid #d8d6cf; border-radius: 6px; color: #756e62; background: #faf7f0; cursor: pointer; }
+.recent-discussions__toggle:hover { color: #433f38; background: #eee8dd; }
+.recent-discussions__toggle:focus-visible { outline: 2px solid #9b243d; outline-offset: 2px; }
+.recent-discussions__resizer { position: absolute; z-index: 2; top: 0; bottom: 0; left: -5px; width: 10px; cursor: col-resize; touch-action: none; user-select: none; }
+.recent-discussions__resizer::after { position: absolute; inset: 0 4px; content: ""; background: transparent; }
+.recent-discussions__resizer:hover::after, .recent-discussions__resizer:focus-visible::after { background: #9b243d; }
+.recent-discussions__resizer:focus-visible { outline: none; }

@@ -6,7 +6,7 @@ import tseslint from "typescript-eslint";
 
 export default tseslint.config(
   {
-    ignores: ["dist", "coverage", "src-tauri/target"],
+    ignores: ["dist", "release", "coverage", "src-tauri/target"],
   },
   {
     files: ["**/*.{ts,tsx}"],

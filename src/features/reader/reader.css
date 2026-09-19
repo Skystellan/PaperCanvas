@@ -703,6 +703,7 @@
 .pdf-viewer__pages--official {
   position: absolute;
   inset: 0;
+  overflow-anchor: none;
 }
 
 .pdf-viewer__pages--official .pdfViewer .page {
@@ -723,12 +724,14 @@
 }
 
 .pdf-viewer__page.is-zoom-preview,
+.pdf-viewer__pages--official .pdfViewer.is-zoom-preview,
 .pdf-viewer__pages--official .pdfViewer .page.is-zoom-preview {
   transform-origin: 0 0;
   will-change: transform;
 }
 
 .pdf-viewer__page.is-zoom-preview .pdf-viewer__text-layer,
+.pdf-viewer__pages--official .pdfViewer.is-zoom-preview .textLayer,
 .pdf-viewer__pages--official .pdfViewer .page.is-zoom-preview .textLayer {
   pointer-events: none;
   user-select: none;

@@ -18,7 +18,9 @@
 
 - `src/features/`：论文库、白板、阅读器、思维导图、AI 和保存协调逻辑。
 - `src/data/`：共享 SQLite 接口。
-- `src-tauri/src/`：原生窗口、PDF 导入、Codex runtime 和内嵌网页。
+- `electron/`：当前 Chromium 桌面窗口、内嵌网页和本地进程桥接。
+- `src/platform/`：共享前端使用的桌面能力适配。
+- `src-tauri/src/`：共享 Rust 存储、PDF 导入、Codex runtime，以及原 Tauri 桌面壳。
 - `src-tauri/migrations/`：SQLite 迁移；已有迁移保持不变，以新增迁移扩展数据结构。
 - `sidecar/`：Codex Node.js 桥接及测试。
 - `docs/`：人工验证记录，注意各记录的日期和验证边界。
@@ -54,8 +56,10 @@ cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --locked -- -D w
 cargo test --manifest-path src-tauri/Cargo.toml --all-targets --locked
 ```
 
-涉及原生窗口、PDF 交互或登录的改动，还应使用 `npm run tauri -- dev`
+涉及原生窗口、PDF 交互或登录的改动，还应使用 `npm run chromium:dev`
 进行对应的实机验证，并在 PR 中说明未验证的部分。
+`npm run chromium:test` 检查桌面边界；`npm run chromium:smoke` 使用隔离临时
+资料目录和本地网页测试窗口与 PDF，不会验证真实账号登录。
 
 不要提交登录凭据、环境密钥、私人 PDF、应用数据库或构建输出。
 保留 `sidecar/vendor/` 中的第三方许可证及归属说明。

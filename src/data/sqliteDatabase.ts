@@ -1,4 +1,4 @@
-import Database from "@tauri-apps/plugin-sql";
+import Database from "../platform/sql";
 
 export const DATABASE_URL = "sqlite:papercanvas.db";
 

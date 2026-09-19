@@ -856,7 +856,8 @@ describe("PdfViewer", () => {
         readPdfFile={vi.fn().mockResolvedValue(new Uint8Array([1]))}
       />,
     );
-    await screen.findByText("1 / 1");
+    // The page count appears before the async page canvas is ready to preview.
+    await waitFor(() => expect(pdf.page.render).toHaveBeenCalled());
     const pages = screen.getByLabelText("PDF pages");
 
     const start = new Event("gesturestart", { bubbles: true, cancelable: true });
@@ -1324,7 +1325,7 @@ describe("PdfViewer", () => {
         readPdfFile={vi.fn().mockResolvedValue(new Uint8Array([1]))}
       />,
     );
-    await screen.findByText("1 / 1");
+    await waitFor(() => expect(pdf.page.render).toHaveBeenCalled());
     const pages = screen.getByLabelText("PDF pages");
     const content = pages.querySelector<HTMLElement>(".pdf-viewer__pages-content");
     const page = screen.getByTestId("pdf-page");

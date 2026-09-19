@@ -31,7 +31,7 @@ import {
   type PdfSelectionNoteRequest,
   type PdfTextSelection,
 } from "./PdfViewer";
-import { sqliteNoteRepository } from "./data/sqliteNoteRepository";
+import { markdownNoteRepository } from "./data/markdownNoteRepository";
 import { sqliteHighlightRepository } from "./data/sqliteHighlightRepository";
 import { ReaderToolbarContext } from "./ReaderToolbarContext";
 import { ReaderSidebar } from "./ReaderSidebar";
@@ -80,6 +80,7 @@ function clampSidebarRatio(ratio: number): number {
 }
 
 export interface PaperReaderProps {
+  initialDiscussionOpen?: boolean;
   discussion?: ReactNode;
   paper: Paper;
   onBack: () => void | Promise<void>;
@@ -93,10 +94,11 @@ export interface PaperReaderProps {
 }
 
 export function PaperReader({
+  initialDiscussionOpen = false,
   discussion,
   highlightRepository = sqliteHighlightRepository,
   mindMapRepository,
-  noteRepository = sqliteNoteRepository,
+  noteRepository = markdownNoteRepository,
   onBack,
   paper,
   pdfJs,
@@ -357,6 +359,7 @@ export function PaperReader({
           />
         )}
         <ReaderSidebar
+          initialWorkspace={initialDiscussionOpen ? "discussion" : "notes"}
           discussion={discussion}
           errorMessage={highlightError}
           highlights={highlights}
@@ -379,8 +382,11 @@ export function PaperReader({
           noteDraft={note.draft}
           noteLoadError={note.loadError}
           noteSaveError={!leaveError ? note.saveError : null}
+          noteFileName={`${paper.id}.md`}
+          onReloadNote={() => void note.reload()}
+          onRevealNote={noteRepository.reveal ? () => noteRepository.reveal!(paper.id) : undefined}
           noteStatus={
-            note.isSaving ? "Saving…" : note.saveError ? "Not saved" : "Saved locally"
+            note.isLoading ? "Loading…" : note.isSaving ? "Saving…" : note.saveError ? "Not saved" : note.hasUnsavedChanges ? "Unsaved changes" : "Saved locally"
           }
           onDeleteHighlight={(highlight: PdfHighlight) => {
             void executeArtifactMutation(

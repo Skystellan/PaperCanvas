@@ -14,6 +14,8 @@ const paper: Paper = {
   domainId: null,
 };
 
+const catalog = vi.hoisted(() => ({ getById: vi.fn() }));
+
 const persistence = vi.hoisted(() => ({
   flushPending: vi.fn(),
   trackOperation: vi.fn(),
@@ -30,6 +32,7 @@ vi.mock("./features/persistence", () => ({
 }));
 
 vi.mock("./features/library", () => ({
+  SqlitePaperRepository: class { getById = catalog.getById; },
   PaperLibrary: ({
     beforePaperDelete,
     beforeOrganizationChange,
@@ -139,13 +142,15 @@ vi.mock("./features/reader", () => ({
   PaperReader: ({
     discussion,
     paper: activePaper,
+    initialDiscussionOpen,
     onBack,
   }: {
     discussion?: ReactNode;
+    initialDiscussionOpen?: boolean;
     paper: Paper;
     onBack: () => void;
   }) => (
-    <section aria-label={`Reading ${activePaper.title}`}>
+    <section aria-label={`Reading ${activePaper.title}`} data-discussion-open={initialDiscussionOpen}>
       <button type="button" onClick={onBack}>
         Back to canvas
       </button>
@@ -159,12 +164,14 @@ vi.mock("./features/ai", () => ({
     currentPaper,
     embedded,
     initialSessionId,
+    initialWebChatId,
     onActiveSessionChange,
     paperCatalogChange,
   }: {
     currentPaper?: Paper | null;
     embedded?: boolean;
     initialSessionId?: string | null;
+    initialWebChatId?: string | null;
     onActiveSessionChange?: (sessionId: string) => void;
     paperCatalogChange?: { kind: string; revision: number } | null;
   }) => (
@@ -176,6 +183,7 @@ vi.mock("./features/ai", () => ({
       <output aria-label="Discussion layout">
         {embedded ? "embedded" : "rail"}
       </output>
+      <output aria-label="Requested web discussion">{initialWebChatId ?? "none"}</output>
       <output aria-label="Initial discussion">
         {initialSessionId ?? "none"}
       </output>
@@ -192,14 +200,17 @@ vi.mock("./features/ai", () => ({
       </output>
     </aside>
   ),
-  RecentDiscussions: () => (
-    <aside aria-label="Recent discussions">Recent local discussions</aside>
+  RecentDiscussions: ({ onOpenDiscussion }: { onOpenDiscussion: (chat: { id: string; paperId: string }) => Promise<void> }) => (
+    <aside aria-label="Recent discussions">Recent local discussions
+      <button type="button" onClick={() => void onOpenDiscussion({ id: "web-chat-older", paperId: paper.id })}>Continue recent discussion</button>
+    </aside>
   ),
 }));
 
 import App from "./App";
 
 beforeEach(() => {
+  catalog.getById.mockReset().mockResolvedValue(paper);
   persistence.flushPending.mockReset().mockResolvedValue(undefined);
   persistence.trackOperation
     .mockReset()
@@ -379,4 +390,18 @@ it("keeps the canvas mounted when pre-reader persistence fails", async () => {
   expect(screen.getByRole("alert")).toHaveTextContent(
     "Could not save the canvas before opening the reader",
   );
+});
+
+
+it("opens a recent web chat in its paper and resets that target on normal paper navigation", async () => {
+  const user = userEvent.setup();
+  render(<App />);
+  await user.click(screen.getByRole("button", { name: "Continue recent discussion" }));
+  expect(catalog.getById).toHaveBeenCalledWith(paper.id);
+  expect(screen.getByLabelText("Requested web discussion")).toHaveTextContent("web-chat-older");
+  expect(screen.getByLabelText(`Reading ${paper.title}`)).toHaveAttribute("data-discussion-open", "true");
+  await user.click(screen.getByRole("button", { name: "Back to canvas" }));
+  await user.dblClick(screen.getByRole("button", { name: "Imported research paper" }));
+  expect(screen.getByLabelText("Requested web discussion")).toHaveTextContent("none");
+  expect(screen.getByLabelText(`Reading ${paper.title}`)).toHaveAttribute("data-discussion-open", "false");
 });

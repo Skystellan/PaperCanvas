@@ -8,7 +8,7 @@ use tauri::{
 use tokio::sync::Mutex;
 
 #[derive(Default)]
-pub struct WebChatState(pub Mutex<()>);
+pub struct WebChatState(pub Mutex<Option<String>>);
 
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -70,13 +70,16 @@ fn row(row: &rusqlite::Row<'_>) -> rusqlite::Result<PaperWebChat> {
 }
 
 fn get(app: &AppHandle, id: &str) -> Result<PaperWebChat, String> {
-    connection(app)?
-        .query_row(
-            "SELECT id, paper_id, title, url, last_opened_at FROM paper_web_chats WHERE id=?1",
-            [id],
-            row,
-        )
-        .map_err(|_| "找不到这条论文对话。".into())
+    get_from_db(&connection(app)?, id)
+}
+
+pub(crate) fn get_from_db(db: &Connection, id: &str) -> Result<PaperWebChat, String> {
+    db.query_row(
+        "SELECT id, paper_id, title, url, last_opened_at FROM paper_web_chats WHERE id=?1",
+        [id],
+        row,
+    )
+    .map_err(|_| "找不到这条论文对话。".into())
 }
 
 // Accept ordinary and project/GPT conversation URLs, never share links or login URLs.
@@ -106,12 +109,7 @@ fn capture(app: &AppHandle, id: &str, url: &str) -> Result<(), String> {
         return Ok(());
     };
     // Once linked, navigating ChatGPT's sidebar must not silently change this binding.
-    let changed = connection(app)?
-        .execute(
-            "UPDATE paper_web_chats SET url=?1 WHERE id=?2 AND url IS NULL",
-            params![url, id],
-        )
-        .map_err(|e| e.to_string())?;
+    let changed = capture_in_db(&connection(app)?, id, &url)?;
     if changed > 0 {
         app.emit_to("main", "paper-web-chat-updated", get(app, id)?)
             .map_err(|e| e.to_string())?;
@@ -119,13 +117,41 @@ fn capture(app: &AppHandle, id: &str, url: &str) -> Result<(), String> {
     Ok(())
 }
 
-fn update_title(db: &Connection, id: &str, url: &str, title: &str) -> rusqlite::Result<usize> {
+pub(crate) fn capture_in_db(db: &Connection, id: &str, url: &str) -> Result<usize, String> {
+    let Some(url) = conversation_url(url) else {
+        return Ok(0);
+    };
+    db.execute(
+        "UPDATE paper_web_chats SET url=?1 WHERE id=?2 AND url IS NULL",
+        params![url, id],
+    )
+    .map_err(|e| e.to_string())
+}
+
+pub(crate) fn update_title(
+    db: &Connection,
+    id: &str,
+    url: &str,
+    title: &str,
+) -> rusqlite::Result<usize> {
     let Some(url) = conversation_url(url) else {
         return Ok(0);
     };
     let title = title.trim();
     // Loading/login pages must not replace a meaningful conversation title.
-    if title.is_empty() || matches!(title, "ChatGPT" | "New chat" | "新聊天" | "新对话") {
+    if title.is_empty()
+        || matches!(
+            title,
+            "ChatGPT"
+                | "New chat"
+                | "新聊天"
+                | "新对话"
+                | "请稍候…"
+                | "请稍候..."
+                | "Just a moment..."
+                | "Just a moment…"
+        )
+    {
         return Ok(0);
     }
     let title: String = title.chars().take(100).collect();
@@ -151,7 +177,10 @@ pub async fn list_paper_web_chats(
     paper_id: String,
 ) -> Result<Vec<PaperWebChat>, String> {
     trusted(&webview)?;
-    let db = connection(&app)?;
+    list_from_db(&connection(&app)?, &paper_id)
+}
+
+pub(crate) fn list_from_db(db: &Connection, paper_id: &str) -> Result<Vec<PaperWebChat>, String> {
     let mut statement = db.prepare("SELECT id, paper_id, title, url, last_opened_at FROM paper_web_chats WHERE paper_id=?1 ORDER BY last_opened_at DESC, created_at DESC, id").map_err(|e| e.to_string())?;
     let rows = statement
         .query_map([paper_id], row)
@@ -170,6 +199,16 @@ pub async fn save_paper_web_chat(
     url: Option<String>,
 ) -> Result<PaperWebChat, String> {
     trusted(&webview)?;
+    save_in_db(&connection(&app)?, &paper_id, id, &title, url)
+}
+
+pub(crate) fn save_in_db(
+    db: &Connection,
+    paper_id: &str,
+    id: Option<String>,
+    title: &str,
+    url: Option<String>,
+) -> Result<PaperWebChat, String> {
     let title = title.trim();
     if title.is_empty() || title.chars().count() > 100 {
         return Err("讨论名称需为 1–100 个字符。".into());
@@ -179,7 +218,6 @@ pub async fn save_paper_web_chat(
             conversation_url(&value).ok_or("请粘贴 chatgpt.com 的对话链接（不是分享链接）。")
         })
         .transpose()?;
-    let db = connection(&app)?;
     let id = if let Some(id) = id {
         let changed = db
             .execute(
@@ -196,7 +234,7 @@ pub async fn save_paper_web_chat(
         db.execute("INSERT INTO paper_web_chats (id,paper_id,title,url,created_at,last_opened_at) VALUES (?1,?2,?3,?4,?5,?5)", params![id, paper_id, title, url, now()]).map_err(|e| e.to_string())?;
         id
     };
-    get(&app, &id)
+    get_from_db(db, &id)
 }
 
 #[tauri::command]
@@ -208,10 +246,13 @@ pub async fn layout_paper_web_chat(
     state: tauri::State<'_, WebChatState>,
 ) -> Result<(), String> {
     trusted(&webview)?;
-    let _lock = state.0.lock().await;
+    let mut active = state.0.lock().await;
     let chat = get(&app, &id)?;
     let label = format!("paper-chat-{}", chat.id);
     let Some(bounds) = bounds else {
+        if active.as_deref() == Some(&id) {
+            *active = None;
+        }
         if let Some(view) = app.get_webview(&label) {
             view.hide().map_err(|e| e.to_string())?;
             if let Ok(url) = view.url() {
@@ -248,8 +289,12 @@ pub async fn layout_paper_web_chat(
     };
     let position = LogicalPosition::new(origin.x + bounds.x, origin.y + bounds.y + inset);
     let size = LogicalSize::new(bounds.width, bounds.height);
-    for (key, view) in app.webviews() {
-        if key.starts_with("paper-chat-") && key != label {
+    let activating = active.as_deref() != Some(&id);
+    if activating {
+        if let Some(view) = active
+            .as_ref()
+            .and_then(|id| app.get_webview(&format!("paper-chat-{id}")))
+        {
             view.hide().map_err(|e| e.to_string())?;
         }
     }
@@ -259,7 +304,9 @@ pub async fn layout_paper_web_chat(
             size: size.into(),
         })
         .map_err(|e| e.to_string())?;
-        view.show().map_err(|e| e.to_string())?;
+        if activating {
+            view.show().map_err(|e| e.to_string())?;
+        }
     } else {
         let url = chat
             .url
@@ -299,6 +346,10 @@ pub async fn layout_paper_web_chat(
                 let Some(view) = handle.get_webview(&label) else {
                     break;
                 };
+                // Hidden chats retain drafts, but must not keep querying the UI thread.
+                if handle.state::<WebChatState>().0.lock().await.as_deref() != Some(&poll_id) {
+                    continue;
+                }
                 if let Ok(url) = view.url() {
                     let current = url.to_string();
                     if current != previous {
@@ -313,12 +364,59 @@ pub async fn layout_paper_web_chat(
             }
         });
     }
-    connection(&app)?
-        .execute(
-            "UPDATE paper_web_chats SET last_opened_at=?1 WHERE id=?2",
-            params![now(), id],
-        )
+    if activating {
+        connection(&app)?
+            .execute(
+                "UPDATE paper_web_chats SET last_opened_at=?1 WHERE id=?2",
+                params![now(), id],
+            )
+            .map_err(|e| e.to_string())?;
+        *active = Some(id);
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn open_paper_web_chat_external(
+    app: AppHandle,
+    webview: Webview,
+    id: String,
+) -> Result<(), String> {
+    trusted(&webview)?;
+    let chat = get(&app, &id)?;
+    let url = chat
+        .url
+        .as_deref()
+        .and_then(conversation_url)
+        .unwrap_or_else(|| "https://chatgpt.com/".into());
+    #[cfg(target_os = "macos")]
+    let opener = "open";
+    #[cfg(target_os = "windows")]
+    let opener = "explorer";
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    let opener = "xdg-open";
+    let status = std::process::Command::new(opener)
+        .arg(url)
+        .status()
         .map_err(|e| e.to_string())?;
+    if status.success() {
+        Ok(())
+    } else {
+        Err("Could not open the conversation in your browser.".into())
+    }
+}
+
+#[tauri::command]
+pub async fn reload_paper_web_chat(
+    app: AppHandle,
+    webview: Webview,
+    id: String,
+) -> Result<(), String> {
+    trusted(&webview)?;
+    let chat = get(&app, &id)?;
+    if let Some(view) = app.get_webview(&format!("paper-chat-{}", chat.id)) {
+        view.reload().map_err(|e| e.to_string())?;
+    }
     Ok(())
 }
 
@@ -365,6 +463,9 @@ mod tests {
             1
         );
         assert_eq!(update_title(&db, "chat", url, "ChatGPT").unwrap(), 0);
+        for title in ["请稍候…", "请稍候...", "Just a moment...", "Just a moment…"] {
+            assert_eq!(update_title(&db, "chat", url, title).unwrap(), 0);
+        }
         assert_eq!(
             update_title(&db, "chat", "https://chatgpt.com/", "登录").unwrap(),
             0

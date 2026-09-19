@@ -42,6 +42,7 @@ function renderSidebar() {
       onSelectHighlight={onSelectHighlight}
     />,
   );
+  fireEvent.click(screen.getByRole("button", { name: "Source" }));
   return { onDeleteHighlight, onSelectHighlight };
 }
 

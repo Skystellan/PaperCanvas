@@ -10,7 +10,7 @@ export default defineConfig(async () => ({
 
   test: {
     environment: "jsdom",
-    exclude: ["sidecar/tests/**", "node_modules/**", "dist/**"],
+    exclude: ["sidecar/tests/**", "electron/**", "release/**", "node_modules/**", "dist/**"],
     setupFiles: ["./src/test/setup.ts"],
     coverage: {
       provider: "v8",

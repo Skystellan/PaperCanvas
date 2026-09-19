@@ -1,5 +1,10 @@
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import "./pdfJsCompatibility";
+import {
+  capturePdfZoomPreviewPages,
+  clearPdfZoomPreviewPages,
+  type PdfZoomPreviewPage,
+} from "./pdfZoomPreview";
 
 export const PDF_MIN_ZOOM = 0.1;
 export const PDF_MAX_ZOOM = 10;
@@ -225,8 +230,152 @@ export async function createPdfViewerRuntime({
   const touchAccumulator: FactorAccumulator = { unusedFactor: 1 };
   let webkitGesture: WebKitGestureState | null = null;
   let touchManager: TouchManagerLike | null = null;
+  let zoomFrameId: number | null = null;
+  let zoomCommitId: ReturnType<typeof setTimeout> | null = null;
+  let pendingZoom: {
+    zoom: number;
+    previewZoom: number;
+    origin?: [number, number];
+    drawingDelay: number;
+    layers: PdfZoomPreviewPage[];
+    anchor?: { element: HTMLDivElement; x: number; y: number };
+    point: [number, number];
+    translation: [number, number];
+    scrollLeft: number;
+    scrollTop: number;
+  } | null = null;
 
-  const currentZoom = () => clampPdfZoom(pdfViewer.currentScale);
+  const currentZoom = () =>
+    clampPdfZoom(pendingZoom?.zoom ?? pdfViewer.currentScale);
+
+  const cancelPendingZoom = () => {
+    if (zoomFrameId !== null) cancelAnimationFrame(zoomFrameId);
+    if (zoomCommitId !== null) clearTimeout(zoomCommitId);
+    zoomFrameId = null;
+    zoomCommitId = null;
+    if (pendingZoom) clearPdfZoomPreviewPages(pendingZoom.layers);
+    pendingZoom = null;
+  };
+
+  const flushPendingZoom = () => {
+    const pending = pendingZoom;
+    if (!pending || destroyed) return;
+    const targetX = pending.point[0] - (container.scrollLeft - pending.scrollLeft);
+    const targetY = pending.point[1] - (container.scrollTop - pending.scrollTop);
+    cancelPendingZoom();
+    if (pending.zoom !== pdfViewer.currentScale) {
+      // The interaction already supplied the delay. PDF.js keeps its old canvas
+      // while rendering the final scale; a second drawingDelay adds another
+      // full-document refresh and leaves the text layer hidden longer.
+      pdfViewer.updateScale({
+        drawingDelay: -1,
+        origin: pending.origin,
+        scaleFactor: pending.zoom / pdfViewer.currentScale,
+      });
+    }
+    if (pending.anchor) {
+      // Page margins and centering do not scale with PDF.js. Preserve the same
+      // page-local point, including scrolls and moving pinch origins in preview.
+      const { element, x, y } = pending.anchor;
+      const rect = element.getBoundingClientRect();
+      container.scrollLeft += rect.left + x * rect.width - targetX;
+      container.scrollTop += rect.top + y * rect.height - targetY;
+    }
+    onScaleChange?.(currentZoom());
+  };
+
+  const scheduleZoomCommit = () => {
+    if (zoomCommitId !== null) clearTimeout(zoomCommitId);
+    if (pendingZoom) {
+      zoomCommitId = setTimeout(flushPendingZoom, pendingZoom.drawingDelay);
+    }
+  };
+
+  const applyZoom = (
+    requestedZoom: number,
+    origin?: [number, number],
+    drawingDelay = PDF_ZOOM_DRAWING_DELAY_MS,
+    previewZoom?: number,
+  ) => {
+    if (destroyed || !Number.isFinite(requestedZoom)) return;
+    const nextScale =
+      Math.round(clampPdfZoom(requestedZoom) * PDF_SCALE_ROUNDING) /
+      PDF_SCALE_ROUNDING;
+    const nextPreviewScale = clampPdfZoom(previewZoom ?? nextScale);
+    if (pdfViewer.currentScale <= 0) return;
+    if (
+      nextScale === currentZoom() &&
+      nextPreviewScale === (pendingZoom?.previewZoom ?? pdfViewer.currentScale)
+    ) {
+      if (pendingZoom) pendingZoom.drawingDelay = drawingDelay;
+      scheduleZoomCommit();
+      return;
+    }
+    const bounds = container.getBoundingClientRect();
+    const clientX = bounds.left + (
+      origin ? origin[0] - container.offsetLeft : container.clientWidth / 2
+    );
+    const clientY = bounds.top + (
+      origin ? origin[1] - container.offsetTop : container.clientHeight / 2
+    );
+    if (!pendingZoom) {
+      const hitPage = globalThis.document.elementFromPoint?.(clientX, clientY)
+        ?.closest<HTMLDivElement>(".page");
+      const anchorElement = hitPage && viewer.contains(hitPage)
+        ? hitPage
+        : pdfViewer.getPageView(pdfViewer.currentPageNumber - 1)?.div;
+      const rect = anchorElement?.getBoundingClientRect();
+      pendingZoom = {
+        zoom: pdfViewer.currentScale,
+        previewZoom: pdfViewer.currentScale,
+        drawingDelay,
+        layers: capturePdfZoomPreviewPages([viewer]),
+        anchor: anchorElement && rect && rect.width > 0 && rect.height > 0
+          ? {
+            element: anchorElement,
+            x: (clientX - rect.left) / rect.width,
+            y: (clientY - rect.top) / rect.height,
+          }
+          : undefined,
+        point: [clientX, clientY],
+        translation: [0, 0],
+        scrollLeft: container.scrollLeft,
+        scrollTop: container.scrollTop,
+      };
+    }
+    const pending = pendingZoom;
+    const factor = nextPreviewScale / pending.previewZoom;
+    const dx = container.scrollLeft - pending.scrollLeft;
+    const dy = container.scrollTop - pending.scrollTop;
+    const layer = pending.layers[0];
+    if (layer) {
+      pending.translation[0] = factor * pending.translation[0] +
+        (1 - factor) * (clientX - layer.left + dx);
+      pending.translation[1] = factor * pending.translation[1] +
+        (1 - factor) * (clientY - layer.top + dy);
+    }
+    pending.point[0] = factor * pending.point[0] + (1 - factor) * (clientX + dx);
+    pending.point[1] = factor * pending.point[1] + (1 - factor) * (clientY + dy);
+    pending.zoom = nextScale;
+    pending.previewZoom = nextPreviewScale;
+    pending.origin = origin;
+    pending.drawingDelay = drawingDelay;
+    // Transform one existing layer, including canvas, highlights and text. No
+    // PDF.js page updates, layout measurements or page scans in the RAF path.
+    if (zoomFrameId === null) {
+      zoomFrameId = requestAnimationFrame(() => {
+        if (destroyed || pendingZoom !== pending) return;
+        zoomFrameId = null;
+        if (pending.layers.length) {
+          const [x, y] = pending.translation;
+          viewer.style.transform = `translate3d(${x}px, ${y}px, 0) scale(${pending.previewZoom / pdfViewer.currentScale})`;
+        }
+        onScaleChange?.(pending.zoom);
+        if (pending.drawingDelay <= 0) flushPendingZoom();
+      });
+    }
+    if (drawingDelay > 0) scheduleZoomCommit();
+  };
 
   const applyScaleFactor = (
     rawFactor: number,
@@ -234,54 +383,26 @@ export async function createPdfViewerRuntime({
     accumulator: FactorAccumulator,
   ) => {
     if (destroyed) return;
+    const previousScale = currentZoom();
     const scaleFactor = accumulatePdfScaleFactor(
-      pdfViewer.currentScale,
+      previousScale,
       rawFactor,
       accumulator,
     );
-    if (scaleFactor === 1 || !Number.isFinite(scaleFactor)) return;
-    pdfViewer.updateScale({
-      drawingDelay: PDF_ZOOM_DRAWING_DELAY_MS,
+    if (!Number.isFinite(scaleFactor)) return;
+    // Keep the rounding remainder in the visual transform so small pinch
+    // deltas move continuously, even while the reported PDF.js scale is 1.00.
+    applyZoom(
+      previousScale * scaleFactor,
       origin,
-      scaleFactor,
-    });
-  };
-
-  const applyZoom = (
-    requestedZoom: number,
-    origin?: [number, number],
-    drawingDelay = PDF_ZOOM_DRAWING_DELAY_MS,
-  ) => {
-    if (destroyed || !Number.isFinite(requestedZoom)) return;
-    const previousScale = pdfViewer.currentScale;
-    const nextScale = clampPdfZoom(requestedZoom);
-    if (previousScale <= 0 || nextScale === previousScale) return;
-    pdfViewer.updateScale({
-      drawingDelay,
-      origin,
-      scaleFactor: nextScale / previousScale,
-    });
+      PDF_ZOOM_DRAWING_DELAY_MS,
+      previousScale * scaleFactor * accumulator.unusedFactor,
+    );
   };
 
   const applyZoomSteps = (steps: number, origin?: [number, number]) => {
     if (destroyed || !Number.isInteger(steps) || steps === 0) return;
-    const previousScale = pdfViewer.currentScale;
-    const steppedScale = calculatePdfStepScale(previousScale, steps);
-    const nextScale = clampPdfZoom(steppedScale);
-    if (previousScale <= 0 || nextScale === previousScale) return;
-    if (nextScale !== steppedScale) {
-      pdfViewer.updateScale({
-        drawingDelay: PDF_ZOOM_DRAWING_DELAY_MS,
-        origin,
-        scaleFactor: nextScale / previousScale,
-      });
-      return;
-    }
-    pdfViewer.updateScale({
-      drawingDelay: PDF_ZOOM_DRAWING_DELAY_MS,
-      origin,
-      steps,
-    });
+    applyZoom(calculatePdfStepScale(currentZoom(), steps), origin);
   };
 
   const accumulateWheelTicks = (ticks: number) => {
@@ -303,6 +424,7 @@ export async function createPdfViewerRuntime({
       if (webkitGesture !== gesture) return;
       gesture.watchdogId = null;
       webkitGesture = null;
+      flushPendingZoom();
     }, WEBKIT_GESTURE_WATCHDOG_MS);
   };
 
@@ -317,6 +439,7 @@ export async function createPdfViewerRuntime({
   const destroyRuntime = () => {
     if (destroyed) return;
     destroyed = true;
+    cancelPendingZoom();
     clearWebKitGesture();
     touchManager?.destroy();
     touchManager = null;
@@ -327,13 +450,15 @@ export async function createPdfViewerRuntime({
   abortSignal?.addEventListener("abort", destroyRuntime, { once: true });
 
   const handleControlKeyDown = (event: KeyboardEvent) => {
-    isPhysicalControlKeyDown = event.key === "Control";
+    if (event.key === "Control") isPhysicalControlKeyDown = true;
   };
   const handleControlKeyUp = (event: KeyboardEvent) => {
     if (event.key === "Control") isPhysicalControlKeyDown = false;
   };
   const handleWindowBlur = () => {
     isPhysicalControlKeyDown = false;
+    clearWebKitGesture();
+    flushPendingZoom();
   };
 
   const handleWheel = (event: WheelEvent) => {
@@ -348,13 +473,14 @@ export async function createPdfViewerRuntime({
     const origin = eventOrigin(container, event.clientX, event.clientY);
     const deltaMode = event.deltaMode;
     const rawPinchFactor = Math.exp(-event.deltaY / 100);
+    // Chromium's synthetic Ctrl wheel remains a pinch at high velocity too.
+    // A magnitude cutoff turns fast pinches into stalled, discrete wheel ticks.
     const isTrackpadPinch =
       event.ctrlKey &&
       !isPhysicalControlKeyDown &&
       deltaMode === WheelEvent.DOM_DELTA_PIXEL &&
       event.deltaX === 0 &&
-      event.deltaZ === 0 &&
-      Math.abs(rawPinchFactor - 1) < 0.05;
+      event.deltaZ === 0;
 
     if (isTrackpadPinch) {
       applyScaleFactor(rawPinchFactor, origin, wheelAccumulator);
@@ -416,6 +542,7 @@ export async function createPdfViewerRuntime({
     event.preventDefault();
     if (!webkitGesture) return;
     clearWebKitGesture();
+    flushPendingZoom();
     ignoreWheelUntil = performance.now() + WEBKIT_DUPLICATE_WINDOW_MS;
   };
 
@@ -423,6 +550,7 @@ export async function createPdfViewerRuntime({
     event.preventDefault();
     if (!webkitGesture) return;
     clearWebKitGesture();
+    flushPendingZoom();
     ignoreWheelUntil = performance.now() + WEBKIT_DUPLICATE_WINDOW_MS;
   };
 
@@ -477,6 +605,7 @@ export async function createPdfViewerRuntime({
   touchManager = new pdfjsLib.TouchManager({
     container,
     onPinchEnd: () => {
+      flushPendingZoom();
       touchAccumulator.unusedFactor = 1;
     },
     onPinching: (origin, previousDistance, distance) => {
@@ -532,6 +661,7 @@ export async function createPdfViewerRuntime({
     },
     setPage(pageNumber) {
       if (destroyed || !Number.isFinite(pageNumber)) return;
+      flushPendingZoom();
       pdfViewer.currentPageNumber = Math.min(
         pdfViewer.pagesCount,
         Math.max(1, Math.trunc(pageNumber)),
