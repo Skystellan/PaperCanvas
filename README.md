@@ -1,5 +1,7 @@
 # PaperCanvas
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 PaperCanvas is a minimal, local-first desktop workspace for arranging, reading,
 annotating, and discussing research papers. PDFs and product data stay in
 app-owned local storage. The current macOS desktop uses Chromium through Electron.
@@ -136,6 +138,11 @@ npm run chromium:dev
 
 Bug reports and focused pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md)
 for development setup, the project structure, and checks to run before submitting changes.
+
+## License
+
+PaperCanvas is licensed under the [MIT License](LICENSE).
+Third-party dependencies retain their respective licenses.
 
 ## Quality checks
 
