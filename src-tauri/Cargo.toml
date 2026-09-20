@@ -26,12 +26,9 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 rusqlite = { version = "0.31", features = ["bundled"] }
 uuid = { version = "1", features = ["v4"] }
-tokio = { version = "1", features = ["io-util", "macros", "process", "sync", "time", "rt-multi-thread"] }
+tokio = { version = "1", features = ["macros", "sync", "time", "rt-multi-thread"] }
 
 sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "sqlite", "migrate"] }
-
-[target.'cfg(unix)'.dependencies]
-libc = "0.2"
 
 
 [[bin]]

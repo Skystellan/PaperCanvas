@@ -1,4 +1,5 @@
 import type { PDFDocumentProxy } from "pdfjs-dist";
+import type { PdfReadingLocation } from "./model/readerState";
 import "./pdfJsCompatibility";
 import {
   capturePdfZoomPreviewPages,
@@ -57,7 +58,7 @@ export interface PdfViewerRuntime {
   readonly currentZoom: number;
   readonly pagesCount: number;
   destroy(): void;
-  setPage(pageNumber: number): void;
+  setPage(pageNumber: number, offset?: number): void;
   stepZoom(direction: -1 | 1): void;
   zoomTo(
     zoom: number,
@@ -70,6 +71,8 @@ export interface CreatePdfViewerRuntimeOptions {
   abortSignal?: AbortSignal;
   container: HTMLDivElement;
   document: PDFDocumentProxy;
+  initialLocation?: PdfReadingLocation;
+  onLocationChange?: (location: PdfReadingLocation) => void;
   onInteraction?: () => void;
   onPageChange?: (pageNumber: number) => void;
   onPageRendered?: (pageNumber: number) => void;
@@ -169,6 +172,8 @@ export async function createPdfViewerRuntime({
   abortSignal,
   container,
   document,
+  initialLocation,
+  onLocationChange,
   onInteraction,
   onPageChange,
   onPageRendered,
@@ -222,6 +227,11 @@ export async function createPdfViewerRuntime({
   } as ConstructorParameters<typeof PDFViewer>[0]);
 
   let destroyed = false;
+  let locationReady = false;
+  let closingZoom: number | undefined;
+  let locationTimer: ReturnType<typeof setTimeout> | null = null;
+  let locationPage = initialLocation?.pageNumber ?? 1;
+  let navigationSequence = 0;
   let isPhysicalControlKeyDown = false;
   let lastWheelTime = Number.NEGATIVE_INFINITY;
   let ignoreWheelUntil = Number.NEGATIVE_INFINITY;
@@ -247,6 +257,44 @@ export async function createPdfViewerRuntime({
 
   const currentZoom = () =>
     clampPdfZoom(pendingZoom?.zoom ?? pdfViewer.currentScale);
+
+  const reportLocation = () => {
+    if (locationTimer !== null) clearTimeout(locationTimer);
+    locationTimer = null;
+    if (destroyed || !locationReady || !onLocationChange || pendingZoom) return;
+    const bounds = pdfViewer.getPageView(locationPage - 1)?.div.getBoundingClientRect();
+    if (!bounds || bounds.height <= 0) return;
+    onLocationChange({
+      pageNumber: locationPage,
+      offset: Math.min(1, Math.max(0, (container.getBoundingClientRect().top - bounds.top) / bounds.height)),
+      zoom: closingZoom ?? currentZoom(),
+    });
+  };
+  const scheduleLocation = () => {
+    if (destroyed || !locationReady || !onLocationChange) return;
+    if (locationTimer !== null) clearTimeout(locationTimer);
+    locationTimer = setTimeout(reportLocation, 150);
+  };
+
+  const navigate = async (pageNumber: number, offset?: number) => {
+    const sequence = ++navigationSequence;
+    const page = Math.min(pdfViewer.pagesCount, Math.max(1, Math.trunc(pageNumber)));
+    const pageView = pdfViewer.getPageView(page - 1);
+    // Only fetch the destination. pagesPromise can await every page in a large PDF.
+    if (offset !== undefined && pageView && !pageView.pdfPage) {
+      const pdfPage = await document.getPage(page);
+      if (destroyed || sequence !== navigationSequence) return;
+      if (!pageView.pdfPage) pageView.setPdfPage(pdfPage);
+    }
+    if (destroyed || sequence !== navigationSequence) return;
+    pdfViewer.currentPageNumber = page;
+    locationPage = page;
+    if (offset !== undefined && pageView) {
+      const bounds = pageView.div.getBoundingClientRect();
+      container.scrollTop += bounds.top - container.getBoundingClientRect().top + bounds.height * offset;
+    }
+    if (locationReady) onLocationChange?.({ pageNumber: page, offset: offset ?? 0, zoom: currentZoom() });
+  };
 
   const cancelPendingZoom = () => {
     if (zoomFrameId !== null) cancelAnimationFrame(zoomFrameId);
@@ -438,6 +486,9 @@ export async function createPdfViewerRuntime({
 
   const destroyRuntime = () => {
     if (destroyed) return;
+    closingZoom = currentZoom();
+    cancelPendingZoom();
+    reportLocation();
     destroyed = true;
     cancelPendingZoom();
     clearWebKitGesture();
@@ -555,6 +606,17 @@ export async function createPdfViewerRuntime({
   };
 
   eventBus.on(
+    "updateviewarea",
+    () => {
+      if (!locationReady) return;
+      // PDF.js location.pageNumber is the first partly visible page, which can
+      // differ from its current page (notably at the bottom of the document).
+      locationPage = pdfViewer.currentPageNumber;
+      scheduleLocation();
+    },
+    { signal },
+  );
+  eventBus.on(
     "pagechanging",
     ({ pageNumber }: { pageNumber: number }) => onPageChange?.(pageNumber),
     { signal },
@@ -572,7 +634,7 @@ export async function createPdfViewerRuntime({
   eventBus.on(
     "pagesinit",
     () => {
-      if (!destroyed) pdfViewer.currentScale = 1;
+      if (!destroyed) pdfViewer.currentScale = initialLocation?.zoom ?? 1;
     },
     { signal },
   );
@@ -601,6 +663,7 @@ export async function createPdfViewerRuntime({
   });
   globalThis.document.addEventListener("keyup", handleControlKeyUp, { signal });
   globalThis.window.addEventListener("blur", handleWindowBlur, { signal });
+  globalThis.window.addEventListener("pagehide", reportLocation, { signal });
 
   touchManager = new pdfjsLib.TouchManager({
     container,
@@ -630,7 +693,7 @@ export async function createPdfViewerRuntime({
       if (signal.aborted) rejectAbort();
       else signal.addEventListener("abort", rejectAbort, { once: true });
     });
-    const documentReady = pdfViewer.pagesPromise ?? pdfViewer.firstPagePromise;
+    const documentReady = pdfViewer.firstPagePromise;
     if (!documentReady) {
       throw new Error("PDF.js did not expose a document readiness promise.");
     }
@@ -638,7 +701,9 @@ export async function createPdfViewerRuntime({
     if (destroyed) {
       throw new Error("The PDF viewer runtime was destroyed while loading.");
     }
-    pdfViewer.currentScale = 1;
+    pdfViewer.currentScale = initialLocation?.zoom ?? 1;
+    if (initialLocation) await Promise.race([navigate(initialLocation.pageNumber, initialLocation.offset), runtimeAborted]);
+    locationReady = true;
     onPageChange?.(pdfViewer.currentPageNumber);
     onScaleChange?.(currentZoom());
   } catch (error) {
@@ -659,13 +724,10 @@ export async function createPdfViewerRuntime({
     get pagesCount() {
       return pdfViewer.pagesCount;
     },
-    setPage(pageNumber) {
+    setPage(pageNumber, offset) {
       if (destroyed || !Number.isFinite(pageNumber)) return;
       flushPendingZoom();
-      pdfViewer.currentPageNumber = Math.min(
-        pdfViewer.pagesCount,
-        Math.max(1, Math.trunc(pageNumber)),
-      );
+      void navigate(pageNumber, offset).then(scheduleLocation).catch(() => undefined);
     },
     stepZoom(direction) {
       if (destroyed) return;

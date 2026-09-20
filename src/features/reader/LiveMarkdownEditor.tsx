@@ -1,3 +1,4 @@
+import { parseNoteCitation, type NoteCitation } from "./model/noteCitation";
 import { useEffect, useImperativeHandle, useLayoutEffect, useRef, type Ref } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import ReactMarkdown from "react-markdown";
@@ -13,7 +14,9 @@ const widgetRoots = new WeakMap<HTMLElement, Root>();
 
 function RenderedBlock({ source, view }: { source: string; view: EditorView }) {
   useLayoutEffect(() => { view.requestMeasure(); }, [source, view]);
-  return <ReactMarkdown remarkPlugins={[remarkGfm]}>{source}</ReactMarkdown>;
+  return <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ a: ({ children, href, ...props }) =>
+    <a {...props} href={href} target={parseNoteCitation(href ?? "") ? undefined : "_blank"} rel="noreferrer">{children}</a>,
+  }}>{source}</ReactMarkdown>;
 }
 
 class MarkdownBlock extends WidgetType {
@@ -24,7 +27,7 @@ class MarkdownBlock extends WidgetType {
     dom.className = "markdown-note__preview markdown-note__inline-block";
     dom.title = "Click to edit Markdown";
     dom.addEventListener("mousedown", (event) => {
-      if (event.button !== 0 || view.state.readOnly) return;
+      if (event.button !== 0 || view.state.readOnly || (event.target as Element).closest("a")) return;
       event.preventDefault();
       // A widget is a view of the source, never a second editable document.
       view.focus();
@@ -34,7 +37,7 @@ class MarkdownBlock extends WidgetType {
         scrollIntoView: true,
       });
     });
-    dom.addEventListener("click", (event) => event.preventDefault());
+
     const root = createRoot(dom);
     widgetRoots.set(dom, root);
     root.render(<RenderedBlock source={this.source} view={view} />);
@@ -101,10 +104,11 @@ interface Props {
   onChange: (value: string) => void;
   disabled: boolean;
   visible: boolean;
+  onCitation?: (citation: NoteCitation) => void;
   ref?: Ref<LiveMarkdownHandle>;
 }
 
-export function LiveMarkdownEditor({ value, onChange, disabled, visible, ref }: Props) {
+export function LiveMarkdownEditor({ value, onChange, disabled, visible, ref, onCitation }: Props) {
   const host = useRef<HTMLDivElement>(null);
   const editor = useRef<EditorView | null>(null);
   const latest = useRef({ value, onChange, disabled });
@@ -161,5 +165,9 @@ export function LiveMarkdownEditor({ value, onChange, disabled, visible, ref }: 
   }, [disabled]);
   useEffect(() => { if (visible) editor.current?.requestMeasure(); }, [visible]);
 
-  return <div className="markdown-note__live" ref={host} hidden={!visible} />;
+  return <div className="markdown-note__live" ref={host} hidden={!visible} onClick={(event) => {
+    const link = (event.target as Element).closest("a");
+    const citation = parseNoteCitation(link?.getAttribute("href") ?? "");
+    if (citation && onCitation) { event.preventDefault(); onCitation(citation); }
+  }} />;
 }

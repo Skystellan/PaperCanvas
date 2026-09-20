@@ -8,10 +8,6 @@ import {
   type CSSProperties,
   type ReactNode,
 } from "react";
-import { sqliteAiRepository } from "../ai/data/sqliteAiRepository";
-import { CodexResearchService } from "../ai/services/codexResearchService";
-import { localCodexProvider } from "../ai/services/localCodexProvider";
-import { PaperTextService } from "../ai/services/paperTextService";
 import type { Paper } from "../library/model/paper";
 import {
   usePersistenceCoordinator,
@@ -19,9 +15,7 @@ import {
 } from "../persistence";
 import {
   PaperMindMap,
-  type GenerateMindMap,
   type MindMapRepository,
-  type MindMapTree,
 } from "../mindmap";
 import {
   PdfViewer,
@@ -29,7 +23,6 @@ import {
   type PdfJsAdapter,
   type PdfSelectionActions,
   type PdfSelectionNoteRequest,
-  type PdfTextSelection,
 } from "./PdfViewer";
 import { markdownNoteRepository } from "./data/markdownNoteRepository";
 import { sqliteHighlightRepository } from "./data/sqliteHighlightRepository";
@@ -44,28 +37,8 @@ import { useAutosavingNote } from "./useAutosavingNote";
 import { usePdfHighlights } from "./usePdfHighlights";
 import "./reader.css";
 
-export interface ReaderResearchService {
-  askSelection(
-    selection: PdfTextSelection,
-    question?: string,
-    signal?: AbortSignal,
-  ): Promise<string>;
-  generateMindMap(request: {
-    paper: Paper;
-    prompt: string;
-    signal: AbortSignal;
-  }): Promise<MindMapTree>;
-  translateSelection(
-    selection: PdfTextSelection,
-    signal?: AbortSignal,
-  ): Promise<string>;
-}
-
-const defaultResearchService: ReaderResearchService = new CodexResearchService(
-  sqliteAiRepository,
-  localCodexProvider,
-  new PaperTextService(sqliteAiRepository),
-);
+import { loadReaderState, saveReaderState, type PdfReadingLocation, type ReaderWorkspace } from "./model/readerState";
+import { highlightMarkdown, type NoteCitation } from "./model/noteCitation";
 
 const DEFAULT_SIDEBAR_RATIO = 34;
 const MIN_SIDEBAR_RATIO = 24;
@@ -88,12 +61,14 @@ export interface PaperReaderProps {
   mindMapRepository?: MindMapRepository;
   noteRepository?: NoteRepository;
   pdfJs?: PdfJsAdapter;
-  pdfSelectionActions?: Pick<PdfSelectionActions, "askAi" | "translate">;
   readPdfFile?: PdfFileReader;
-  researchService?: ReaderResearchService | null;
 }
 
-export function PaperReader({
+export function PaperReader(props: PaperReaderProps) {
+  return <PaperReaderSession key={props.paper.id} {...props} />;
+}
+
+function PaperReaderSession({
   initialDiscussionOpen = false,
   discussion,
   highlightRepository = sqliteHighlightRepository,
@@ -102,9 +77,7 @@ export function PaperReader({
   onBack,
   paper,
   pdfJs,
-  pdfSelectionActions,
   readPdfFile,
-  researchService = defaultResearchService,
 }: PaperReaderProps) {
   const { flushPending } = usePersistenceCoordinator();
   const note = useAutosavingNote(paper.id, noteRepository);
@@ -119,8 +92,27 @@ export function PaperReader({
   const [leaveError, setLeaveError] = useState(false);
   const [workspaceToolbar, setWorkspaceToolbar] = useState<HTMLDivElement | null>(null);
   const [chatToolbar, setChatToolbar] = useState<HTMLDivElement | null>(null);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [sidebarRatio, setSidebarRatio] = useState(DEFAULT_SIDEBAR_RATIO);
+  const [savedState] = useState(() => loadReaderState(paper.id));
+  const [isSidebarOpen, updateSidebarOpen] = useState(initialDiscussionOpen || (savedState.sidebarOpen ?? true));
+  const [sidebarRatio, updateSidebarRatio] = useState(savedState.sidebarRatio ?? DEFAULT_SIDEBAR_RATIO);
+  const [workspace, updateWorkspace] = useState<ReaderWorkspace>(initialDiscussionOpen && discussion ? "discussion" : savedState.workspace === "discussion" && !discussion ? "notes" : savedState.workspace ?? "notes");
+  const setIsSidebarOpen = (value: boolean | ((previous: boolean) => boolean)) => {
+    const next = typeof value === "function" ? value(isSidebarOpen) : value;
+    updateSidebarOpen(next); saveReaderState(paper.id, { sidebarOpen: next });
+  };
+  const setSidebarRatio = useCallback((value: number | ((previous: number) => number)) => {
+    updateSidebarRatio((previous) => {
+      const next = typeof value === "function" ? value(previous) : value;
+      saveReaderState(paper.id, { sidebarRatio: next }); return next;
+    });
+  }, [paper.id]);
+  const setWorkspace = (next: ReaderWorkspace) => {
+    updateWorkspace(next); saveReaderState(paper.id, { workspace: next });
+  };
+  const saveLocation = useCallback((location: PdfReadingLocation) => {
+    saveReaderState(paper.id, { location });
+  }, [paper.id]);
+  const [citationTarget, setCitationTarget] = useState<NoteCitation | null>(null);
   const [selectedHighlightId, setSelectedHighlightId] = useState<string | null>(
     null,
   );
@@ -219,7 +211,7 @@ export function PaperReader({
       window.addEventListener("pointerup", cleanup);
       window.addEventListener("pointercancel", cleanup);
     },
-    [],
+    [setSidebarRatio],
   );
 
   const saveSelectionNote = useCallback(
@@ -231,36 +223,25 @@ export function PaperReader({
     },
     [executeArtifactMutation, saveHighlight],
   );
-  const researchSelectionActions = useMemo<
-    Pick<PdfSelectionActions, "askAi" | "translate">
-  >(
-    () =>
-      researchService
-        ? {
-            askAi: ({ question, selection, signal }) =>
-              researchService.askSelection(selection, question, signal),
-            translate: (selection, signal) =>
-              researchService.translateSelection(selection, signal),
-          }
-        : {},
-    [researchService],
-  );
-  const selectionActions = useMemo<PdfSelectionActions>(
-    () => ({
-      ...researchSelectionActions,
-      ...pdfSelectionActions,
-      saveNote: saveSelectionNote,
-    }),
-    [pdfSelectionActions, researchSelectionActions, saveSelectionNote],
-  );
-  const generateMindMap = useMemo<GenerateMindMap | undefined>(
-    () =>
-      researchService
-        ? ({ prompt, signal }) =>
-            researchService.generateMindMap({ paper, prompt, signal })
-        : undefined,
-    [paper, researchService],
-  );
+  const addHighlightToNotes = (highlight: PdfHighlight) => {
+    if (note.isLoading || note.loadError || isLeaving) return;
+    note.append(highlightMarkdown(highlight, paper.title));
+    setIsSidebarOpen(true);
+    setWorkspace("notes");
+  };
+  const selectionActions: PdfSelectionActions = {
+    saveNote: saveSelectionNote,
+    ...(!note.isLoading && !note.loadError && !isLeaving ? {
+      addToNotes: async (request: PdfSelectionNoteRequest) => {
+        await executeArtifactMutation("save-highlight", async () => {
+          const highlight = await saveHighlight(request);
+          setSelectedHighlightId(highlight.id);
+          addHighlightToNotes(highlight);
+        });
+      },
+    } : {}),
+  };
+
 
   return (
     <ReaderToolbarContext.Provider value={{ workspace: workspaceToolbar, chat: chatToolbar, visible: isSidebarOpen }}>
@@ -276,10 +257,7 @@ export function PaperReader({
         </button>
         <div className="paper-reader__title">
           <h1 title={paper.title}>{paper.title}</h1>
-          <p>
-            {[paper.authors, paper.year].filter(Boolean).join(" · ") ||
-              "Metadata unavailable"}
-          </p>
+          {(paper.authors || paper.year) && <p>{[paper.authors, paper.year].filter(Boolean).join(" · ")}</p>}
         </div>
         <div className="paper-reader__toolbar-slot" ref={setWorkspaceToolbar} hidden={!isSidebarOpen} />
         <div className="paper-reader__toolbar-slot" ref={setChatToolbar} hidden={!isSidebarOpen} />
@@ -318,6 +296,9 @@ export function PaperReader({
       >
         <PdfViewer
           filePath={paper.filePath}
+          initialLocation={savedState.location}
+          onLocationChange={saveLocation}
+          navigationTarget={citationTarget}
           focusedHighlightId={selectedHighlightId}
           highlights={highlights}
           pdfJs={pdfJs}
@@ -359,26 +340,21 @@ export function PaperReader({
           />
         )}
         <ReaderSidebar
-          initialWorkspace={initialDiscussionOpen ? "discussion" : "notes"}
+          workspace={workspace}
+          onWorkspaceChange={setWorkspace}
+          onAddHighlightToNotes={addHighlightToNotes}
+          onCitation={(citation) => {
+            if (citation.paperId !== paper.id) return;
+            setSelectedHighlightId(citation.highlightId ?? null);
+            setCitationTarget({ ...citation });
+          }}
           discussion={discussion}
           errorMessage={highlightError}
           highlights={highlights}
           id={sidebarId}
           isHidden={!isSidebarOpen}
           isNoteDisabled={note.isLoading || isLeaving}
-          mindMap={
-            <div className="paper-reader__mindmap-workspace">
-              <p className="paper-reader__mindmap-disclosure" role="note">
-                Generating sends the complete extracted paper text to Codex through
-                your ChatGPT sign-in. The generated map is saved locally.
-              </p>
-              <PaperMindMap
-                generateMindMap={generateMindMap}
-                paperId={paper.id}
-                repository={mindMapRepository}
-              />
-            </div>
-          }
+          mindMap={<PaperMindMap paperId={paper.id} repository={mindMapRepository} />}
           noteDraft={note.draft}
           noteLoadError={note.loadError}
           noteSaveError={!leaveError ? note.saveError : null}

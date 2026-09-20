@@ -2,7 +2,7 @@ import type {
   BoardNodeRecord,
   NodePositionUpdate,
 } from "../model/boardNode";
-import type { BoardEdgeRecord, BoardEdgeRelation } from "../model/boardEdge";
+import type { BoardEdgeAnnotations, BoardEdgeRecord, BoardEdgeRelation } from "../model/boardEdge";
 
 export interface BoardSnapshot {
   nodes: BoardNodeRecord[];
@@ -21,5 +21,7 @@ export interface BoardRepository {
     targetNodeId: string,
   ): Promise<BoardEdgeRecord>;
   updateEdgeRelation(edgeId: string, relation: BoardEdgeRelation): Promise<void>;
+  updateEdgeAnnotations(edgeId: string, annotations: BoardEdgeAnnotations): Promise<void>;
+  deleteNodes(nodeIds: string[]): Promise<void>;
   deleteEdges(edgeIds: string[]): Promise<void>;
 }

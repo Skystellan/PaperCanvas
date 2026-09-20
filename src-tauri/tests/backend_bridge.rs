@@ -72,7 +72,7 @@ async fn upgrades_existing_sqlx_database_and_keeps_rollback_compatible() {
                 &json!({"query":"SELECT count(*) AS n FROM _sqlx_migrations WHERE success=1"})
             )
             .unwrap(),
-        json!([{"n":15}])
+        json!([{"n":paper_canvas_lib::migrations().len()}])
     );
 }
 
@@ -82,12 +82,7 @@ fn json_lines_bridge_import_notes_sql_and_safe_files() {
     let source = temp.0.join("source.pdf");
     std::fs::write(&source, b"%PDF-1.7\nfixture\n%%EOF").unwrap();
     let mut child = Command::new(env!("CARGO_BIN_EXE_paper-canvas-backend"))
-        .args([
-            "--data-dir",
-            temp.0.to_str().unwrap(),
-            "--resources",
-            env!("CARGO_MANIFEST_DIR"),
-        ])
+        .args(["--data-dir", temp.0.to_str().unwrap()])
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .spawn()
@@ -209,28 +204,16 @@ fn json_lines_bridge_import_notes_sql_and_safe_files() {
     assert!(call("reconcile_pdf_storage", json!({}))
         .get("error")
         .is_none());
-    assert_eq!(
-        call("cancel_codex_turn", json!({"requestId":"bridge-cancel"}))["result"],
-        true
-    );
-    assert!(call(
+    for command in [
+        "cancel_codex_turn",
         "start_codex_turn",
-        json!({"request":{"requestId":"invalid","prompt":"","model":"gpt-5.6-luna"}})
-    )
-    .get("error")
-    .is_some());
-    // A pre-cancelled turn exercises the real event channel without probing user auth.
-    id += 1;
-    writeln!(input, "{}", json!({"id":id,"command":"start_codex_turn","args":{"request":{"requestId":"bridge-cancel","prompt":"Cancelled","model":"gpt-5.6-luna"}}})).unwrap();
-    input.flush().unwrap();
-    let mut messages = Vec::new();
-    for _ in 0..2 {
-        let mut line = String::new();
-        output.read_line(&mut line).unwrap();
-        messages.push(serde_json::from_str::<Value>(&line).unwrap());
+        "codex_runtime_status",
+    ] {
+        assert_eq!(
+            call(command, json!({}))["error"],
+            format!("Unknown command: {command}")
+        );
     }
-    assert!(messages.contains(&json!({"event":"codex-stream","payload":{"requestId":"bridge-cancel","event":{"type":"interrupted"}}})));
-    assert!(messages.contains(&json!({"id":id,"result":null})));
     drop(input);
     assert!(child.wait().unwrap().success());
 }

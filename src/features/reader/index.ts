@@ -1,5 +1,5 @@
 export { PaperReader } from "./PaperReader";
-export type { PaperReaderProps, ReaderResearchService } from "./PaperReader";
+export type { PaperReaderProps } from "./PaperReader";
 export { ReaderView } from "./ReaderView";
 export type { ReaderViewProps } from "./ReaderView";
 export { PdfViewer } from "./PdfViewer";
@@ -22,9 +22,7 @@ export type {
   PdfPageLike,
   PdfRenderTaskLike,
   PdfSelectionActions,
-  PdfSelectionActionResult,
   PdfSelectionAnchor,
-  PdfSelectionAskRequest,
   PdfSelectionNoteRequest,
   PdfTextLayerTaskLike,
   PdfTextSelection,

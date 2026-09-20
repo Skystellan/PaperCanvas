@@ -1,62 +1,72 @@
-# PaperCanvas V6
+# PaperCanvas
 
 PaperCanvas is a minimal, local-first desktop workspace for arranging, reading,
 annotating, and discussing research papers. PDFs and product data stay in
 app-owned local storage. The current macOS desktop uses Chromium through Electron.
 The reader can open ChatGPT in an embedded browser;
-selection actions and mind maps use the existing Codex integration.
+annotations and Markdown-based Markmap mind maps work entirely offline.
 
 ## What is included
 
-- Resizable Paper Library with search, multi-PDF picker, Finder drag-and-drop,
-  and confirmed deletion of app-managed copies
-- Validated PDF import into app-owned `papers/<uuid>.pdf` storage
-- Infinite React Flow whiteboard with an Obsidian-style force layout that
-  separates domain groups before the first painted board, limits drag response to
-  nearby graph neighbors, untangles crossing links, preserves dropped positions and
-  reader round-trips, and creates straight connections only from explicit,
-  keyboard-accessible handles
-- Mac trackpad behavior: pinch zooms; two-finger horizontal or vertical scrolling
-  pans; wheel scrolling does not zoom
-- PDF.js reader with a bundled worker, lazy HiDPI page rendering, selectable text,
-  continuous scrolling, cursor-anchored trackpad pinch zoom, toolbar zoom, and
-  page navigation
-- PaperCanvas-style selection actions for local Notes, Translate, and Ask AI
-- Persistent page-relative highlights with comments, search, delete, jump-to-page,
-  and zoom-safe overlays
-- Autosaving Markdown paper Notes with inline live preview, source/split/reading modes,
+- Resizable Paper Library with search, multi-PDF import, Finder drag-and-drop,
+  domains, and compact per-paper action menus
+- Double-click a library paper to read it; single-click to locate its canvas card
+- Infinite whiteboard with domain views, force layout, and explicit connections
+- Remove canvas cards without deleting their library papers; remove connections
+  with selection actions or Delete/Backspace
+- Support/challenge relationships with locally saved explanations and evidence
+- PDF.js reader with selectable text, continuous scrolling, trackpad pinch zoom,
+  and restoration of each paper's reading position and reader layout
+- Persistent highlights and comments, with coherent backgrounds for overlapping
+  formula symbols, plus source-linked quotations in Markdown notes
+- Autosaving Markdown notes with live preview, optional source/reading views,
   formatting shortcuts, and one `.md` file bound to each paper
-- An independent AI-generated Mind Map with straight
-  parent links, overlap-free nodes, validation, cancellation, and local persistence
-- Resizable ChatGPT discussion rail with multiple named conversations per paper,
+- Paste a Markdown outline from a conversation or write it manually, then render and
+  save a local mind map; no AI SDK, runtime, or account is required for this
+- Resizable embedded ChatGPT discussion rail with named conversations per paper,
   existing conversation links, and restoration of the last-opened discussion
-- One coordinated close/navigation guard for canvas, notes, highlights, mind maps,
-  and active AI work
-- Additive SQLite migrations that preserve earlier PaperCanvas data
+- Recent discussions remains expanded by default
+- Coordinated navigation/close saving and additive SQLite migrations
 
-## Local-first and AI data boundary
+## Local data and embedded conversations
 
-- `papercanvas.db` remains in the existing `com.papercanvas.desktop` application
+- `papercanvas.db` stays in the existing `com.papercanvas.desktop` application
   data directory, shared with the earlier Tauri build.
-- Imported PDFs are stored under the app data directory in `papers/`.
-- Original Finder paths are never persisted.
-- Papers, layouts, edges, highlights, notes, mind maps, extracted text, and chat
-  legacy Codex chat history are stored locally in SQLite/app-owned files.
-- Embedded ChatGPT conversation names and links are stored locally; their message
+- Imported PDFs are copied into app-owned `papers/<uuid>.pdf` storage. Original
+  Finder paths are not persisted.
+- Papers, layouts, connections, annotations, notes, and mind-map sources are local.
+  Saving or rendering them does not contact an AI service.
+- Embedded ChatGPT conversation names and links are stored locally; message
   content remains in ChatGPT. Opening a linked discussion loads that website.
-- Saving a Note never contacts a network service.
-- Translate and Ask AI send the selected passage to Codex through the user's
-  ChatGPT sign-in. A Mind Map or explicitly attached discussion context sends the
-  complete extracted paper text after an in-app disclosure.
-- AI turns run with read-only sandboxing, approvals disabled, tools/network access
-  disabled, and no API key stored by PaperCanvas. Each turn is ephemeral, so the
-  paper/chat prompt is not retained in Codex session history; PaperCanvas rebuilds
-  context from its local SQLite history.
-- Every turn receives a fresh private `HOME` and `CODEX_HOME` containing only a
-  validated bridge to the existing ChatGPT sign-in. Global `AGENTS.md`, custom or
-  user-installed skills and plugins, host paths, and Codex environment/permission
-  metadata are not included in the model request. The pinned runtime still adds
-  its standard built-in system instructions.
+- No PDF, selection, or question is sent automatically. Copy paper information
+  copies only the paper title; the user chooses what to paste or attach in ChatGPT.
+- The former Codex SDK, runtime bridge, selection Translate/Ask AI, and automatic
+  mind-map generation have been removed. Historical migrations and legacy stored
+  data remain intact so existing libraries can upgrade without data loss.
+
+## Mind maps
+
+Ask your AI chat for a Markdown outline, then paste it into the paper's Mind map
+panel. Markmap is the only renderer. It lays out branches left-to-right with
+wrapped labels and short horizontal gaps, suited to the tall reading sidebar.
+Click node circles to fold branches, drag to pan, and use the zoom or Fit controls.
+Rendering hides the source editor; choose **Edit source** to open it again.
+
+```markdown
+# Paper
+## Research question
+- Gap in prior work
+## Method
+- Key assumptions
+## Results
+- Supporting evidence
+```
+
+Fenced `markdown`, `md`, or `markmap` blocks are accepted. Source and unfinished
+drafts stay local and are saved before navigation/closing. The bundled renderer
+loads no external scripts, images or fonts from pasted content. Historical tree
+records convert to Markdown on first open; existing Mermaid text is kept intact
+for copying/editing, with guidance to convert it to a Markdown outline.
 
 ## Markdown notes
 
@@ -70,9 +80,9 @@ in place. The selected block stays as highlighted source while other blocks
 render headings, emphasis, quotes, fenced code, tables and task lists. Moving
 the cursor away renders it again. CodeMirror keeps one underlying Markdown
 document with undo/redo, multiline selection and input composition support.
-**Source**, **Split**, and **Read** remain available. Formatting buttons and
+**Source** and **Read** remain available through the view menu. Formatting buttons and
 Cmd/Ctrl+B, I and K format selections; Enter continues lists. Notes autosave, and navigation/closing
-waits for pending saves. **Show .md** reveals the file for use in another editor
+waits for pending saves. **Show .md**, in the note actions menu, reveals the file for use in another editor
 or an Obsidian vault opened at the papers directory. **Reload** reads external
 changes after confirming that the current unsaved draft may be discarded.
 If the file changed outside PaperCanvas, saving stops: copy your draft, reload,
@@ -104,28 +114,14 @@ login path described below. **复制论文信息** copies only the paper title, 
 Messages are not copied into the local database or available offline. Projects
 are optional; the app itself groups conversation links by paper.
 
-## Codex for selection actions and mind maps
+## Development prerequisites
 
-This personal macOS beta uses `@openai/codex-sdk@0.149.0-alpha.4.1` with the
-matching local Codex runtime. The AI settings allowlist `gpt-5.6-sol`,
-`gpt-5.6-terra`, and `gpt-5.6-luna`, plus Low through Max reasoning effort; the
-active choice is always visible in the discussion rail. PaperCanvas deliberately
-accepts only **Sign in with ChatGPT** authentication, so it uses the user's
-ChatGPT/Codex plan allowance rather than an API Platform key balance.
-
-Prerequisites for the current build:
-
-- Node.js 18 or newer for the packaged Codex bridge
-- Node.js 22.12 or newer is recommended for local Vite/Tauri development
-- A matching local Codex runtime, currently `0.149.0-alpha.4.1`
-- `codex login status` reports `Logged in using ChatGPT`
-- A private, file-backed Codex login (`auth.json` must be a regular file readable
-  only by its owner; permissive files and symlinks are rejected)
+- Node.js 22.12 or newer and npm
 - Stable Rust and the Tauri 2 prerequisites for development builds
+- macOS 13 or newer for the current desktop bundle
 
-The app detects Codex/Node from the installed ChatGPT or Codex macOS app, common
-local install locations, and the development environment. It fails closed on
-unsupported platforms or incompatible versions.
+A Codex installation or SDK login is not required. Embedded ChatGPT uses its own
+website sign-in only when the user opens a discussion.
 
 ## Run locally
 
@@ -148,7 +144,6 @@ npm run lint
 npm run typecheck
 npm run test:coverage
 npm run build
-node --test sidecar/tests/*.test.mjs
 cargo fmt --manifest-path src-tauri/Cargo.toml --check
 cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --locked -- -D warnings
 cargo test --manifest-path src-tauri/Cargo.toml --all-targets --locked
@@ -161,7 +156,7 @@ npm run chromium:build
 ```
 
 The bundle is generated under
-`release/PaperCanvas Chromium-darwin-arm64/PaperCanvas Chromium.app` on Apple
+`release/PaperCanvas-darwin-arm64/PaperCanvas.app` on Apple
 Silicon. Quit the running copy before installing it in a fixed location such as
 `~/Applications/PaperCanvas.app`. Moving the application does not move its
 paper database or persistent ChatGPT profile. External distribution still
@@ -170,7 +165,7 @@ requires a Developer ID signature, notarization, and a release build.
 ## Chromium desktop and embedded login
 
 The current desktop uses Electron's `WebContentsView` for embedded ChatGPT and retains the existing
-Rust storage, Markdown notes, and isolated Codex runtime:
+Rust storage and Markdown notes:
 
 ```sh
 npm run chromium:dev

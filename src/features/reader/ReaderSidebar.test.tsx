@@ -42,7 +42,9 @@ function renderSidebar() {
       onSelectHighlight={onSelectHighlight}
     />,
   );
+  fireEvent.click(screen.getByText("View", { selector: "summary" }));
   fireEvent.click(screen.getByRole("button", { name: "Source" }));
+  fireEvent.click(screen.getByRole("button", { name: "Find highlights" }));
   return { onDeleteHighlight, onSelectHighlight };
 }
 
@@ -97,7 +99,7 @@ describe("ReaderSidebar", () => {
       "Paper-level note",
     );
     expect(screen.getByText("Highlights")).toBeVisible();
-    expect(screen.getByRole("searchbox", { name: "Search highlights" })).toBeVisible();
+    expect(screen.queryByRole("searchbox", { name: "Search highlights" })).toBeNull();
   });
 
   it("uses roving focus and arrow keys to navigate the workspace tabs", () => {
@@ -135,4 +137,17 @@ describe("ReaderSidebar", () => {
     expect(onDeleteHighlight).toHaveBeenCalledWith(highlights[0]);
     expect(onSelectHighlight).toHaveBeenCalledTimes(1);
   });
+});
+
+it("keeps an empty Highlights region compact and only offers search on demand", () => {
+  const props = { highlights: [], isNoteDisabled: false, noteDraft: "", noteStatus: "Saved", onNoteChange: vi.fn(), onDeleteHighlight: vi.fn(), onSelectHighlight: vi.fn() };
+  const { rerender } = render(<ReaderSidebar {...props} />);
+  expect(screen.getByLabelText("Highlights")).toHaveClass("is-compact");
+  expect(screen.queryByRole("searchbox")).toBeNull();
+  rerender(<ReaderSidebar {...props} highlights={highlights} />);
+  expect(screen.queryByRole("searchbox")).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Find highlights" }));
+  expect(screen.getByRole("searchbox")).toHaveFocus();
+  fireEvent.click(screen.getByRole("button", { name: /Highlights 2/ }));
+  expect(screen.queryByRole("button", { name: "Go to highlight on page 1" })).toBeNull();
 });

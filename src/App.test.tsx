@@ -41,6 +41,7 @@ vi.mock("./features/library", () => ({
     onPapersImported,
     onOrganizationChanged,
     onPaperSelect,
+    onOpenPaper,
     selectedPaperId,
     trackPersistenceOperation,
   }: {
@@ -55,11 +56,12 @@ vi.mock("./features/library", () => ({
     onPapersImported?: (papers: Paper[]) => void;
     onOrganizationChanged?: (paperIds: readonly string[]) => void;
     onPaperSelect: (paper: Paper) => void;
+    onOpenPaper?: (paper: Paper) => void;
     selectedPaperId: string | null;
     trackPersistenceOperation?: <T>(operation: Promise<T>) => Promise<T>;
   }) => (
     <aside aria-label="Paper library">
-      <button type="button" onClick={() => onPaperSelect(paper)}>
+      <button type="button" onClick={() => onPaperSelect(paper)} onDoubleClick={() => onOpenPaper?.(paper)}>
         Select imported paper
       </button>
       <output aria-label="Selected paper">{selectedPaperId ?? "none"}</output>
@@ -112,14 +114,17 @@ vi.mock("./features/whiteboard/Whiteboard", () => ({
     onPaperDropComplete,
     paperCatalogChange,
     paperDropIntent,
+    paperFocusRequest,
   }: {
     onOpenPaper: (paper: Paper) => void;
     onPaperDropComplete?: () => void;
     paperCatalogChange?: { kind: string; revision: number } | null;
     paperDropIntent?: { paperId: string } | null;
+    paperFocusRequest?: { paperId: string; revision: number } | null;
   }) => (
     <section aria-label="Paper canvas">
       <input aria-label="Canvas memory" defaultValue="" />
+      <output aria-label="Focused canvas paper">{paperFocusRequest?.paperId ?? "none"}</output>
       <button type="button" onDoubleClick={() => onOpenPaper(paper)}>
         Imported research paper
       </button>
@@ -160,44 +165,10 @@ vi.mock("./features/reader", () => ({
 }));
 
 vi.mock("./features/ai", () => ({
-  ChatPanel: ({
-    currentPaper,
-    embedded,
-    initialSessionId,
-    initialWebChatId,
-    onActiveSessionChange,
-    paperCatalogChange,
-  }: {
-    currentPaper?: Paper | null;
-    embedded?: boolean;
-    initialSessionId?: string | null;
-    initialWebChatId?: string | null;
-    onActiveSessionChange?: (sessionId: string) => void;
-    paperCatalogChange?: { kind: string; revision: number } | null;
-  }) => (
+  WebChatPanel: ({ paper: currentPaper, initialChatId }: { paper: Paper; initialChatId?: string | null }) => (
     <aside aria-label="AI discussion">
-      Local Codex chat
-      <output aria-label="Current discussion paper">
-        {currentPaper?.id ?? "none"}
-      </output>
-      <output aria-label="Discussion layout">
-        {embedded ? "embedded" : "rail"}
-      </output>
-      <output aria-label="Requested web discussion">{initialWebChatId ?? "none"}</output>
-      <output aria-label="Initial discussion">
-        {initialSessionId ?? "none"}
-      </output>
-      <button
-        onClick={() => onActiveSessionChange?.("session-older")}
-        type="button"
-      >
-        Switch discussion
-      </button>
-      <output aria-label="AI catalog change">
-        {paperCatalogChange
-          ? `${paperCatalogChange.kind}:${paperCatalogChange.revision}`
-          : "none"}
-      </output>
+      <output aria-label="Current discussion paper">{currentPaper.id}</output>
+      <output aria-label="Requested web discussion">{initialChatId ?? "none"}</output>
     </aside>
   ),
   RecentDiscussions: ({ onOpenDiscussion }: { onOpenDiscussion: (chat: { id: string; paperId: string }) => Promise<void> }) => (
@@ -221,7 +192,6 @@ it("composes the local Library and canvas inside one persistence coordinator", (
   render(<App />);
 
   expect(screen.queryByText("PaperCanvas")).not.toBeInTheDocument();
-  expect(screen.queryByText("Local data · Codex on demand")).not.toBeInTheDocument();
   expect(screen.getByLabelText("Paper library")).toBeVisible();
   expect(screen.getByLabelText("Paper canvas")).toBeVisible();
   expect(screen.getByLabelText("Recent discussions")).toBeVisible();
@@ -229,15 +199,14 @@ it("composes the local Library and canvas inside one persistence coordinator", (
   expect(screen.getByTestId("persistence-coordinator")).toBeVisible();
 });
 
-it("tracks Library selection without navigating", async () => {
+it("focuses the canvas from Library selection without navigating", async () => {
   const user = userEvent.setup();
   render(<App />);
 
   await user.click(screen.getByRole("button", { name: "Select imported paper" }));
 
-  expect(screen.getByLabelText("Selected paper")).toHaveTextContent(
-    "paper-imported",
-  );
+  expect(screen.getByLabelText("Selected paper")).toHaveTextContent("paper-imported");
+  expect(screen.getByLabelText("Focused canvas paper")).toHaveTextContent("paper-imported");
   expect(screen.getByLabelText("Paper canvas")).toBeVisible();
 });
 
@@ -316,9 +285,6 @@ it("opens Reader only on card double-click and returns to the same workspace", a
   expect(screen.getByLabelText("Reading Imported research paper")).toBeVisible();
   expect(screen.getByLabelText("Paper library")).not.toBeVisible();
   expect(screen.getByLabelText("AI discussion")).toBeVisible();
-  expect(screen.getByLabelText("Discussion layout")).toHaveTextContent(
-    "embedded",
-  );
   expect(screen.getByLabelText("Current discussion paper")).toHaveTextContent(
     paper.id,
   );
@@ -357,25 +323,6 @@ it("explicitly removes the mounted canvas workspace from layout while Reader is 
   expect(workspace.style.display).toBe("none");
 });
 
-it("remembers the active discussion across Reader navigation", async () => {
-  const user = userEvent.setup();
-  render(<App />);
-
-  await user.dblClick(
-    screen.getByRole("button", { name: "Imported research paper" }),
-  );
-  expect(screen.getByLabelText("Initial discussion")).toHaveTextContent("none");
-  await user.click(screen.getByRole("button", { name: "Switch discussion" }));
-  await user.click(screen.getByRole("button", { name: "Back to canvas" }));
-  await user.dblClick(
-    screen.getByRole("button", { name: "Imported research paper" }),
-  );
-
-  expect(screen.getByLabelText("Initial discussion")).toHaveTextContent(
-    "session-older",
-  );
-});
-
 it("keeps the canvas mounted when pre-reader persistence fails", async () => {
   const user = userEvent.setup();
   persistence.flushPending.mockRejectedValueOnce(new Error("disk full"));
@@ -404,4 +351,13 @@ it("opens a recent web chat in its paper and resets that target on normal paper 
   await user.dblClick(screen.getByRole("button", { name: "Imported research paper" }));
   expect(screen.getByLabelText("Requested web discussion")).toHaveTextContent("none");
   expect(screen.getByLabelText(`Reading ${paper.title}`)).toHaveAttribute("data-discussion-open", "false");
+});
+
+it("opens a library paper directly after flushing pending work", async () => {
+  const user = userEvent.setup();
+  render(<App />);
+  await user.dblClick(screen.getByRole("button", { name: "Select imported paper" }));
+  expect(persistence.flushPending).toHaveBeenCalledOnce();
+  expect(screen.getByLabelText(`Reading ${paper.title}`)).toBeVisible();
+  expect(screen.getByLabelText("Paper canvas")).not.toBeVisible();
 });

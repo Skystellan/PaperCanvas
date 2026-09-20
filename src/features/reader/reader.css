@@ -262,16 +262,6 @@
   flex: 1;
 }
 
-.paper-reader__mindmap-disclosure {
-  margin: 0 0 9px;
-  padding: 8px 10px;
-  border: 1px solid #ded4c7;
-  border-radius: 8px;
-  color: #71685d;
-  background: #f8f3e9;
-  font-size: 10.5px;
-  line-height: 1.45;
-}
 
 .paper-reader__mindmap-unavailable {
   margin: auto;
@@ -541,9 +531,7 @@
 .pdf-selection-highlights span {
   position: fixed;
   border-radius: 2px;
-  background: rgb(237 198 71 / 36%);
-  box-shadow: inset 0 -1px 0 rgb(166 122 21 / 20%);
-  mix-blend-mode: multiply;
+  background: rgb(237 198 71);
 }
 
 .pdf-selection-popover--above {
@@ -664,7 +652,6 @@
   opacity: 0.42;
 }
 
-.pdf-selection-popover__hint,
 .pdf-selection-popover__privacy {
   margin: 0;
   color: #81796f;
@@ -672,18 +659,6 @@
   line-height: 1.45;
 }
 
-.pdf-selection-popover__response {
-  max-height: 150px;
-  overflow: auto;
-  padding: 10px 11px;
-  border: 1px solid #ded6c8;
-  border-radius: 12px;
-  background: #faf7f0;
-  color: #3f3a34;
-  font-size: 12px;
-  line-height: 1.55;
-  white-space: pre-wrap;
-}
 
 .pdf-viewer__pages {
   overflow: auto;
@@ -763,17 +738,13 @@
 .pdf-viewer__persisted-highlights span {
   position: absolute;
   border-radius: 2px;
-  background: rgb(242 202 55 / 32%);
-  box-shadow: inset 0 -1px 0 rgb(166 122 21 / 20%);
-  mix-blend-mode: multiply;
+  background: rgb(242 202 55);
   transition: background 120ms ease, box-shadow 120ms ease;
 }
 
 .pdf-viewer__persisted-highlights span.is-focused {
-  background: rgb(242 184 40 / 48%);
-  box-shadow:
-    inset 0 -2px 0 rgb(155 36 61 / 58%),
-    0 0 0 2px rgb(155 36 61 / 16%);
+  background: rgb(234 166 24);
+  outline: 2px solid #9b243d;
 }
 
 .pdf-viewer__text-layer {
@@ -890,3 +861,18 @@
 .paper-reader__header .paper-reader__workspace-tabs button { padding: 5px 7px; font-size: 11px; }
 .paper-reader__header .paper-reader__sidebar-toggle { font-size: 11px; padding: 6px; }
 .paper-reader__header:has(.paper-reader__toolbar-slot[hidden]) { grid-template-columns: auto minmax(0, 1fr) auto; }
+
+/* Composite each page once: overlapping opaque glyphs cannot stack alpha. */
+.pdf-viewer__persisted-highlights { opacity: .32; mix-blend-mode: multiply; }
+.pdf-selection-highlights { opacity: .36; mix-blend-mode: multiply; }
+.paper-reader__notes:has(.markdown-note) { flex: 1; min-height: 0; }
+.paper-reader__highlights { flex: 0 1 35%; padding: 8px 14px 0; gap: 8px; }
+.paper-reader__highlights.is-compact { flex: 0 0 auto; padding-bottom: 10px; }
+.paper-reader__highlight-hint { margin: 0; color: #8a8378; font-size: 11px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.paper-reader__highlights-heading { justify-content: space-between; }
+.paper-reader__highlights-heading::before { content: none; }
+.paper-reader__highlights-heading button, .paper-reader__highlight-add { border: 0; background: transparent; color: inherit; cursor: pointer; font: inherit; font-size: 12px; padding: 4px; }
+.paper-reader__highlight-add { margin: 0 0 8px 10px; color: #9b243d; }
+.paper-reader__highlight-add:disabled { opacity: .45; cursor: default; }
+.paper-reader__highlight-delete { opacity: 1; }
+.paper-reader__highlight-list[hidden] { display: none; }

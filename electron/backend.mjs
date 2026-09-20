@@ -1,12 +1,12 @@
 import { spawn } from 'node:child_process';
 import { createInterface } from 'node:readline';
 
-// A private pipe keeps the existing Rust storage and Codex implementation local.
+// A private pipe keeps PDF and database operations in the local Rust backend.
 export class Backend {
-  constructor(binary, dataDirectory, resources, onEvent) {
+  constructor(binary, dataDirectory) {
     this.pending = new Map();
     this.sequence = 0;
-    this.child = spawn(binary, ['--data-dir', dataDirectory, '--resources', resources], {
+    this.child = spawn(binary, ['--data-dir', dataDirectory], {
       stdio: ['pipe', 'pipe', 'pipe'],
     });
     this.lines = createInterface({ input: this.child.stdout });
@@ -14,7 +14,6 @@ export class Backend {
       let message;
       try { message = JSON.parse(line); }
       catch { this.fail(new Error('The local PaperCanvas backend returned an invalid response.')); return; }
-      if (message.event) { onEvent(message.event, message.payload); return; }
       const pending = this.pending.get(message.id);
       if (!pending) return;
       this.pending.delete(message.id);

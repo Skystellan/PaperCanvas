@@ -3,7 +3,7 @@ import {
   type DatabaseProvider,
 } from "../../../data/sqliteDatabase";
 import type { BoardRepository, BoardSnapshot } from "./boardRepository";
-import type { BoardEdgeRecord, BoardEdgeRelation } from "../model/boardEdge";
+import type { BoardEdgeAnnotations, BoardEdgeRecord, BoardEdgeRelation } from "../model/boardEdge";
 import type {
   BoardNodeRecord,
   NodePositionUpdate,
@@ -34,6 +34,8 @@ interface BoardEdgeRow {
   source_node_id: string;
   target_node_id: string;
   relation_type: BoardEdgeRelation;
+  explanation: string;
+  evidence: string;
 }
 
 const SELECT_BOARD_NODES = `
@@ -78,7 +80,7 @@ const SELECT_BOARD_NODE_BY_ID = `
 `;
 
 const SELECT_BOARD_EDGES = `
-  SELECT id, board_id, source_node_id, target_node_id, relation_type
+  SELECT id, board_id, source_node_id, target_node_id, relation_type, explanation, evidence
   FROM board_edges
   WHERE board_id = $1
   ORDER BY id
@@ -109,6 +111,8 @@ function toBoardEdgeRecord(row: BoardEdgeRow): BoardEdgeRecord {
     sourceNodeId: row.source_node_id,
     targetNodeId: row.target_node_id,
     relation: row.relation_type,
+    explanation: row.explanation,
+    evidence: row.evidence,
   };
 }
 
@@ -140,17 +144,18 @@ function createPositionSnapshotStatement(updates: NodePositionUpdate[]) {
   `;
 }
 
-function createDeleteEdgesStatement(edgeCount: number) {
+function createDeleteStatement(table: "board_edges" | "board_nodes", edgeCount: number) {
   const ids = Array.from({ length: edgeCount }, (_, index) => `$${index + 1}`);
   const boardParameter = edgeCount + 1;
 
+  // SQLite binds $N names by first appearance when the backend passes an array.
   return `
-    DELETE FROM board_edges
-    WHERE board_id = $${boardParameter}
-      AND id IN (${ids.join(", ")})
+    DELETE FROM ${table}
+    WHERE id IN (${ids.join(", ")})
+      AND board_id = $${boardParameter}
       AND (
         SELECT COUNT(*)
-        FROM board_edges AS persisted_edges
+        FROM ${table} AS persisted_edges
         WHERE persisted_edges.board_id = $${boardParameter}
           AND persisted_edges.id IN (${ids.join(", ")})
       ) = ${edgeCount}
@@ -256,6 +261,8 @@ export class SqliteBoardRepository implements BoardRepository {
       sourceNodeId,
       targetNodeId,
       relation: null,
+      explanation: "",
+      evidence: "",
     };
     const database = await this.databaseProvider();
     const result = await database.execute(
@@ -298,13 +305,38 @@ export class SqliteBoardRepository implements BoardRepository {
     }
   }
 
+  async updateEdgeAnnotations(edgeId: string, annotations: BoardEdgeAnnotations): Promise<void> {
+    const database = await this.databaseProvider();
+    const result = await database.execute(
+      `UPDATE board_edges SET explanation = $1, evidence = $2
+       WHERE id = $3 AND board_id = $4`,
+      [annotations.explanation, annotations.evidence, edgeId, DEFAULT_BOARD_ID],
+    );
+    if (result.rowsAffected !== 1) {
+      throw new Error(`Board edge annotations are stale: ${edgeId}`);
+    }
+  }
+
+  async deleteNodes(nodeIds: string[]): Promise<void> {
+    const ids = [...new Set(nodeIds)];
+    if (ids.length === 0) return;
+    const database = await this.databaseProvider();
+    // Existing foreign keys cascade only to attached edges, never to papers/PDFs.
+    const result = await database.execute(createDeleteStatement("board_nodes", ids.length), [
+      ...ids, DEFAULT_BOARD_ID,
+    ]);
+    if (result.rowsAffected !== ids.length) {
+      throw new Error(`Board node deletion is stale: ${ids.join(", ")}`);
+    }
+  }
+
   async deleteEdges(edgeIds: string[]): Promise<void> {
     const uniqueEdgeIds = [...new Set(edgeIds)];
     if (uniqueEdgeIds.length === 0) return;
 
     const database = await this.databaseProvider();
     const result = await database.execute(
-      createDeleteEdgesStatement(uniqueEdgeIds.length),
+      createDeleteStatement("board_edges", uniqueEdgeIds.length),
       [...uniqueEdgeIds, DEFAULT_BOARD_ID],
     );
     if (result.rowsAffected !== uniqueEdgeIds.length) {

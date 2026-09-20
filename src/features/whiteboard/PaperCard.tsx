@@ -61,7 +61,7 @@ export const PaperCard = memo(function PaperCard({
       </div>
       <div className="paper-card__content">
         <h2>{data.paper.title}</h2>
-        <p>{metadata || "Metadata unavailable"}</p>
+        {metadata && <p>{metadata}</p>}
       </div>
       <Handle
         type="source"

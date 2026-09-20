@@ -3,6 +3,7 @@ import { once } from 'node:events';
 import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
+import { clipboard, ClipboardItem } from 'electron';
 
 // Fresh database and chat profile. PDF defaults to synthetic content; an explicit
 // PAPERCANVAS_SMOKE_PDF path imports a copy for local performance measurements.
@@ -13,8 +14,9 @@ function pdfFixture() {
   for (let page = 0; page < pageCount; page++) {
     const pageId = objects.length + 1;
     kids.push(`${pageId} 0 R`);
-    const content = `BT /F1 12 Tf 40 740 Td (PaperCanvas zoom fixture - page ${page + 1}) Tj\n` +
+    let content = `BT /F1 12 Tf 40 740 Td (PaperCanvas zoom fixture - page ${page + 1}) Tj\n` +
       Array.from({ length: 45 }, (_, i) => `0 -15 Td (Line ${i + 1}: text selection and zoom remain responsive.) Tj`).join('\n') + '\nET';
+    if (page === 0) content += '\nBT /F1 20 Tf 410 680 Td (E = mc) Tj /F1 11 Tf 65 10 Td (2) Tj ET';
     objects.push(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents ${pageId + 1} 0 R >>`);
     objects.push(`<< /Length ${content.length} >>\nstream\n${content}\nendstream`);
   }
@@ -125,6 +127,25 @@ export async function smoke({ window, backend, chats, dataDirectory, chatSession
   assert.equal(await guest.executeJavaScript('typeof window.paperCanvas'), 'undefined');
   assert.equal(await guest.executeJavaScript('typeof require'), 'undefined');
   assert.equal(guest.getLastWebPreferences().sandbox, true);
+  // Exercise Chromium's clipboard permission and native paste, not a mocked API.
+  const previousClipboard = await Promise.all((await clipboard.read()).map(async item =>
+    new ClipboardItem(Object.fromEntries(await Promise.all(item.types.map(async type => [type, await item.getType(type)])))),
+  ));
+  try {
+    window.focus();
+    guest.focus();
+    await guest.executeJavaScript(`navigator.clipboard.writeText('PaperCanvas clipboard fixture')`, true);
+    await guest.executeJavaScript(`document.querySelector('textarea').focus()`);
+    guest.paste();
+    for (let i=0; i<30 && await guest.executeJavaScript(`document.querySelector('textarea').value`) !== 'PaperCanvas clipboard fixture'; i++) await delay(50);
+    assert.equal(await guest.executeJavaScript(`document.querySelector('textarea').value`), 'PaperCanvas clipboard fixture');
+    await guest.executeJavaScript(`window.pastedImage=false; document.addEventListener('paste',event=>{window.pastedImage=[...event.clipboardData.items].some(item=>item.type==='image/png')},{once:true})`);
+    const png = (await guest.capturePage({ x: 0, y: 0, width: 1, height: 1 })).toPNG();
+    await clipboard.write([new ClipboardItem({ 'image/png': new Blob([png], { type: 'image/png' }) })]);
+    guest.paste();
+    for (let i=0; i<30 && !(await guest.executeJavaScript('window.pastedImage')); i++) await delay(50);
+    assert.equal(await guest.executeJavaScript('window.pastedImage'), true);
+  } finally { await clipboard.write(previousClipboard); }
   await guest.executeJavaScript(`document.querySelector('textarea').value='Draft survives switching'`);
   const guestId = guest.id;
   await chats.layout(chat.id, null);
@@ -160,7 +181,10 @@ export async function smoke({ window, backend, chats, dataDirectory, chatSession
     await writeFile(path.join(dataDirectory, 'google-login-help.png'), (await wc.capturePage()).toPNG());
     await evaluate(`[...document.querySelectorAll('button')].find(b => b.textContent==='关闭提示').click()`);
   }
-  const report = { chromium: process.versions.chrome, electron: process.versions.electron, pdf: zoom, guestReused: true, remoteHasNoBridge: true, googleLoginHandoff: true, verificationRetryRecovered: true, errors };
+  const { workspaceSmoke } = await import('./workspace-smoke.mjs');
+  const workspace = await workspaceSmoke({ wc, backend, paper, dataDirectory, evaluate, until, chats, chat });
+  const report = { workspace, chromium: process.versions.chrome, electron: process.versions.electron, pdf: zoom, chatClipboard: { copy: true, pasteText: true, pasteImage: true }, guestReused: true, remoteHasNoBridge: true, googleLoginHandoff: true, verificationRetryRecovered: true, errors };
   await writeFile(path.join(dataDirectory, 'report.json'), JSON.stringify(report, null, 2));
   console.log(JSON.stringify(report));
+  assert.deepEqual(errors, [], 'Native workflows should not produce renderer errors');
 }

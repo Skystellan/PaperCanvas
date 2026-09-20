@@ -1,6 +1,6 @@
 import { createPortal } from "react-dom";
 import { ReaderToolbarContext } from "../reader/ReaderToolbarContext";
-import { useContext, useEffect, useRef, useState } from "react";
+import { useContext, useEffect, useId, useRef, useState } from "react";
 import { invoke } from "../../platform/core";
 import { listen } from "../../platform/event";
 import type { Paper } from "../library";
@@ -26,11 +26,39 @@ function PaperChats({ paper, initialChatId }: { paper: Paper; initialChatId?: st
   const [title, setTitle] = useState("");
   const [url, setUrl] = useState("");
   const [retry, setRetry] = useState(0);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuId = useId();
+  const menu = useRef<HTMLDivElement>(null);
+  const menuButton = useRef<HTMLButtonElement>(null);
   const slot = useRef<HTMLDivElement>(null);
   const mounted = useRef(true);
   const mutation = useRef(false);
   const current = chats.find((chat) => chat.id === selected);
   const loadState = loadStates[selected];
+
+  useEffect(() => {
+    if (!menuOpen || !toolbar.visible) return;
+    menu.current?.querySelector<HTMLButtonElement>("button:not(:disabled)")?.focus();
+    const dismiss = (event: PointerEvent) => {
+      if (!menu.current?.contains(event.target as Node) && !menuButton.current?.contains(event.target as Node)) setMenuOpen(false);
+    };
+    const escape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setMenuOpen(false);
+        menuButton.current?.focus();
+      }
+    };
+    const blur = () => setMenuOpen(false);
+    document.addEventListener("pointerdown", dismiss);
+    document.addEventListener("keydown", escape);
+    window.addEventListener("blur", blur);
+    return () => {
+      document.removeEventListener("pointerdown", dismiss);
+      document.removeEventListener("keydown", escape);
+      window.removeEventListener("blur", blur);
+    };
+  }, [menuOpen, toolbar.visible]);
 
   useEffect(() => {
     mounted.current = true;
@@ -153,6 +181,7 @@ function PaperChats({ paper, initialChatId }: { paper: Paper; initialChatId?: st
       setChats((items) => [chat, ...items.filter((item) => item.id !== chat.id)]);
       setSelected(chat.id);
       setMode(null);
+      if (next !== "new") menuButton.current?.focus();
     } catch (reason) { if (mounted.current) setError(String(reason)); }
     finally { mutation.current = false; if (mounted.current) setSaving(false); }
   }
@@ -160,39 +189,61 @@ function PaperChats({ paper, initialChatId }: { paper: Paper; initialChatId?: st
   const controls = (
     <div className="web-chat-controls">
       <select aria-label="当前论文的对话" value={selected} disabled={loading || saving || !chats.length}
-        onChange={(event) => { setSelected(event.target.value); setMode(null); setError(""); }}>
+        onChange={(event) => { setSelected(event.target.value); setMode(null); setMenuOpen(false); setError(""); }}>
         {!chats.length && <option value="">暂无讨论</option>}
         {chats.map((chat) => <option key={chat.id} value={chat.id}>{chat.title}{chat.url ? "" : " · 待开始"}</option>)}
       </select>
-      <div className="web-chat-actions">
-        <button type="button" disabled={loading || saving} onClick={() => void save("new")} title="新对话" aria-label="新对话">＋</button>
-        <button type="button" disabled={loading || saving} onClick={() => edit("link")} title="关联已有对话" aria-label="关联已有对话">↗</button>
-        {current && <button type="button" disabled={saving} onClick={() => edit("rename")} title="重命名" aria-label="重命名">✎</button>}
-        {current && <button type="button" onClick={reloadWebChat} title="重新加载网页" aria-label="重新加载网页">⟳</button>}
-        {current && <button type="button" onClick={openInBrowser} title="在浏览器中打开" aria-label="在浏览器中打开">↗︎</button>}
-        {current && <button type="button" onClick={() => setLoginHelpId(selected)} title="登录帮助" aria-label="登录帮助">?</button>}
-        <button type="button" onClick={() => {
-          void navigator.clipboard.writeText(paper.title)
-            .catch(() => setError("无法复制论文信息。"));
-        }} title="复制论文信息" aria-label="复制论文信息">⧉</button>
-      </div>
-      {mode && <form className="web-chat-form" onSubmit={(event) => { event.preventDefault(); void save(); }}>
-        <label>讨论名称<input aria-label="讨论名称" maxLength={100} required value={title} onChange={(event) => setTitle(event.target.value)} /></label>
-        {mode === "link" && <label>ChatGPT 对话链接<input aria-label="ChatGPT 对话链接" type="url" required placeholder="https://chatgpt.com/c/…" value={url} onChange={(event) => setUrl(event.target.value)} /></label>}
-        <div className="web-chat-actions"><button type="submit" disabled={saving || !title.trim()}>{saving ? "保存中…" : "保存并打开"}</button><button type="button" disabled={saving} onClick={() => setMode(null)}>取消</button></div>
-      </form>}
-      {current && <div className="web-chat-link-status" title={current.url ?? "发出首条消息后自动保存对话链接"}><span className="web-chat-sr-only">{current.url ? "已绑定 · 打开论文时恢复此对话" : "发出首条消息后自动保存对话链接"}</span>
-        {current.url && <button type="button" onClick={() => {
-          void invoke("restore_paper_web_chat", { id: current.id }).catch((reason: unknown) => setError(String(reason)));
-        }} title="回到绑定对话" aria-label="回到绑定对话">↩</button>}
-      </div>}
-      {error && <p className="ai-panel__error" role="alert">{error} <button type="button" onClick={reloadWebChat}>重试网页</button></p>}
+      <button type="button" disabled={loading || saving} onClick={() => void save("new")} title="新对话" aria-label="新对话">＋</button>
+      <button type="button" onClick={() => {
+        void navigator.clipboard.writeText(paper.title)
+          .catch(() => setError("无法复制论文信息。"));
+      }} title="复制论文信息" aria-label="复制论文信息">⧉</button>
+      <button type="button" ref={menuButton} aria-label="更多对话操作" title="更多对话操作"
+        aria-haspopup="menu" aria-expanded={menuOpen} aria-controls={menuId}
+        onClick={() => setMenuOpen((open) => !open)}
+        onKeyDown={(event) => { if (event.key === "ArrowDown") { event.preventDefault(); setMenuOpen(true); } }}>⋯</button>
     </div>
   );
 
   return <section className="ai-panel ai-panel--embedded web-chat-panel" aria-label="Paper ChatGPT conversations">
     {!toolbar.chat && <header className="ai-panel__header"><div><span className="ai-eyebrow">ChatGPT · 论文讨论</span><h2 title={paper.title}>{paper.title}</h2></div></header>}
     {toolbar.chat ? createPortal(toolbar.visible ? controls : null, toolbar.chat) : controls}
+    {/* Keep disclosures in flow above the native view: DOM z-index cannot cover WebContentsView. */}
+    {menuOpen && toolbar.visible && <div className="web-chat-options web-chat-menu" id={menuId} ref={menu} role="menu" aria-label="更多对话操作"
+      onClick={(event) => {
+        if ((event.target as HTMLElement).closest("button")) { setMenuOpen(false); menuButton.current?.focus(); }
+      }}
+      onBlur={(event) => {
+        if (event.relatedTarget && !event.currentTarget.contains(event.relatedTarget) && event.relatedTarget !== menuButton.current) setMenuOpen(false);
+      }}
+      onKeyDown={(event) => {
+        const items = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>("button:not(:disabled)"));
+        const index = items.indexOf(document.activeElement as HTMLButtonElement);
+        const next = event.key === "ArrowDown" ? (index + 1) % items.length
+          : event.key === "ArrowUp" ? (index + items.length - 1) % items.length
+          : event.key === "Home" ? 0 : event.key === "End" ? items.length - 1 : null;
+        if (next !== null) { event.preventDefault(); items[next]?.focus(); }
+      }}>
+      <button role="menuitem" type="button" disabled={loading || saving} onClick={() => edit("link")}>关联已有对话</button>
+      <button role="menuitem" type="button" disabled={!current || saving} onClick={() => edit("rename")}>重命名</button>
+      <button role="menuitem" type="button" disabled={!current} onClick={reloadWebChat}>重新加载网页</button>
+      <button role="menuitem" type="button" disabled={!current} onClick={openInBrowser}>在浏览器中打开</button>
+      <button role="menuitem" type="button" disabled={!current} onClick={() => setLoginHelpId(selected)}>登录帮助</button>
+      <button role="menuitem" type="button" disabled={!current?.url} onClick={() => {
+        void invoke("restore_paper_web_chat", { id: selected }).catch((reason: unknown) => setError(String(reason)));
+      }}>回到绑定对话</button>
+    </div>}
+    {mode && <form className="web-chat-options web-chat-form"
+      onKeyDown={(event) => {
+        if (event.key === "Escape" && !saving) { event.preventDefault(); setMode(null); menuButton.current?.focus(); }
+      }}
+      onSubmit={(event) => { event.preventDefault(); void save(); }}>
+      <label>讨论名称<input autoFocus aria-label="讨论名称" maxLength={100} required value={title} onChange={(event) => setTitle(event.target.value)} /></label>
+      {mode === "link" && <label>ChatGPT 对话链接<input aria-label="ChatGPT 对话链接" type="url" required placeholder="https://chatgpt.com/c/…" value={url} onChange={(event) => setUrl(event.target.value)} /></label>}
+      <div className="web-chat-actions"><button type="submit" disabled={saving || !title.trim()}>{saving ? "保存中…" : "保存并打开"}</button><button type="button" disabled={saving} onClick={() => { setMode(null); menuButton.current?.focus(); }}>取消</button></div>
+    </form>}
+    {current && <p className="web-chat-sr-only">{current.url ? "已绑定 · 打开论文时恢复此对话" : "发出首条消息后自动保存对话链接"}</p>}
+    {error && <p className="web-chat-options ai-panel__error" role="alert">{error} <button type="button" onClick={reloadWebChat}>重试网页</button></p>}
     {loadState?.message && <div className="web-chat-login-help" role="status">
       <p>{loadState.message}</p>
       <div className="web-chat-actions"><button type="button" onClick={reloadWebChat}>重试加载</button><button type="button" onClick={openInBrowser}>在浏览器继续</button></div>

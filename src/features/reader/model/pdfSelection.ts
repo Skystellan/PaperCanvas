@@ -17,21 +17,7 @@ export interface PdfSelectionNoteRequest {
   selection: PdfTextSelection;
 }
 
-export interface PdfSelectionAskRequest {
-  question: string;
-  selection: PdfTextSelection;
-  signal: AbortSignal;
-}
-
-export type PdfSelectionActionResult = string | void;
-
 export interface PdfSelectionActions {
-  askAi?: (
-    request: PdfSelectionAskRequest,
-  ) => Promise<PdfSelectionActionResult> | PdfSelectionActionResult;
   saveNote?: (request: PdfSelectionNoteRequest) => Promise<void> | void;
-  translate?: (
-    selection: PdfTextSelection,
-    signal: AbortSignal,
-  ) => Promise<PdfSelectionActionResult> | PdfSelectionActionResult;
+  addToNotes?: (request: PdfSelectionNoteRequest) => Promise<void> | void;
 }

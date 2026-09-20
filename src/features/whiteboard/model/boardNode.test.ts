@@ -30,7 +30,7 @@ describe("board node mapping", () => {
       type: "paper",
       position: { x: 120, y: 80 },
       data: { paper: persistedNode.paper },
-      deletable: false,
+      deletable: true,
       style: { width: 280, height: 128 },
     });
   });

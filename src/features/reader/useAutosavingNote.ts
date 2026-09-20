@@ -36,5 +36,9 @@ export function useAutosavingNote(
     retryLoad: controller.load,
     reload: () => controller.load(true),
     setDraft: controller.setDraft,
+    append: (text: string) => {
+      const draft = controller.getSnapshot().draft;
+      controller.setDraft(`${draft.trimEnd()}${draft.trim() ? "\n\n" : ""}${text}\n`);
+    },
   };
 }

@@ -1,4 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { readFileSync, readdirSync } from "node:fs";
+import { createRequire } from "node:module";
+import { join, resolve } from "node:path";
+import type { SQLInputValue } from "node:sqlite";
 import type {
   DatabaseProvider,
   SqliteDatabase,
@@ -56,6 +60,8 @@ describe("SqliteBoardRepository", () => {
           source_node_id: "node-attention",
           target_node_id: "node-bert",
           relation_type: "challenge",
+          explanation: "Different result",
+          evidence: "Page 7",
         },
       ]);
     const { repository, getDatabase } = createRepository();
@@ -85,6 +91,8 @@ describe("SqliteBoardRepository", () => {
           sourceNodeId: "node-attention",
           targetNodeId: "node-bert",
           relation: "challenge",
+          explanation: "Different result",
+          evidence: "Page 7",
         },
       ],
     });
@@ -192,6 +200,8 @@ describe("SqliteBoardRepository", () => {
       sourceNodeId: "node-attention",
       targetNodeId: "node-bert",
       relation: null,
+      explanation: "",
+      evidence: "",
     });
     expect(sql.execute).toHaveBeenCalledWith(
       expect.stringContaining("INSERT INTO board_edges"),
@@ -258,4 +268,97 @@ describe("SqliteBoardRepository", () => {
     await expect(repository.deleteEdges([])).resolves.toBeUndefined();
     expect(getDatabase).toHaveBeenCalledOnce();
   });
+
+  it("removes only card rows with a scoped atomic batch, retaining library papers", async () => {
+    sql.execute.mockResolvedValue({ rowsAffected: 2 });
+    const { repository } = createRepository();
+    await repository.deleteNodes(["node-a", "node-b", "node-a"]);
+    expect(sql.execute).toHaveBeenCalledOnce();
+    expect(sql.execute).toHaveBeenCalledWith(
+      expect.stringMatching(/DELETE FROM board_nodes[\s\S]*board_id/),
+      ["node-a", "node-b", DEFAULT_BOARD_ID],
+    );
+    expect(sql.execute.mock.calls[0][0]).not.toMatch(/DELETE FROM papers/);
+    sql.select.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
+    await expect(repository.loadBoard()).resolves.toEqual({ nodes: [], edges: [] });
+    expect(sql.execute).toHaveBeenCalledOnce();
+  });
+
+  it("rejects a stale node batch and skips empty deletion", async () => {
+    const { repository, getDatabase } = createRepository();
+    sql.execute.mockResolvedValue({ rowsAffected: 0 });
+    await expect(repository.deleteNodes(["missing", "present"])).rejects.toThrow("missing");
+    await repository.deleteNodes([]);
+    expect(getDatabase).toHaveBeenCalledOnce();
+  });
+
+  it("saves explanation and evidence together and reads them back unchanged", async () => {
+    const { repository } = createRepository();
+    const annotations = { explanation: "支持相同结论", evidence: "第 4 页：原文\n包含引号 ' 和换行" };
+    sql.execute.mockResolvedValue({ rowsAffected: 1 });
+    await repository.updateEdgeAnnotations("edge-a", annotations);
+    expect(sql.execute).toHaveBeenCalledWith(
+      expect.stringMatching(/UPDATE board_edges SET explanation = \$1, evidence = \$2[\s\S]*board_id = \$4/),
+      [annotations.explanation, annotations.evidence, "edge-a", DEFAULT_BOARD_ID],
+    );
+    sql.select.mockResolvedValueOnce([]).mockResolvedValueOnce([{
+      id: "edge-a", board_id: DEFAULT_BOARD_ID, source_node_id: "a", target_node_id: "b",
+      relation_type: "support", ...annotations,
+    }]);
+    expect((await repository.loadBoard()).edges[0]).toMatchObject(annotations);
+    sql.execute.mockResolvedValue({ rowsAffected: 0 });
+    await expect(repository.updateEdgeAnnotations("missing", annotations)).rejects.toThrow("stale");
+  });
+});
+
+it("round-trips annotations and card removal through real migrated SQLite, preserving papers for drag-back", async () => {
+  const { DatabaseSync } = createRequire(import.meta.url)("node:sqlite") as typeof import("node:sqlite");
+  const database = new DatabaseSync(":memory:");
+  try {
+    const migrationDirectory = resolve("src-tauri/migrations");
+    for (const file of readdirSync(migrationDirectory).filter((file) => /^\d+.*\.sql$/.test(file) && Number(file.slice(0, 4)) <= 16).sort()) {
+      database.exec(readFileSync(join(migrationDirectory, file), "utf8"));
+    }
+    // rusqlite/sqlx bind the array by SQLite parameter index. For named $N
+    // parameters, indices follow first appearance in SQL, not the N suffix.
+    const positionalBindings = (query: string, values: SQLInputValue[]) =>
+      Object.fromEntries([...new Set(query.match(/\$\d+/g))].map((name, i) => [name, values[i]]));
+    const adapter = {
+      select: async (query: string, values: SQLInputValue[] = []) => database.prepare(query).all(positionalBindings(query, values)),
+      execute: async (query: string, values: SQLInputValue[] = []) => ({
+        rowsAffected: Number(database.prepare(query).run(positionalBindings(query, values)).changes),
+      }),
+    } as unknown as SqliteDatabase;
+    let revision = 0;
+    const repository = new SqliteBoardRepository(async () => adapter, () => `created-${++revision}`);
+    database.exec("UPDATE papers SET file_path = 'papers/attention.pdf' WHERE id = 'paper-attention'");
+    const papersBefore = database.prepare("SELECT * FROM papers ORDER BY id").all();
+    const edge = await repository.createEdge("node-attention", "node-bert");
+    const annotations = { explanation: "支持这个结论", evidence: "第 4 页\n原文摘录" };
+    await repository.updateEdgeAnnotations(edge.id, annotations);
+    const reloaded = new SqliteBoardRepository(async () => adapter);
+    expect((await reloaded.loadBoard()).edges[0]).toMatchObject(annotations);
+
+    const retainedEdge = await repository.createEdge("node-bert", "node-resnet");
+    const otherEdge = await repository.createEdge("node-attention", "node-resnet");
+    await expect(repository.deleteEdges([edge.id, "missing"])).rejects.toThrow("stale");
+    expect((await reloaded.loadBoard()).edges).toHaveLength(3);
+    await repository.deleteEdges([edge.id, otherEdge.id]);
+    expect((await reloaded.loadBoard()).edges.map(({ id }) => id)).toEqual([retainedEdge.id]);
+
+    await expect(repository.deleteNodes(["node-attention", "missing"])).rejects.toThrow("stale");
+    expect((await reloaded.loadBoard()).nodes).toHaveLength(3);
+    await repository.deleteNodes(["node-attention", "node-bert"]);
+    const after = await reloaded.loadBoard();
+    expect(after.nodes.map(({ id }) => id)).toEqual(["node-resnet"]);
+    expect(after.edges).toEqual([]);
+    expect(database.prepare("SELECT * FROM papers ORDER BY id").all()).toEqual(papersBefore);
+
+    await repository.createPaperNode("paper-attention", { x: 30, y: 50 });
+    const restored = (await reloaded.loadBoard()).nodes.find(({ paper }) => paper.id === "paper-attention");
+    expect(restored).toMatchObject({ position: { x: 30, y: 50 }, paper: { filePath: "papers/attention.pdf" } });
+    expect(restored?.id).not.toBe("node-attention");
+  } finally {
+    database.close();
+  }
 });

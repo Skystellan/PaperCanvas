@@ -1,4 +1,5 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
@@ -14,8 +15,13 @@ const paper: Paper = { id: "paper-a", title: "Paper A", authors: null, year: nul
 const chat = { id: "chat-a", paperId: paper.id, title: "公式推导", url: "https://chatgpt.com/c/6aa9ff1f-b11c-83ee-8e6f-f69405b4f239", lastOpenedAt: 10 };
 
 describe("paper conversation bindings", () => {
-  beforeEach(() => { vi.clearAllMocks(); vi.mocked(listPaperWebChats).mockResolvedValue([chat]); });
+  beforeEach(() => { vi.clearAllMocks(); vi.mocked(listPaperWebChats).mockResolvedValue([chat]); vi.mocked(invoke).mockResolvedValue(undefined); });
   afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+
+  async function openActions() {
+    await waitFor(() => expect(screen.getByRole("combobox")).toBeEnabled());
+    fireEvent.click(screen.getByRole("button", { name: "更多对话操作" }));
+  }
 
   function layoutHarness() {
     const frames = new Map<number, FrameRequestCallback>();
@@ -122,8 +128,9 @@ describe("paper conversation bindings", () => {
   it("associates a pasted conversation link with this paper", async () => {
     vi.mocked(invoke).mockResolvedValue(chat);
     render(<WebChatPanel paper={paper} />);
-    await waitFor(() => expect(screen.getByRole("button", { name: "关联已有对话" })).toBeEnabled());
-    fireEvent.click(screen.getByRole("button", { name: "关联已有对话" }));
+    await openActions();
+    fireEvent.click(screen.getByRole("menuitem", { name: "关联已有对话" }));
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("ChatGPT 对话链接"), { target: { value: chat.url } });
     fireEvent.click(screen.getByRole("button", { name: "保存并打开" }));
     await waitFor(() => expect(invoke).toHaveBeenCalledWith("save_paper_web_chat", expect.objectContaining({ paperId: paper.id, url: chat.url })));
@@ -131,13 +138,14 @@ describe("paper conversation bindings", () => {
 
   it("opens the bound discussion in the user's browser", async () => {
     render(<WebChatPanel paper={paper} />);
-    fireEvent.click(await screen.findByRole("button", { name: "在浏览器中打开" }));
+    await openActions();
+    fireEvent.click(screen.getByRole("menuitem", { name: "在浏览器中打开" }));
     await waitFor(() => expect(invoke).toHaveBeenCalledWith("open_paper_web_chat_external", { id: chat.id }));
   });
 
   it("retries the webpage and keeps another conversation's load state separate", async () => {
     render(<WebChatPanel paper={paper} />);
-    await screen.findByRole("button", { name: "重新加载网页" });
+    await waitFor(() => expect(screen.getByRole("combobox")).toHaveValue(chat.id));
     const callback = vi.mocked(listen).mock.calls.find(([event]) => event === "paper-web-chat-load-state")?.[1];
     expect(callback).toBeDefined();
     act(() => callback!({ event: "paper-web-chat-load-state", id: 1, payload: { id: "other-chat", status: "failed", message: "其他对话失败" } }));
@@ -153,7 +161,7 @@ describe("paper conversation bindings", () => {
 
   it("explains the embedded Google sign-in limit and opens the saved chat in a browser", async () => {
     render(<WebChatPanel paper={paper} />);
-    await screen.findByRole("button", { name: "登录帮助" });
+    await waitFor(() => expect(screen.getByRole("combobox")).toHaveValue(chat.id));
     const callback = vi.mocked(listen).mock.calls.find(([event]) => event === "paper-web-chat-login-required")?.[1];
     expect(callback).toBeDefined();
     act(() => callback!({ event: "paper-web-chat-login-required", id: 1, payload: { id: chat.id } }));
@@ -173,5 +181,92 @@ describe("paper conversation bindings", () => {
     await act(async () => resolveA([chat]));
     expect(screen.queryByRole("option", { name: "公式推导" })).not.toBeInTheDocument();
     expect(screen.getByText("Paper B")).toBeVisible();
+  });
+
+  it("keeps primary controls visible in the header and makes every overflow action reachable", async () => {
+    const user = userEvent.setup();
+    const host = document.createElement("div");
+    document.body.append(host);
+    const view = render(<ReaderToolbarContext.Provider value={{ workspace: null, chat: host, visible: true }}>
+      <WebChatPanel paper={paper} />
+      <button>Outside toolbar</button>
+    </ReaderToolbarContext.Provider>);
+    try {
+      await waitFor(() => expect(within(host).getByRole("combobox")).toHaveValue(chat.id));
+      expect(within(host).getByRole("button", { name: "新对话" })).toBeVisible();
+      const copy = within(host).getByRole("button", { name: "复制论文信息" });
+      expect(copy).toBeVisible();
+      expect(copy).toHaveTextContent("⧉");
+      expect(copy).toHaveAttribute("title", "复制论文信息");
+      expect(screen.queryByRole("menuitem")).not.toBeInTheDocument();
+      const more = within(host).getByRole("button", { name: "更多对话操作" });
+      more.focus();
+      await user.keyboard("{Enter}");
+      expect(more).toHaveAttribute("aria-expanded", "true");
+      for (const name of ["关联已有对话", "重命名", "重新加载网页", "在浏览器中打开", "登录帮助", "回到绑定对话"]) {
+        expect(screen.getByRole("menuitem", { name })).toBeVisible();
+        expect(screen.getByRole("menuitem", { name })).toBeEnabled();
+      }
+      expect(screen.getByRole("menuitem", { name: "关联已有对话" })).toHaveFocus();
+      await user.keyboard("{ArrowDown}");
+      expect(screen.getByRole("menuitem", { name: "重命名" })).toHaveFocus();
+      await user.keyboard("{End}{Enter}");
+      expect(invoke).toHaveBeenCalledWith("restore_paper_web_chat", { id: chat.id });
+      expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+      expect(more).toHaveFocus();
+      await user.keyboard("{ArrowDown}{Escape}");
+      expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+      expect(more).toHaveFocus();
+      expect(more).toHaveAttribute("aria-expanded", "false");
+      await user.click(more);
+      await user.click(screen.getByRole("button", { name: "Outside toolbar" }));
+      expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+      await user.click(more);
+      await user.click(more);
+      expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    } finally {
+      view.unmount();
+      host.remove();
+    }
+  });
+
+  it("copies only the paper title, including when there are no conversations", async () => {
+    const user = userEvent.setup();
+    vi.mocked(listPaperWebChats).mockResolvedValue([]);
+    render(<WebChatPanel paper={{ ...paper, authors: "An author", year: 2024 }} />);
+    await user.click(screen.getByRole("button", { name: "复制论文信息" }));
+    expect(await navigator.clipboard.readText()).toBe(paper.title);
+    await user.click(screen.getByRole("button", { name: "更多对话操作" }));
+    expect(screen.getByRole("menuitem", { name: "关联已有对话" })).toBeEnabled();
+    expect(screen.getByRole("menuitem", { name: "回到绑定对话" })).toBeDisabled();
+  });
+
+  it("renames from the menu, cancels editing with Escape, and keeps reload and help available", async () => {
+    const user = userEvent.setup();
+    vi.mocked(invoke).mockResolvedValue({ ...chat, title: "新名称" });
+    render(<WebChatPanel paper={paper} />);
+    await openActions();
+    await user.click(screen.getByRole("menuitem", { name: "重命名" }));
+    const input = screen.getByRole("textbox", { name: "讨论名称" });
+    expect(input).toHaveFocus();
+    await user.clear(input);
+    await user.type(input, "新名称");
+    await user.click(screen.getByRole("button", { name: "保存并打开" }));
+    await waitFor(() => expect(invoke).toHaveBeenCalledWith("save_paper_web_chat", { paperId: paper.id, id: chat.id, title: "新名称", url: null }));
+    expect(screen.getByRole("option", { name: "新名称" })).toBeInTheDocument();
+    await openActions();
+    await user.click(screen.getByRole("menuitem", { name: "关联已有对话" }));
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("textbox", { name: "讨论名称" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "更多对话操作" })).toHaveFocus();
+    await openActions();
+    await user.click(screen.getByRole("menuitem", { name: "重新加载网页" }));
+    expect(invoke).toHaveBeenCalledWith("reload_paper_web_chat", { id: chat.id });
+    await openActions();
+    await user.click(screen.getByRole("menuitem", { name: "登录帮助" }));
+    expect(screen.getByRole("status")).toHaveTextContent("Google 登录需要使用浏览器");
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "关闭提示" }));
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
 });

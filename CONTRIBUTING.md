@@ -10,9 +10,8 @@
 和 Xcode Command Line Tools，然后按 README 克隆并运行项目。
 使用 `npm ci` 安装锁定的依赖版本。
 
-划词 AI 和思维导图依赖 README 中指定版本的 Codex runtime 及 ChatGPT 登录；
-阅读 README 的运行条件和数据边界后再测试这些功能。
-内嵌 ChatGPT 需要在应用内单独登录。
+标注和 Markmap 思维导图完全在本地运行，无需 AI SDK。内嵌 ChatGPT
+需要在应用内单独登录；测试使用临时资料目录和本地网页，避免访问真实对话。
 
 ## 项目结构
 
@@ -20,9 +19,8 @@
 - `src/data/`：共享 SQLite 接口。
 - `electron/`：当前 Chromium 桌面窗口、内嵌网页和本地进程桥接。
 - `src/platform/`：共享前端使用的桌面能力适配。
-- `src-tauri/src/`：共享 Rust 存储、PDF 导入、Codex runtime，以及原 Tauri 桌面壳。
+- `src-tauri/src/`：共享 Rust 存储、PDF 导入，以及原 Tauri 桌面壳。
 - `src-tauri/migrations/`：SQLite 迁移；已有迁移保持不变，以新增迁移扩展数据结构。
-- `sidecar/`：Codex Node.js 桥接及测试。
 - `docs/`：人工验证记录，注意各记录的日期和验证边界。
 
 ## 提交改动
@@ -42,12 +40,6 @@ npm run test:coverage
 npm run build
 ```
 
-Codex 桥接检查：
-
-```sh
-node --test sidecar/tests/*.test.mjs
-```
-
 Rust 检查：
 
 ```sh
@@ -62,4 +54,3 @@ cargo test --manifest-path src-tauri/Cargo.toml --all-targets --locked
 资料目录和本地网页测试窗口与 PDF，不会验证真实账号登录。
 
 不要提交登录凭据、环境密钥、私人 PDF、应用数据库或构建输出。
-保留 `sidecar/vendor/` 中的第三方许可证及归属说明。

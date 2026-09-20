@@ -47,6 +47,57 @@
   color: #b13b3b;
 }
 
+.whiteboard .react-flow__edge.selected .react-flow__edge-path {
+  stroke-width: 3;
+  stroke-dasharray: 6 3;
+}
+
+.whiteboard__edge-editor {
+  position: absolute;
+  z-index: 6;
+  top: 66px;
+  right: 14px;
+  display: grid;
+  gap: 10px;
+  width: min(300px, calc(100% - 28px));
+  box-sizing: border-box;
+  padding: 14px;
+  border: 1px solid #deddd7;
+  border-radius: 10px;
+  background: #fffffd;
+  box-shadow: 0 4px 16px rgba(37, 37, 33, 0.07);
+  font-size: 13px;
+}
+
+.whiteboard__edge-editor label {
+  display: grid;
+  gap: 5px;
+}
+
+.whiteboard__edge-editor textarea {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 70px;
+  padding: 7px;
+  resize: vertical;
+  border: 1px solid #c9ccc5;
+  border-radius: 5px;
+  font: inherit;
+}
+
+.whiteboard__edge-editor button {
+  padding: 7px;
+  border: 1px solid #c9ccc5;
+  border-radius: 5px;
+  background: #e8ede5;
+  font: inherit;
+  cursor: pointer;
+}
+
+.whiteboard__edge-editor small { color: #64675f; }
+.whiteboard__edge-editor textarea:focus-visible,
+.whiteboard button:focus-visible { outline: 2px solid #526b4d; outline-offset: 2px; }
+
 .whiteboard .react-flow__edge.whiteboard__edge--support .react-flow__edge-path {
   stroke: #3478c6;
 }

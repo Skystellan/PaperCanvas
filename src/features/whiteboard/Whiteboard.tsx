@@ -42,6 +42,7 @@ import {
   connectionKey,
   toFlowEdge,
   withEdgeRelation,
+  type BoardEdgeAnnotations,
   type BoardEdgeRelation,
   type PaperFlowEdge,
 } from "./model/boardEdge";
@@ -84,6 +85,7 @@ export interface WhiteboardProps {
   onOpenPaper?: (paper: Paper) => void;
   onPaperDropComplete?: () => void;
   paperDropIntent?: PaperDropIntent | null;
+  paperFocusRequest?: { paperId: string; revision: number } | null;
 }
 
 export type WhiteboardScope =
@@ -92,15 +94,15 @@ export type WhiteboardScope =
 
 type LoadState = "loading" | "ready" | "error";
 type SaveState = "idle" | "error";
-type ActionError = "paper" | "connection" | null;
+type ActionError = "paper" | "connection" | "deletion" | null;
 
 const ALL_SCOPE: WhiteboardScope = { kind: "all" };
 
 function isEditableTarget(target: EventTarget | null) {
   return (
-    target instanceof HTMLElement &&
+    target instanceof Element &&
     target.closest(
-      "input, textarea, select, button, a, [contenteditable='true'], [role='textbox']",
+      "input, textarea, select, [contenteditable]:not([contenteditable='false']), [role='textbox']",
     ) !== null
   );
 }
@@ -156,6 +158,7 @@ function WhiteboardCanvas({
   onOpenPaper,
   onPaperDropComplete,
   paperDropIntent,
+  paperFocusRequest,
 }: Required<Pick<WhiteboardProps, "repository" | "domainRepository">> &
   Pick<
     WhiteboardProps,
@@ -163,10 +166,11 @@ function WhiteboardCanvas({
     | "onPaperDropComplete"
     | "paperCatalogChange"
     | "paperDropIntent"
+    | "paperFocusRequest"
     | "domains"
     | "active"
   >) {
-  const { fitView, screenToFlowPosition } = useReactFlow();
+  const { deleteElements, fitView, setCenter, screenToFlowPosition } = useReactFlow<PaperFlowNode, PaperFlowEdge>();
   const [nodes, setNodes] = useState<PaperFlowNode[]>([]);
   const [edges, setEdges] = useState<PaperFlowEdge[]>([]);
   const [loadState, setLoadState] = useState<LoadState>("loading");
@@ -180,6 +184,12 @@ function WhiteboardCanvas({
   );
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
   const [relationUpdatePending, setRelationUpdatePending] = useState(false);
+  const [deletionPending, setDeletionPending] = useState(false);
+  const deletionPendingRef = useRef(false);
+  const [annotationDrafts, setAnnotationDrafts] = useState(new Map<string, BoardEdgeAnnotations>());
+  const annotationDraftsRef = useRef(annotationDrafts);
+  const annotationSave = useRef<Promise<void> | null>(null);
+  const [annotationSaveState, setAnnotationSaveState] = useState<"idle" | "saving" | "error">("idle");
   const [fitRevision, setFitRevision] = useState(0);
   const [repositoryDomains, setRepositoryDomains] = useState<
     readonly WhiteboardDomain[]
@@ -207,6 +217,7 @@ function WhiteboardCanvas({
   const pendingPaperPlacements = useRef(new Map<string, NodeRectangle>());
   const pendingConnections = useRef(new Set<string>());
   const pendingFitNodeIds = useRef<readonly string[] | null>(null);
+  const handledFocusRevision = useRef<number | null>(null);
   const forceLayout = useRef<
     ReturnType<typeof createObsidianForceLayout> | null
   >(null);
@@ -543,9 +554,48 @@ function WhiteboardCanvas({
     }
   }, []);
 
+  const flushAnnotations = useCallback(() => {
+    if (annotationSave.current) return annotationSave.current;
+    if (annotationDraftsRef.current.size === 0) return Promise.resolve();
+    setAnnotationSaveState("saving");
+    const operation = (async () => {
+      while (annotationDraftsRef.current.size > 0) {
+        const [edgeId, draft] = annotationDraftsRef.current.entries().next().value!;
+        await repository.updateEdgeAnnotations(edgeId, draft);
+        replaceEdges(edgesRef.current.map((edge) => edge.id === edgeId
+          ? { ...edge, data: { relation: null, ...edge.data, ...draft } } : edge));
+        if (annotationDraftsRef.current.get(edgeId) === draft) {
+          const next = new Map(annotationDraftsRef.current);
+          next.delete(edgeId);
+          annotationDraftsRef.current = next;
+          if (isMounted.current) setAnnotationDrafts(next);
+        }
+      }
+    })();
+    annotationSave.current = operation;
+    void operation.then(
+      () => { if (isMounted.current) setAnnotationSaveState("idle"); },
+      () => { if (isMounted.current) setAnnotationSaveState("error"); },
+    ).finally(() => { annotationSave.current = null; });
+    return operation;
+  }, [replaceEdges, repository]);
+
+  const editAnnotations = useCallback((edge: PaperFlowEdge, field: keyof BoardEdgeAnnotations, value: string) => {
+    const next = new Map(annotationDraftsRef.current);
+    next.set(edge.id, {
+      explanation: edge.data?.explanation ?? "",
+      evidence: edge.data?.evidence ?? "",
+      ...next.get(edge.id),
+      [field]: value,
+    });
+    annotationDraftsRef.current = next;
+    setAnnotationDrafts(next);
+  }, []);
+
   const flush = useCallback(async () => {
     while (true) {
       finishForceLayout();
+      await flushAnnotations();
       await drainMutations();
       if (forceLayout.current !== null) continue;
 
@@ -566,6 +616,7 @@ function WhiteboardCanvas({
       if (
         forceLayout.current !== null ||
         pendingMutations.current.size > 0 ||
+        annotationDraftsRef.current.size > 0 ||
         layoutRevision.current !== requestedRevision
       ) {
         continue;
@@ -583,11 +634,14 @@ function WhiteboardCanvas({
     drainPositionQueue,
     enqueuePositionSnapshot,
     finishForceLayout,
+    flushAnnotations,
   ]);
 
   const writer = useMemo(
     () => ({
       isDirty: () =>
+        annotationDraftsRef.current.size > 0 ||
+        annotationSave.current !== null ||
         pendingMutations.current.size > 0 ||
         pendingSaveCount.current > 0 ||
         forceLayout.current !== null ||
@@ -602,9 +656,15 @@ function WhiteboardCanvas({
 
   const onNodesChange = useCallback(
     (changes: NodeChange<PaperFlowNode>[]) => {
+      if (deletionPendingRef.current && changes.some((change) => change.type === "position")) return;
       const previousNodes = nodesRef.current;
       const nextNodes = applyNodeChanges(changes, previousNodes);
       replaceNodes(nextNodes);
+      const removedIds = new Set(changes.filter((change) => change.type === "remove").map(({ id }) => id));
+      if (removedIds.size > 0) {
+        // Domain views hide cross-domain edges; prune those from the full snapshot too.
+        replaceEdges(edgesRef.current.filter((edge) => !removedIds.has(edge.source) && !removedIds.has(edge.target)));
+      }
       const previousPositions = new Map(
         previousNodes.map((node) => [node.id, node.position]),
       );
@@ -637,7 +697,7 @@ function WhiteboardCanvas({
         ).catch(() => undefined);
       }
     },
-    [enqueuePositionSnapshot, replaceNodes],
+    [enqueuePositionSnapshot, replaceEdges, replaceNodes],
   );
 
   const onEdgesChange = useCallback(
@@ -722,7 +782,7 @@ function WhiteboardCanvas({
   );
   const placePaper = useCallback(
     (paperId: string, clientX: number, clientY: number) => {
-      if (!paperId) return;
+      if (!paperId || deletionPendingRef.current) return;
       if (
         pendingPaperPlacements.current.has(paperId) ||
         nodesRef.current.some((node) => node.data.paper.id === paperId)
@@ -809,6 +869,7 @@ function WhiteboardCanvas({
   const createConnection = useCallback(
     (connection: { source: string | null; target: string | null }) => {
       const { source, target } = connection;
+      if (deletionPendingRef.current) return;
       if (!source || !target || source === target) return;
       const key = connectionKey(source, target);
       const alreadyExists = edgesRef.current.some(
@@ -891,7 +952,7 @@ function WhiteboardCanvas({
 
   const updateSelectedEdgeRelation = useCallback(
     (relation: BoardEdgeRelation) => {
-      if (selectedEdgeId === null || relationUpdatePending) return;
+      if (selectedEdgeId === null || relationUpdatePending || deletionPendingRef.current) return;
       const edgeId = selectedEdgeId;
       setRelationUpdatePending(true);
       setActionError(null);
@@ -943,9 +1004,20 @@ function WhiteboardCanvas({
       setScope(nextScope);
       setConnectionSourceId(null);
       setSelectedEdgeId(null);
+      replaceNodes(nodesRef.current.map((node) => ({ ...node, selected: false })));
+      replaceEdges(edgesRef.current.map((edge) => ({ ...edge, selected: false })));
     },
-    [organizeScope],
+    [organizeScope, replaceNodes, replaceEdges],
   );
+
+  const deleteSelected = useCallback((kind?: "nodes" | "edges") => {
+    if (active === false || deletionPendingRef.current) return;
+    const visibleIds = new Set(nodesRef.current.filter((node) => nodeBelongsToScope(node, scopeRef.current)).map(({ id }) => id));
+    void deleteElements({
+      nodes: kind === "edges" ? [] : nodesRef.current.filter((node) => node.selected && visibleIds.has(node.id)),
+      edges: kind === "nodes" ? [] : edgesRef.current.filter((edge) => edge.selected && visibleIds.has(edge.source) && visibleIds.has(edge.target)),
+    });
+  }, [active, deleteElements]);
 
   useEffect(() => {
     if (active === false) return;
@@ -956,6 +1028,12 @@ function WhiteboardCanvas({
         return;
       }
       if (isEditableTarget(event.target)) return;
+      if ((event.key === "Delete" || event.key === "Backspace") && !event.repeat && !event.isComposing) {
+        event.preventDefault();
+        deleteSelected();
+        return;
+      }
+      if (event.target instanceof Element && event.target.closest("button, a")) return;
       if (event.key !== " " || event.repeat) return;
       event.preventDefault();
       setConnectionMode(true);
@@ -963,7 +1041,7 @@ function WhiteboardCanvas({
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [active, connectionMode, exitConnectionMode]);
+  }, [active, connectionMode, deleteSelected, exitConnectionMode]);
 
   const selectConnectionNode = useCallback(
     (nodeId: string) => {
@@ -984,13 +1062,6 @@ function WhiteboardCanvas({
       selectConnectionNode(node.id);
     },
     [selectConnectionNode],
-  );
-
-  const onEdgeClick = useCallback(
-    (_event: MouseEvent, edge: PaperFlowEdge) => {
-      setSelectedEdgeId(edge.id);
-    },
-    [],
   );
 
   const onKeyboardConnectionSelect = useCallback(
@@ -1123,20 +1194,39 @@ function WhiteboardCanvas({
     OnBeforeDelete<PaperFlowNode, PaperFlowEdge>
   >(
     async ({ nodes: nodesToDelete, edges: edgesToDelete }) => {
-      if (nodesToDelete.length > 0) return false;
-      if (edgesToDelete.length === 0) return false;
+      if (deletionPendingRef.current || (nodesToDelete.length === 0 && edgesToDelete.length === 0)) return false;
+      deletionPendingRef.current = true;
+      setDeletionPending(true);
       setActionError(null);
+      const removedNodes: PaperFlowNode[] = [];
+      const removedEdges: PaperFlowEdge[] = [];
       try {
-        await trackMutation(
-          repository.deleteEdges(edgesToDelete.map(({ id }) => id)),
-        );
+        // Settle and drain snapshots before deleting their referenced node rows.
+        await flush();
+        await trackMutation((async () => {
+          if (nodesToDelete.length > 0) {
+            await repository.deleteNodes(nodesToDelete.map(({ id }) => id));
+            removedNodes.push(...nodesToDelete);
+            const ids = new Set(nodesToDelete.map(({ id }) => id));
+            removedEdges.push(...edgesToDelete.filter((edge) => ids.has(edge.source) || ids.has(edge.target)));
+          }
+          const remaining = edgesToDelete.filter((edge) => !removedEdges.includes(edge));
+          if (remaining.length > 0) {
+            await repository.deleteEdges(remaining.map(({ id }) => id));
+            removedEdges.push(...remaining);
+          }
+        })());
+        setConnectionSourceId(null);
         return true;
       } catch {
-        if (isMounted.current) setActionError("connection");
-        return false;
+        if (isMounted.current) setActionError(nodesToDelete.length ? "deletion" : "connection");
+        return { nodes: removedNodes, edges: removedEdges };
+      } finally {
+        deletionPendingRef.current = false;
+        if (isMounted.current) setDeletionPending(false);
       }
     },
-    [repository, trackMutation],
+    [flush, repository, trackMutation],
   );
 
   const visibleNodes = useMemo(() => {
@@ -1174,6 +1264,10 @@ function WhiteboardCanvas({
     () => visibleEdges.find(({ id }) => id === selectedEdgeId) ?? null,
     [selectedEdgeId, visibleEdges],
   );
+  const selectedNodeCount = visibleNodes.filter(({ selected }) => selected).length;
+  const selectedAnnotations = selectedEdge
+    ? annotationDrafts.get(selectedEdge.id) ?? selectedEdge.data
+    : undefined;
   const domainFrames = useMemo(
     () =>
       resolvedScope.kind === "all"
@@ -1181,6 +1275,23 @@ function WhiteboardCanvas({
         : [],
     [availableDomains, nodes, resolvedScope.kind],
   );
+
+  useEffect(() => {
+    if (!paperFocusRequest || loadState !== "ready" || active === false ||
+      handledFocusRevision.current === paperFocusRequest.revision) return;
+    handledFocusRevision.current = paperFocusRequest.revision;
+    const target = nodesRef.current.find((node) => node.data.paper.id === paperFocusRequest.paperId);
+    if (!target) return;
+    if (!nodeBelongsToScope(target, scopeRef.current)) setScope(ALL_SCOPE);
+    replaceNodes(nodesRef.current.map((node) => ({ ...node, selected: node.id === target.id })));
+    replaceEdges(edgesRef.current.map((edge) => ({ ...edge, selected: false })));
+    setSelectedEdgeId(null);
+    setConnectionSourceId(null);
+    const rectangle = toNodeRectangle(target);
+    void setCenter(target.position.x + rectangle.size.width / 2,
+      target.position.y + rectangle.size.height / 2,
+      { zoom: 1, duration: requestsReducedMotion() ? 0 : 300 });
+  }, [active, loadState, paperFocusRequest, replaceEdges, replaceNodes, setCenter]);
 
   useEffect(() => {
     if (pendingFitNodeIds.current === null) return;
@@ -1266,12 +1377,19 @@ function WhiteboardCanvas({
           连线
         </button>
         <button
-          disabled={visibleNodes.length < 2}
+          disabled={visibleNodes.length < 2 || deletionPending}
           onClick={() => organizeConnections()}
           type="button"
         >
           重新整理布局
         </button>
+        {selectedNodeCount > 0 && (
+          <button type="button" disabled={deletionPending}
+            title="只移除白板卡片及其连线，论文和 PDF 保留在文库，可再次拖入"
+            onClick={() => deleteSelected("nodes")}>
+            从白板移除选中卡片
+          </button>
+        )}
         {selectedEdge && (
           <div className="whiteboard__edge-relations" role="group" aria-label="连线关系">
             {(
@@ -1286,15 +1404,41 @@ function WhiteboardCanvas({
                 type="button"
                 className={relation ? `is-${relation}` : undefined}
                 aria-pressed={(selectedEdge.data?.relation ?? null) === relation}
-                disabled={relationUpdatePending}
+                disabled={relationUpdatePending || deletionPending}
                 onClick={() => updateSelectedEdgeRelation(relation)}
               >
                 {label}
               </button>
             ))}
+            <button type="button" disabled={deletionPending}
+              onClick={() => deleteSelected("edges")}>
+              删除选中连线
+            </button>
           </div>
         )}
       </div>
+
+      {selectedEdge && (
+        <aside className="whiteboard__edge-editor" aria-label="连线解释与证据">
+          <label>
+            解释
+            <textarea value={selectedAnnotations?.explanation ?? ""} disabled={deletionPending}
+              placeholder="这两篇论文为什么相关？"
+              onChange={(event) => editAnnotations(selectedEdge, "explanation", event.target.value)} />
+          </label>
+          <label>
+            证据
+            <textarea value={selectedAnnotations?.evidence ?? ""} disabled={deletionPending}
+              placeholder="摘录、来源或页码"
+              onChange={(event) => editAnnotations(selectedEdge, "evidence", event.target.value)} />
+          </label>
+          <button type="button" disabled={deletionPending || annotationSaveState === "saving" || annotationDrafts.size === 0}
+            onClick={() => void flushAnnotations().catch(() => undefined)}>
+            {annotationSaveState === "saving" ? "保存中…" : "保存解释与证据"}
+          </button>
+          <small>打开阅读器前会保存；切换选择保留草稿。</small>
+        </aside>
+      )}
 
       {connectionMode && (
         <div className="whiteboard__connection-status" role="status">
@@ -1315,7 +1459,6 @@ function WhiteboardCanvas({
           onNodeDrag={onNodeDrag}
           onNodeDragStop={onNodeDragStop}
           onNodeClick={onNodeClick}
-          onEdgeClick={onEdgeClick}
           onBeforeDelete={onBeforeDelete}
           onDrop={onDrop}
           onDragOver={(event) => {
@@ -1326,7 +1469,7 @@ function WhiteboardCanvas({
             if (!connectionMode) onOpenPaper?.(node.data.paper);
           }}
           nodesConnectable={false}
-          nodesDraggable={!connectionMode}
+          nodesDraggable={!connectionMode && !deletionPending}
           connectOnClick={false}
           panActivationKeyCode={null}
           panOnScroll
@@ -1334,7 +1477,7 @@ function WhiteboardCanvas({
           panOnScrollSpeed={1}
           zoomOnPinch
           zoomOnScroll={false}
-          deleteKeyCode={["Backspace", "Delete"]}
+          deleteKeyCode={null}
           fitView
           fitViewOptions={{ padding: 0.22, maxZoom: 1.1 }}
           minZoom={0.2}
@@ -1372,7 +1515,15 @@ function WhiteboardCanvas({
         <div className="save-error" role="alert">
           {actionError === "paper"
             ? "The paper card was not added. Try dropping it again."
+            : actionError === "deletion"
+            ? "The selected cards could not be removed. Try again."
             : "The paper connection was not saved. Try again."}
+        </div>
+      )}
+      {annotationSaveState === "error" && (
+        <div className="save-error" role="alert">
+          <span>解释与证据未保存，草稿已保留。</span>
+          <button type="button" onClick={() => void flushAnnotations().catch(() => undefined)}>重试保存解释与证据</button>
         </div>
       )}
     </section>
@@ -1388,6 +1539,7 @@ export function Whiteboard({
   onOpenPaper,
   onPaperDropComplete,
   paperDropIntent,
+  paperFocusRequest,
 }: WhiteboardProps) {
   return (
     <ReactFlowProvider>
@@ -1400,6 +1552,7 @@ export function Whiteboard({
         onOpenPaper={onOpenPaper}
         onPaperDropComplete={onPaperDropComplete}
         paperDropIntent={paperDropIntent}
+        paperFocusRequest={paperFocusRequest}
       />
     </ReactFlowProvider>
   );

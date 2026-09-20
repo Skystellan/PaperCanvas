@@ -4,7 +4,8 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import "./markdown-note.css";
 
-type Mode = "live" | "edit" | "split" | "read";
+type Mode = "live" | "edit" | "read";
+import { parseNoteCitation, type NoteCitation } from "./model/noteCitation";
 
 interface Props {
   value: string;
@@ -13,12 +14,15 @@ interface Props {
   status: string;
   fileName?: string;
   editorRef?: Ref<HTMLTextAreaElement>;
+  onCitation?: (citation: NoteCitation) => void;
   onReload?: () => void;
   onReveal?: () => Promise<void>;
 }
 
-export function MarkdownNoteEditor({ value, onChange, disabled, status, fileName, editorRef, onReload, onReveal }: Props) {
+export function MarkdownNoteEditor({ value, onChange, disabled, status, fileName, editorRef, onReload, onReveal, onCitation }: Props) {
   const [mode, setMode] = useState<Mode>("live");
+  const [viewMenuOpen, setViewMenuOpen] = useState(false);
+  const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [fileError, setFileError] = useState<string | null>(null);
   const liveEditor = useRef<LiveMarkdownHandle>(null);
   const input = useRef<HTMLTextAreaElement | null>(null);
@@ -66,12 +70,17 @@ export function MarkdownNoteEditor({ value, onChange, disabled, status, fileName
   return (
     <div className="markdown-note">
       <div className="markdown-note__topbar">
-        <div aria-label="Note view" className="markdown-note__modes" role="group">
-          {([["live", "Live preview"], ["edit", "Source"], ["split", "Split"], ["read", "Read"]] as const).map(([key, label]) => (
-            <button type="button" key={key} aria-pressed={mode === key} onClick={() => setMode(key)}>{label}</button>
+        <details className="markdown-note__menu" open={viewMenuOpen} onKeyDown={(event) => { if (event.key === "Escape") { setViewMenuOpen(false); event.currentTarget.querySelector("summary")?.focus(); } }}>
+          <summary onClick={(event) => { event.preventDefault(); setViewMenuOpen(!viewMenuOpen); }}>View</summary>
+          {viewMenuOpen && <div aria-label="Note view" className="markdown-note__modes" role="group">
+          {([["live", "Live preview"], ["edit", "Source"], ["read", "Read"]] as const).map(([key, label]) => (
+            <button type="button" key={key} aria-pressed={mode === key} onClick={(event) => { setMode(key); setViewMenuOpen(false); event.currentTarget.closest("details")?.querySelector("summary")?.focus(); }}>{label}</button>
           ))}
-        </div>
-        <div className="markdown-note__file-actions">
+        </div>}
+        </details>
+        {(onReload || onReveal) && <details className="markdown-note__menu" open={moreMenuOpen} onKeyDown={(event) => { if (event.key === "Escape") { setMoreMenuOpen(false); event.currentTarget.querySelector("summary")?.focus(); } }}>
+          <summary onClick={(event) => { event.preventDefault(); setMoreMenuOpen(!moreMenuOpen); }}>More</summary>
+          {moreMenuOpen && <div className="markdown-note__file-actions">
           {onReload && <button type="button" disabled={disabled} title="Reload changes made in another editor" onClick={() => {
             if (window.confirm("Reload the Markdown file? Any unsaved draft in this editor will be discarded. Copy it first if you need to keep it.")) onReload();
           }}>Reload</button>}
@@ -79,7 +88,8 @@ export function MarkdownNoteEditor({ value, onChange, disabled, status, fileName
             setFileError(null);
             void onReveal().catch(() => setFileError("Could not show the Markdown file. Please try again."));
           }}>Show .md</button>}
-        </div>
+        </div>}
+        </details>}
       </div>
       {fileError && <p role="alert">{fileError}</p>}
       {mode !== "read" && <div className="markdown-note__formatting" role="group" aria-label="Markdown formatting">
@@ -95,8 +105,8 @@ export function MarkdownNoteEditor({ value, onChange, disabled, status, fileName
         <span>Markdown</span>
       </div>}
       <div className={`markdown-note__body markdown-note__body--${mode}`}>
-        <LiveMarkdownEditor ref={liveEditor} value={value} onChange={onChange} disabled={disabled} visible={mode === "live"} />
-        {(mode === "edit" || mode === "split") && <textarea
+        <LiveMarkdownEditor ref={liveEditor} value={value} onChange={onChange} disabled={disabled} visible={mode === "live"} onCitation={onCitation} />
+        {mode === "edit" && <textarea
           aria-label="Paper notes"
           disabled={disabled}
           onChange={(event) => onChange(event.target.value)}
@@ -106,8 +116,11 @@ export function MarkdownNoteEditor({ value, onChange, disabled, status, fileName
           value={value}
           spellCheck
         />}
-        {(mode === "split" || mode === "read") && <article className="markdown-note__preview" aria-label="Markdown preview" tabIndex={0}>
-          {value.trim() ? <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ a: ({ children, ...props }) => <a {...props} target="_blank" rel="noreferrer">{children}</a> }}>{value}</ReactMarkdown> : <p className="markdown-note__empty">Your reading notes will appear here.</p>}
+        {mode === "read" && <article className="markdown-note__preview" aria-label="Markdown preview" tabIndex={0}>
+          {value.trim() ? <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ a: ({ children, href, ...props }) => {
+            const citation = parseNoteCitation(href ?? "");
+            return <a {...props} href={href} target={citation ? undefined : "_blank"} rel="noreferrer" onClick={citation && onCitation ? (event) => { event.preventDefault(); onCitation(citation); } : undefined}>{children}</a>;
+          } }}>{value}</ReactMarkdown> : <p className="markdown-note__empty">Your reading notes will appear here.</p>}
         </article>}
       </div>
       <footer className="markdown-note__footer">

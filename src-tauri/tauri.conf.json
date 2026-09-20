@@ -30,13 +30,6 @@
     "macOS": {
       "minimumSystemVersion": "13.0"
     },
-    "resources": {
-      "../sidecar/runner.mjs": "sidecar/runner.mjs",
-      "../sidecar/protocol.mjs": "sidecar/protocol.mjs",
-      "../sidecar/codex-wrapper.sh": "sidecar/codex-wrapper.sh",
-      "../sidecar/vendor/codex-sdk.mjs": "sidecar/vendor/codex-sdk.mjs",
-      "../sidecar/vendor/LICENSE.codex-sdk": "sidecar/vendor/LICENSE.codex-sdk"
-    },
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

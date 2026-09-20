@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { Channel, invoke, isTauri } from "./core";
+import { invoke, isTauri } from "./core";
 import { listen } from "./event";
 import { getCurrentWindow } from "./window";
 import { getCurrentWebview } from "./webview";
@@ -45,22 +45,6 @@ describe("Electron platform adapters", () => {
     stop();
     await emit("paper-web-chat-updated", {});
     expect(callback).toHaveBeenCalledTimes(1);
-  });
-
-  it("subscribes before starting Codex, filters request ids and cleans up", async () => {
-    const channel = new Channel<unknown>();
-    channel.onmessage = vi.fn();
-    nativeInvoke.mockImplementation(async () => {
-      await emit("codex-stream", { requestId: "other", event: { type: "error" } });
-      await emit("codex-stream", { requestId: "one", event: { type: "completed" } });
-    });
-    await invoke("start_codex_turn", { request: { requestId: "one" }, onEvent: channel });
-    expect(nativeInvoke).toHaveBeenCalledWith("start_codex_turn", { request: { requestId: "one" } });
-    expect(channel.onmessage).toHaveBeenCalledExactlyOnceWith({ type: "completed" });
-    expect(listeners.get("codex-stream")?.size).toBe(0);
-    nativeInvoke.mockRejectedValue(new Error("failed"));
-    await expect(invoke("start_codex_turn", { request: { requestId: "one" }, onEvent: channel })).rejects.toThrow("failed");
-    expect(listeners.get("codex-stream")?.size).toBe(0);
   });
 
   it("honors async save-on-close prevention and allows explicit destroy", async () => {

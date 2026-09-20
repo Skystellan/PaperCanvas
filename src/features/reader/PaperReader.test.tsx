@@ -1,3 +1,4 @@
+import { loadReaderState, saveReaderState } from "./model/readerState";
 import { EditorView } from "@codemirror/view";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -12,11 +13,6 @@ import type {
 
 const mindMapHarness = vi.hoisted(() => ({
   props: null as null | {
-    generateMindMap?: (request: {
-      paperId: string;
-      prompt: string;
-      signal: AbortSignal;
-    }) => Promise<unknown>;
     paperId: string;
   },
 }));
@@ -66,6 +62,7 @@ function renderReader(
       />
     </PersistenceCoordinator>,
   );
+  fireEvent.click(screen.getByText("View", { selector: "summary" }));
   fireEvent.click(screen.getByRole("button", { name: "Source" }));
   return result;
 }
@@ -73,6 +70,35 @@ function renderReader(
 describe("PaperReader", () => {
   beforeEach(() => {
     mindMapHarness.props = null;
+    localStorage.clear();
+  });
+
+  it("restores per-paper panel state and honors explicit discussion opening", async () => {
+    const props = { paper, noteRepository: { load: vi.fn().mockResolvedValue(""), save: vi.fn() }, highlightRepository: createHighlightRepository(), onBack: vi.fn(), discussion: <div>Discussion</div> };
+    const location = { pageNumber: 432, offset: .63, zoom: 1.75 };
+    saveReaderState(paper.id, { location, sidebarRatio: 48, sidebarOpen: false, workspace: "mindmap" });
+    const first = render(<PersistenceCoordinator><PaperReader {...props} /></PersistenceCoordinator>);
+    expect(screen.getByRole("button", { name: "Show reader sidebar" })).toBeVisible();
+    expect(loadReaderState(paper.id).location).toEqual(location);
+    fireEvent.click(screen.getByRole("button", { name: "Show reader sidebar" }));
+    expect(screen.getByRole("tab", { name: "Mind map" })).toHaveAttribute("aria-selected", "true");
+    const resizer = screen.getByRole("separator", { name: "Resize reader sidebar" });
+    expect(resizer).toHaveAttribute("aria-valuenow", "48");
+    fireEvent.keyDown(resizer, { key: "ArrowLeft" });
+    fireEvent.click(screen.getByRole("tab", { name: "Notes" }));
+    first.unmount();
+    const second = render(<PersistenceCoordinator><PaperReader {...props} /></PersistenceCoordinator>);
+    expect(screen.getByRole("separator", { name: "Resize reader sidebar" })).toHaveAttribute("aria-valuenow", "50");
+    expect(screen.getByRole("tab", { name: "Notes" })).toHaveAttribute("aria-selected", "true");
+    fireEvent.click(screen.getByRole("button", { name: "Hide reader sidebar" }));
+    second.unmount();
+    const third = render(<PersistenceCoordinator><PaperReader {...props} initialDiscussionOpen /></PersistenceCoordinator>);
+    expect(screen.getByRole("button", { name: "Hide reader sidebar" })).toBeVisible();
+    expect(screen.getByRole("tab", { name: "AI chat" })).toHaveAttribute("aria-selected", "true");
+    expect(loadReaderState(paper.id).location).toEqual(location);
+    third.rerender(<PersistenceCoordinator><PaperReader {...props} paper={{ ...paper, id: "other-paper" }} /></PersistenceCoordinator>);
+    expect(screen.getByRole("tab", { name: "Notes" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("separator", { name: "Resize reader sidebar" })).toHaveAttribute("aria-valuenow", "34");
   });
 
   it("flushes edits from inline live preview before leaving the paper", async () => {
@@ -82,6 +108,7 @@ describe("PaperReader", () => {
     };
     const onBack = vi.fn();
     renderReader(repository, onBack);
+    fireEvent.click(screen.getByText("View", { selector: "summary" }));
     fireEvent.click(screen.getByRole("button", { name: "Live preview" }));
     fireEvent.mouseDown(await screen.findByRole("heading", { name: "Original" }), { button: 0 });
     const view = EditorView.findFromDOM(screen.getByRole("textbox", { name: "Paper notes" }))!;
@@ -302,7 +329,7 @@ describe("PaperReader", () => {
     );
   });
 
-  it("labels papers whose optional metadata is unavailable", async () => {
+  it("hides unavailable optional metadata", async () => {
     const repository: NoteRepository = {
       load: vi.fn().mockResolvedValue(""),
       save: vi.fn().mockResolvedValue(undefined),
@@ -318,7 +345,7 @@ describe("PaperReader", () => {
       </PersistenceCoordinator>,
     );
 
-    expect(screen.getByText("Metadata unavailable")).toBeVisible();
+    expect(screen.queryByText("Metadata unavailable")).not.toBeInTheDocument();
     expect(await screen.findByRole("textbox", { name: "Paper notes" })).toBeEnabled();
   });
 
@@ -348,11 +375,6 @@ describe("PaperReader", () => {
       }),
     };
     const highlightRepository = createHighlightRepository();
-    const researchService = {
-      askSelection: vi.fn().mockResolvedValue("It supports the central claim."),
-      generateMindMap: vi.fn(),
-      translateSelection: vi.fn().mockResolvedValue("关键的本地优先结果"),
-    };
     const canvas = vi
       .spyOn(HTMLCanvasElement.prototype, "getContext")
       .mockReturnValue({} as never);
@@ -412,53 +434,22 @@ describe("PaperReader", () => {
           paper={{ ...paper, filePath: "papers/paper-1.pdf" }}
           pdfJs={pdfJs}
           readPdfFile={vi.fn().mockResolvedValue(new Uint8Array([1]))}
-          researchService={researchService}
         />
       </PersistenceCoordinator>,
     );
+    fireEvent.click(screen.getByText("View", { selector: "summary" }));
     fireEvent.click(screen.getByRole("button", { name: "Source" }));
     const notes = await screen.findByRole("textbox", { name: "Paper notes" });
     const textLayer = await screen.findByTestId("pdf-text-layer-1");
 
     fireEvent.mouseUp(textLayer);
     fireEvent.change(
-      await screen.findByRole("textbox", { name: "Note about selection" }),
+      await screen.findByRole("textbox", { name: "Annotation about selection" }),
       { target: { value: "This supports the main claim." } },
     );
-    fireEvent.click(screen.getByRole("button", { name: "Translate" }));
-    fireEvent.click(screen.getByRole("button", { name: "Translate selection" }));
-    await waitFor(() =>
-      expect(researchService.translateSelection).toHaveBeenCalledWith(
-        expect.objectContaining({
-          pageNumber: 1,
-          text: "Key local-first result",
-        }),
-        expect.any(AbortSignal),
-      ),
-    );
-    expect(await screen.findByText("关键的本地优先结果")).toBeVisible();
-
-    fireEvent.click(screen.getByRole("button", { name: "Ask AI" }));
-    fireEvent.change(
-      screen.getByRole("textbox", { name: "Question about selection" }),
-      { target: { value: "Why does this matter?" } },
-    );
-    fireEvent.click(screen.getByRole("button", { name: "Ask Codex" }));
-    await waitFor(() =>
-      expect(researchService.askSelection).toHaveBeenCalledWith(
-        expect.objectContaining({
-          pageNumber: 1,
-          text: "Key local-first result",
-        }),
-        "Why does this matter?",
-        expect.any(AbortSignal),
-      ),
-    );
-    expect(await screen.findByText("It supports the central claim.")).toBeVisible();
-
-    fireEvent.click(screen.getByRole("button", { name: "Note" }));
+    expect(screen.queryByRole("button", { name: /Translate|Ask AI/ })).toBeNull();
     fireEvent.click(
-      screen.getByRole("button", { name: "Save note" }),
+      screen.getByRole("button", { name: "Save annotation" }),
     );
 
     await waitFor(() =>
@@ -477,69 +468,19 @@ describe("PaperReader", () => {
     expect(
       screen.getByRole("button", { name: "Go to highlight on page 1" }),
     ).toHaveTextContent("Key local-first result");
+    fireEvent.click(screen.getByRole("button", { name: "Add highlight from page 1 to notes" }));
+    expect((notes as HTMLTextAreaElement).value).toContain("> Key local-first result");
+    expect((notes as HTMLTextAreaElement).value).toContain("[Local-first notes · p. 1](#paper=paper-1&page=1&highlight=");
+    expect((notes as HTMLTextAreaElement).value).toContain("This supports the main claim.");
     canvas.mockRestore();
     bounds.mockRestore();
   });
 
-  it("discloses complete-paper sharing and passes mind-map generation to the injected Codex service", async () => {
-    const repository: NoteRepository = {
-      load: vi.fn().mockResolvedValue(""),
-      save: vi.fn().mockResolvedValue(undefined),
-    };
-    const generatedTree = {
-      nodes: [
-        {
-          details: "",
-          id: "root",
-          parentId: null,
-          title: "Paper thesis",
-          x: 0,
-          y: 0,
-        },
-      ],
-      revision: 1,
-      schemaVersion: 1 as const,
-      sourcePrompt: "Map the argument",
-      updatedAt: 100,
-    };
-    const researchService = {
-      askSelection: vi.fn(),
-      generateMindMap: vi.fn().mockResolvedValue(generatedTree),
-      translateSelection: vi.fn(),
-    };
-    render(
-      <PersistenceCoordinator>
-        <PaperReader
-          highlightRepository={createHighlightRepository()}
-          noteRepository={repository}
-          onBack={vi.fn()}
-          paper={paper}
-          researchService={researchService}
-        />
-      </PersistenceCoordinator>,
-    );
-
+  it("passes only the paper and optional offline repository to the mind map", async () => {
+    renderReader({ load: vi.fn().mockResolvedValue(""), save: vi.fn() });
     fireEvent.click(screen.getByRole("tab", { name: "Mind map" }));
-
-    expect(
-      screen.getByText(/sends the complete extracted paper text to Codex/i),
-    ).toBeVisible();
     expect(screen.getByText("Paper mind map canvas")).toBeVisible();
-    expect(screen.queryByText("Highlights")).not.toBeInTheDocument();
-    expect(mindMapHarness.props?.paperId).toBe("paper-1");
-
-    const signal = new AbortController().signal;
-    await mindMapHarness.props?.generateMindMap?.({
-      paperId: "paper-1",
-      prompt: "Map the argument",
-      signal,
-    });
-
-    expect(researchService.generateMindMap).toHaveBeenCalledWith({
-      paper,
-      prompt: "Map the argument",
-      signal,
-    });
+    expect(mindMapHarness.props).toEqual({ paperId: "paper-1", repository: undefined });
   });
 
   it("loads and deletes persisted highlights without touching the paper note", async () => {
@@ -583,6 +524,7 @@ describe("PaperReader", () => {
     await waitFor(() =>
       expect(screen.queryByText(/A persisted passage/)).toBeNull(),
     );
+    fireEvent.click(screen.getByText("View", { selector: "summary" }));
     fireEvent.click(screen.getByRole("button", { name: "Source" }));
     expect(screen.getByRole("textbox", { name: "Paper notes" })).toHaveValue(
       "Paper thought",

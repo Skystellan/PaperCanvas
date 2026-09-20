@@ -1,654 +1,191 @@
-import {
-  applyNodeChanges,
-  Background,
-  Controls,
-  PanOnScrollMode,
-  ReactFlow,
-  ReactFlowProvider,
-  type NodeChange,
-  type NodeTypes,
-  type OnNodeDrag,
-} from "@xyflow/react";
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
-import {
-  usePersistenceWriter,
-  type PersistenceWriter,
-} from "../persistence";
-import { MindMapNodeCard } from "./MindMapNodeCard";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { usePersistenceCoordinator, usePersistenceWriter } from "../persistence";
 import type { MindMapRepository } from "./data/mindMapRepository";
-import {
-  MindMapRevisionConflictError,
-  sqliteMindMapRepository,
-} from "./data/sqliteMindMapRepository";
-import {
-  MIND_MAP_LIMITS,
-  validateMindMapTree,
-  type MindMapTree,
-} from "./model/mindMap";
-import {
-  toMindMapFlowEdges,
-  toMindMapFlowNodes,
-  type MindMapFlowNode,
-} from "./model/mindMapFlow";
-import {
-  findNonOverlappingMindMapPosition,
-  layoutMindMapTree,
-} from "./model/mindMapLayout";
+import { sqliteMindMapRepository } from "./data/sqliteMindMapRepository";
+import { renderMarkmap, type MindMapNode } from "./model/markmap";
 import "./mindmap.css";
 
-const nodeTypes = {
-  "mind-map": MindMapNodeCard,
-} satisfies NodeTypes;
-
-const DEFAULT_PROMPT =
-  "Build a concise analysis tree covering the paper's question, method, evidence, findings, and limitations.";
-
-type LoadState = "loading" | "ready" | "error";
-export type MindMapGenerationStatus =
-  | "idle"
-  | "generating"
-  | "saving"
-  | "error";
-
-export interface GenerateMindMapRequest {
-  paperId: string;
-  prompt: string;
-  signal: AbortSignal;
-}
-
-export type GenerateMindMap = (
-  request: GenerateMindMapRequest,
-) => Promise<MindMapTree>;
+const MarkmapPreview = lazy(() => import("./MarkmapPreview"));
 
 export interface PaperMindMapProps {
-  generateMindMap?: GenerateMindMap;
-  initialPrompt?: string;
-  onGenerationStatusChange?: (status: MindMapGenerationStatus) => void;
   paperId: string;
   repository?: MindMapRepository;
 }
 
-interface MindMapSaveFailure {
-  error: Error;
-}
-
-function PaperMindMapCanvas({
-  generateMindMap,
-  initialPrompt = DEFAULT_PROMPT,
-  onGenerationStatusChange,
-  paperId,
-  repository,
-}: Required<Pick<PaperMindMapProps, "repository">> &
-  Omit<PaperMindMapProps, "repository">) {
-  const [loadState, setLoadState] = useState<LoadState>("loading");
+function MindMapEditor({ paperId, repository }: Required<PaperMindMapProps>) {
+  const [loadState, setLoadState] = useState<"loading" | "ready" | "error">("loading");
   const [loadAttempt, setLoadAttempt] = useState(0);
-  const [tree, setTree] = useState<MindMapTree | null>(null);
-  const [nodes, setNodes] = useState<MindMapFlowNode[]>([]);
-  const [prompt, setPrompt] = useState(initialPrompt);
-  const [status, setStatus] = useState<MindMapGenerationStatus>("idle");
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const treeRef = useRef<MindMapTree | null>(null);
-  const nodesRef = useRef<MindMapFlowNode[]>([]);
-  const statusRef = useRef<MindMapGenerationStatus>("idle");
-  const generationSequence = useRef(0);
-  const generationAbortController = useRef<AbortController | null>(null);
-  const statusListenerRef = useRef(onGenerationStatusChange);
-  const pendingGenerationsRef = useRef(new Set<Promise<void>>());
-  const pendingWritesRef = useRef(new Set<Promise<unknown>>());
-  const saveFailureRef = useRef<MindMapSaveFailure | null>(null);
-  const writeSequenceRef = useRef(0);
-  const latestWriteSequenceRef = useRef(0);
-  const flushOperationRef = useRef<Promise<void> | null>(null);
-  const isFlushingRef = useRef(false);
+  const [source, setSource] = useState("");
+  const [savedSource, setSavedSource] = useState("");
+  const [preview, setPreview] = useState<{ root: MindMapNode; source: string } | null>(null);
+  const [sourceOpen, setSourceOpen] = useState(true);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState(false);
+  const [rendering, setRendering] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const sourceRef = useRef("");
+  const savedSourceRef = useRef("");
+  const saveOperation = useRef<Promise<void> | null>(null);
+  const renderSequence = useRef(0);
+  const mounted = useRef(false);
+  const { trackOperation } = usePersistenceCoordinator();
+
+  const updatePreview = useCallback(async (text: string) => {
+    const request = ++renderSequence.current;
+    setRendering(true);
+    setPreviewError(null);
+    try {
+      const root = await renderMarkmap(text);
+      if (!mounted.current || request !== renderSequence.current) return;
+      setPreview({ root, source: text });
+      setSourceOpen(false);
+    } catch (error) {
+      if (!mounted.current || request !== renderSequence.current) return;
+      setPreviewError(error instanceof Error ? error.message : "Could not render this diagram source.");
+    } finally {
+      if (mounted.current && request === renderSequence.current) setRendering(false);
+    }
+  }, []);
 
   useEffect(() => {
-    statusListenerRef.current = onGenerationStatusChange;
-  }, [onGenerationStatusChange]);
-
-  const replaceNodes = useCallback((nextNodes: MindMapFlowNode[]) => {
-    nodesRef.current = nextNodes;
-    setNodes(nextNodes);
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      renderSequence.current += 1;
+    };
   }, []);
-
-  const replaceTree = useCallback(
-    (nextTree: MindMapTree | null) => {
-      treeRef.current = nextTree;
-      setTree(nextTree);
-      replaceNodes(nextTree ? toMindMapFlowNodes(nextTree) : []);
-    },
-    [replaceNodes],
-  );
-
-  const updateStatus = useCallback(
-    (nextStatus: MindMapGenerationStatus) => {
-      statusRef.current = nextStatus;
-      setStatus(nextStatus);
-      statusListenerRef.current?.(nextStatus);
-    },
-    [],
-  );
-
-  const trackDatabaseWrite = useCallback(
-    <T,>(start: () => Promise<T>): Promise<T> => {
-      const sequence = writeSequenceRef.current + 1;
-      writeSequenceRef.current = sequence;
-      latestWriteSequenceRef.current = sequence;
-      saveFailureRef.current = null;
-
-      const operation = Promise.resolve().then(start);
-      pendingWritesRef.current.add(operation);
-      void operation.then(
-        () => {
-          pendingWritesRef.current.delete(operation);
-          if (sequence === latestWriteSequenceRef.current) {
-            saveFailureRef.current = null;
-          }
-        },
-        (error: unknown) => {
-          pendingWritesRef.current.delete(operation);
-          if (sequence === latestWriteSequenceRef.current) {
-            saveFailureRef.current = {
-              error:
-                error instanceof Error
-                  ? error
-                  : new Error("The mind map database write failed."),
-            };
-          }
-        },
-      );
-      return operation;
-    },
-    [],
-  );
-
-  const trackGeneration = useCallback((operation: Promise<void>) => {
-    pendingGenerationsRef.current.add(operation);
-    const clear = () => pendingGenerationsRef.current.delete(operation);
-    void operation.then(clear, clear);
-    return operation;
-  }, []);
-
-  const reloadAfterRevisionConflict = useCallback(
-    async (conflictError: MindMapRevisionConflictError) => {
-      try {
-        const latestValue = await repository.load(paperId);
-        const latestTree = latestValue ? validateMindMapTree(latestValue) : null;
-        replaceTree(latestTree);
-        if (latestTree?.sourcePrompt) setPrompt(latestTree.sourcePrompt);
-        if (saveFailureRef.current?.error === conflictError) {
-          saveFailureRef.current = null;
-        }
-        setErrorMessage(
-          "This mind map changed elsewhere, so the latest saved version was reloaded.",
-        );
-        updateStatus("error");
-      } catch {
-        setErrorMessage(
-          "This mind map changed elsewhere and the latest version could not be reloaded.",
-        );
-        setLoadState("error");
-        updateStatus("error");
-      }
-    },
-    [paperId, replaceTree, repository, updateStatus],
-  );
 
   useEffect(() => {
     let active = true;
-    generationSequence.current += 1;
-    generationAbortController.current?.abort();
-    generationAbortController.current = null;
-    treeRef.current = null;
-    nodesRef.current = [];
+    void repository.load(paperId).then((stored) => {
+      if (!active) return;
+      const text = stored ?? "";
+      sourceRef.current = text;
+      savedSourceRef.current = text;
+      setSource(text);
+      setSavedSource(text);
+      setLoadState("ready");
+      if (text.trim()) void updatePreview(text);
+    }).catch(() => {
+      if (active) setLoadState("error");
+    });
+    return () => { active = false; };
+  }, [loadAttempt, paperId, repository, updatePreview]);
 
-    void repository.load(paperId).then(
-      (storedTree) => {
-        if (!active) return;
-        try {
-          const validated = storedTree ? validateMindMapTree(storedTree) : null;
-          replaceTree(validated);
-          if (validated?.sourcePrompt) setPrompt(validated.sourcePrompt);
-          if (
-            saveFailureRef.current?.error instanceof
-            MindMapRevisionConflictError
-          ) {
-            saveFailureRef.current = null;
-          }
-          setErrorMessage(null);
-          setLoadState("ready");
-          updateStatus("idle");
-        } catch {
-          setLoadState("error");
-          setErrorMessage("Could not load this mind map because its local data is invalid.");
-        }
-      },
-      () => {
-        if (!active) return;
-        setLoadState("error");
-        setErrorMessage("Could not load this mind map from local storage.");
-      },
-    );
-
-    return () => {
-      active = false;
-    };
-  }, [loadAttempt, paperId, replaceTree, repository, updateStatus]);
-
-  useEffect(
-    () => () => {
-      generationSequence.current += 1;
-      generationAbortController.current?.abort();
-    },
-    [],
-  );
-
-  const onNodesChange = useCallback(
-    (changes: NodeChange<MindMapFlowNode>[]) => {
-      if (
-        statusRef.current === "generating" ||
-        statusRef.current === "saving"
-      ) {
-        return;
-      }
-      replaceNodes(applyNodeChanges(changes, nodesRef.current));
-    },
-    [replaceNodes],
-  );
-
-  const persistManualPosition: OnNodeDrag<MindMapFlowNode> = useCallback(
-    (_event, activeNode) => {
-      const persistedTree = treeRef.current;
-      if (
-        !persistedTree ||
-        statusRef.current === "generating" ||
-        statusRef.current === "saving"
-      ) {
-        return;
-      }
-
-      const currentPositions = nodesRef.current.map((node) => ({
-        id: node.id,
-        x: node.id === activeNode.id ? activeNode.position.x : node.position.x,
-        y: node.id === activeNode.id ? activeNode.position.y : node.position.y,
-      }));
-      const settledPosition = findNonOverlappingMindMapPosition(
-        activeNode.id,
-        activeNode.position,
-        currentPositions,
-      );
-      const nextTree: MindMapTree = {
-        ...persistedTree,
-        revision: persistedTree.revision + 1,
-        updatedAt: Date.now(),
-        nodes: persistedTree.nodes.map((node) => {
-          const position = currentPositions.find((item) => item.id === node.id)!;
-          return {
-            ...node,
-            x: node.id === activeNode.id ? settledPosition.x : position.x,
-            y: node.id === activeNode.id ? settledPosition.y : position.y,
-          };
-        }),
-      };
-      let validated: MindMapTree;
+  const flush = useCallback((): Promise<void> => {
+    if (saveOperation.current) return saveOperation.current;
+    if (sourceRef.current === savedSourceRef.current) return Promise.resolve();
+    setSaving(true);
+    setSaveError(false);
+    const operation = Promise.resolve().then(async () => {
       try {
-        validated = validateMindMapTree(nextTree);
-      } catch {
-        replaceTree(persistedTree);
-        setErrorMessage(
-          "That node position is outside the supported canvas area. The saved layout was restored.",
-        );
-        updateStatus("error");
-        return;
-      }
-      replaceNodes(toMindMapFlowNodes(validated));
-      updateStatus("saving");
-      setErrorMessage(null);
-
-      const saveOperation = trackDatabaseWrite(() =>
-        repository.save(paperId, validated, persistedTree.revision),
-      );
-      void saveOperation.then(
-        () => {
-          treeRef.current = validated;
-          setTree(validated);
-          updateStatus("idle");
-        },
-        async (error: unknown) => {
-          if (error instanceof MindMapRevisionConflictError) {
-            await reloadAfterRevisionConflict(error);
-            return;
-          }
-          replaceTree(persistedTree);
-          setErrorMessage(
-            "Could not save that node position. The last saved layout was restored.",
-          );
-          updateStatus("error");
-        },
-      );
-    },
-    [
-      paperId,
-      reloadAfterRevisionConflict,
-      replaceNodes,
-      replaceTree,
-      repository,
-      trackDatabaseWrite,
-      updateStatus,
-    ],
-  );
-
-  const stopGeneration = useCallback(() => {
-    generationSequence.current += 1;
-    generationAbortController.current?.abort();
-    generationAbortController.current = null;
-    setErrorMessage(null);
-    updateStatus("idle");
-  }, [updateStatus]);
-
-  const runGeneration = useCallback(async () => {
-    const requestedPrompt = prompt.trim();
-    if (
-      !generateMindMap ||
-      !requestedPrompt ||
-      requestedPrompt.length > MIND_MAP_LIMITS.maxSourcePromptLength ||
-      isFlushingRef.current ||
-      statusRef.current === "generating" ||
-      statusRef.current === "saving"
-    ) {
-      return;
-    }
-
-    const sequence = generationSequence.current + 1;
-    generationSequence.current = sequence;
-    const abortController = new AbortController();
-    generationAbortController.current = abortController;
-    setErrorMessage(null);
-    updateStatus("generating");
-
-    try {
-      const generated = await generateMindMap({
-        paperId,
-        prompt: requestedPrompt,
-        signal: abortController.signal,
-      });
-      if (
-        abortController.signal.aborted ||
-        sequence !== generationSequence.current
-      ) {
-        return;
-      }
-
-      let laidOut: MindMapTree;
-      try {
-        laidOut = layoutMindMapTree(validateMindMapTree(generated));
-      } catch {
-        setErrorMessage(
-          "AI did not return a valid tree. Your existing map was kept unchanged.",
-        );
-        updateStatus("error");
-        return;
-      }
-
-      const previousTree = treeRef.current;
-      const expectedRevision = previousTree?.revision ?? 0;
-      const nextTree = validateMindMapTree({
-        ...laidOut,
-        revision: expectedRevision + 1,
-        sourcePrompt: requestedPrompt,
-        updatedAt: Date.now(),
-      });
-      updateStatus("saving");
-      await trackDatabaseWrite(() =>
-        repository.save(paperId, nextTree, expectedRevision),
-      );
-      if (sequence !== generationSequence.current) return;
-      replaceTree(nextTree);
-      updateStatus("idle");
-    } catch (error) {
-      if (
-        abortController.signal.aborted ||
-        sequence !== generationSequence.current
-      ) {
-        return;
-      }
-      if (error instanceof MindMapRevisionConflictError) {
-        await reloadAfterRevisionConflict(error);
-        return;
-      }
-      if (saveFailureRef.current?.error === error) {
-        saveFailureRef.current = null;
-      }
-      setErrorMessage(
-        "The mind map could not be generated or saved. Your existing map was kept.",
-      );
-      updateStatus("error");
-    } finally {
-      if (sequence === generationSequence.current) {
-        generationAbortController.current = null;
-      }
-    }
-  }, [
-    generateMindMap,
-    paperId,
-    prompt,
-    reloadAfterRevisionConflict,
-    replaceTree,
-    repository,
-    trackDatabaseWrite,
-    updateStatus,
-  ]);
-
-  const generate = useCallback(
-    () => trackGeneration(runGeneration()),
-    [runGeneration, trackGeneration],
-  );
-
-  const flush = useCallback(() => {
-    if (flushOperationRef.current) return flushOperationRef.current;
-    isFlushingRef.current = true;
-
-    const operation = (async () => {
-      try {
-        while (
-          pendingGenerationsRef.current.size > 0 ||
-          pendingWritesRef.current.size > 0
-        ) {
-          if (
-            pendingGenerationsRef.current.size > 0 &&
-            generationAbortController.current !== null
-          ) {
-            stopGeneration();
-          }
-          const pending = [
-            ...pendingGenerationsRef.current,
-            ...pendingWritesRef.current,
-          ];
-          await Promise.allSettled(pending);
+        // Edits made during a write must become durable before navigation resolves.
+        while (sourceRef.current !== savedSourceRef.current) {
+          const snapshot = sourceRef.current;
+          await repository.save(paperId, snapshot);
+          savedSourceRef.current = snapshot;
+          if (mounted.current) setSavedSource(snapshot);
         }
-
-        if (saveFailureRef.current !== null) {
-          throw saveFailureRef.current.error;
+      } catch (error) {
+        if (mounted.current) {
+          setSaveError(true);
+          setSourceOpen(true);
         }
+        throw error;
       } finally {
-        isFlushingRef.current = false;
+        saveOperation.current = null;
+        if (mounted.current) setSaving(false);
       }
-    })();
+    });
+    saveOperation.current = operation;
+    return trackOperation(operation);
+  }, [paperId, repository, trackOperation]);
 
-    flushOperationRef.current = operation;
-    const clear = () => {
-      if (flushOperationRef.current === operation) {
-        flushOperationRef.current = null;
-      }
-    };
-    void operation.then(clear, clear);
-    return operation;
-  }, [stopGeneration]);
+  usePersistenceWriter(`mind-map:${paperId}`, {
+    isDirty: () => saveOperation.current !== null || sourceRef.current !== savedSourceRef.current,
+    flush,
+  });
 
-  const persistenceWriter = useMemo<PersistenceWriter>(
-    () => ({
-      isDirty: () =>
-        pendingGenerationsRef.current.size > 0 ||
-        pendingWritesRef.current.size > 0 ||
-        saveFailureRef.current !== null,
-      flush,
-    }),
-    [flush],
-  );
-  usePersistenceWriter(`mind-map:${paperId}`, persistenceWriter);
-
-  const edges = useMemo(() => (tree ? toMindMapFlowEdges(tree) : []), [tree]);
-
-  if (loadState === "loading") {
+  if (loadState !== "ready") {
     return (
-      <section className="paper-mind-map paper-mind-map--message" role="status">
-        <span className="paper-mind-map__spinner" aria-hidden="true" />
-        <p>Opening mind map…</p>
-      </section>
-    );
-  }
-
-  if (loadState === "error") {
-    return (
-      <section className="paper-mind-map paper-mind-map--message" role="alert">
-        <span className="paper-mind-map__error-mark" aria-hidden="true">!</span>
-        <p>{errorMessage}</p>
-        <button
-          onClick={() => {
+      <section className="paper-mind-map paper-mind-map--message" aria-label="Paper mind map">
+        {loadState === "loading" ? <p role="status">Opening mind map…</p> : <>
+          <p role="alert">Could not load this mind map from local storage. Your saved source was kept.</p>
+          <button type="button" onClick={() => {
             setLoadState("loading");
-            setErrorMessage(null);
             setLoadAttempt((attempt) => attempt + 1);
-          }}
-          type="button"
-        >
-          Retry
-        </button>
+          }}>Retry loading</button>
+        </>}
       </section>
     );
   }
 
-  const promptTooLong = prompt.length > MIND_MAP_LIMITS.maxSourcePromptLength;
-  const isBusy = status === "generating" || status === "saving";
-
+  const dirty = source !== savedSource;
   return (
     <section className="paper-mind-map" aria-label="Paper mind map">
-      <div className="paper-mind-map__composer">
+      <div className="paper-mind-map__source-bar">
+        <span>Markdown outline</span>
+        <button type="button" aria-expanded={sourceOpen} onClick={() => setSourceOpen(!sourceOpen)}>
+          {sourceOpen ? "Hide source" : "Edit source"}
+        </button>
+      </div>
+      <div className="paper-mind-map__composer" hidden={!sourceOpen}>
+        <p className="paper-mind-map__hint">
+          Ask your AI chat for a Markdown outline, then paste it here. Your source and mind map stay on this device.
+        </p>
         <label>
-          <span>Analysis prompt</span>
+          <span>Markdown source</span>
           <textarea
-            aria-label="Mind map prompt"
-            disabled={isBusy}
+            aria-label="Markdown source"
+            spellCheck={false}
+            placeholder={'# Paper\n## Question\n- Research gap\n## Method\n- Key assumptions\n## Findings\n- Evidence'}
+            rows={6}
+            value={source}
             onChange={(event) => {
-              setPrompt(event.target.value);
-              if (statusRef.current === "error") updateStatus("idle");
-              setErrorMessage(null);
+              sourceRef.current = event.target.value;
+              setSource(event.target.value);
+              renderSequence.current += 1;
+              setRendering(false);
+              setPreviewError(null);
             }}
-            rows={2}
-            value={prompt}
           />
         </label>
-        <div className="paper-mind-map__actions">
-          <span className={promptTooLong ? "is-over-limit" : ""}>
-            {prompt.length}/{MIND_MAP_LIMITS.maxSourcePromptLength}
-          </span>
-          {status === "generating" ? (
-            <button onClick={stopGeneration} type="button">
-              Stop generation
-            </button>
-          ) : (
-            <button
-              aria-label={tree ? "Regenerate mind map" : "Generate mind map"}
-              disabled={
-                !generateMindMap || !prompt.trim() || promptTooLong || isBusy
-              }
-              onClick={() => void generate()}
-              type="button"
-            >
-              {status === "saving"
-                ? "Saving…"
-                : tree
-                  ? "Regenerate"
-                  : "Generate"}
-            </button>
-          )}
-        </div>
-      </div>
-
-      <div className="paper-mind-map__canvas">
-        <ReactFlow
-          edges={edges}
-          fitView
-          fitViewOptions={{ maxZoom: 1.1, padding: 0.24 }}
-          maxZoom={2}
-          minZoom={0.25}
-          nodeTypes={nodeTypes}
-          nodes={nodes}
-          nodesConnectable={false}
-          nodesDraggable={!isBusy}
-          onNodeDragStop={persistManualPosition}
-          onNodesChange={onNodesChange}
-          panOnScroll
-          panOnScrollMode={PanOnScrollMode.Free}
-          panOnScrollSpeed={1}
-          zoomOnDoubleClick={false}
-          zoomOnPinch
-          zoomOnScroll={false}
-        >
-          <Background color="#d9d7cf" gap={22} size={1} />
-          <Controls showInteractive={false} />
-        </ReactFlow>
-        {!tree && (
-          <div className="paper-mind-map__empty">
-            <span aria-hidden="true">⌁</span>
-            <h3>Map the paper’s argument</h3>
-            <p>
-              Generate a local analysis tree when an AI provider is connected.
-            </p>
-          </div>
-        )}
-        {status === "saving" && (
-          <span className="paper-mind-map__saving" role="status">
-            Saving mind map…
-          </span>
-        )}
-      </div>
-
-      {errorMessage && (
-        <div className="paper-mind-map__error" role="alert">
-          {errorMessage}
-        </div>
-      )}
-      {!generateMindMap && (
-        <p className="paper-mind-map__provider-hint">
-          Connect an AI provider to enable generation. The map remains fully local.
+        <p className="paper-mind-map__hint">
+          Markdown uses a compact left-to-right tree with wrapped labels. Code fences are accepted; unfinished drafts are saved when you leave.
         </p>
-      )}
+        <div className="paper-mind-map__actions">
+          <span role="status">{saving ? "Saving source…" : dirty ? "Unsaved source" : "Source saved locally"}</span>
+          <button type="button" disabled={!source.trim() || rendering}
+            onClick={() => void updatePreview(sourceRef.current)}>
+            {rendering ? "Rendering…" : "Render preview"}
+          </button>
+          <button type="button" disabled={!dirty || saving}
+            onClick={() => void flush().catch(() => undefined)}>
+            {saveError ? "Retry saving" : "Save source"}
+          </button>
+        </div>
+      </div>
+      {saveError && <p className="paper-mind-map__error" role="alert">
+        Could not save this source. Your edits are still here. Retry saving before leaving.
+      </p>}
+      {previewError && <div className="paper-mind-map__error" role="alert">
+        <strong>Preview failed. {preview ? "The last valid diagram is still shown." : "Your source is kept."}</strong>
+        <pre>{previewError}</pre>
+      </div>}
+      <div className="paper-mind-map__preview-toolbar">
+        <span>{preview && preview.source !== source ? "Preview shows the last rendered source" : "Preview"}</span>
+      </div>
+      <div className="paper-mind-map__preview" role="region" aria-label="Mind map preview" tabIndex={0}>
+        {preview ? <Suspense fallback={<p role="status">Opening interactive map…</p>}>
+          <MarkmapPreview root={preview.root} />
+        </Suspense> : <p className="paper-mind-map__empty">
+          Paste a Markdown outline and choose Render preview.
+        </p>}
+      </div>
     </section>
   );
 }
 
-export function PaperMindMap({
-  generateMindMap,
-  initialPrompt,
-  onGenerationStatusChange,
-  paperId,
-  repository = sqliteMindMapRepository,
-}: PaperMindMapProps) {
-  return (
-    <ReactFlowProvider>
-      <PaperMindMapCanvas
-        key={paperId}
-        generateMindMap={generateMindMap}
-        initialPrompt={initialPrompt}
-        onGenerationStatusChange={onGenerationStatusChange}
-        paperId={paperId}
-        repository={repository}
-      />
-    </ReactFlowProvider>
-  );
+export function PaperMindMap({ paperId, repository = sqliteMindMapRepository }: PaperMindMapProps) {
+  return <MindMapEditor key={paperId} paperId={paperId} repository={repository} />;
 }

@@ -36,7 +36,7 @@ export function toFlowNode(record: BoardNodeRecord): PaperFlowNode {
     type: "paper",
     position: { ...record.position },
     data: { paper: record.paper },
-    deletable: false,
+    deletable: true,
     style: {
       width: record.size.width,
       height: record.size.height,

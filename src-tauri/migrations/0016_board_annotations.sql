@@ -1,0 +1,2 @@
+ALTER TABLE board_edges ADD COLUMN explanation TEXT NOT NULL DEFAULT '';
+ALTER TABLE board_edges ADD COLUMN evidence TEXT NOT NULL DEFAULT '';

@@ -7,7 +7,7 @@ import {
   within,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { PaperRepository } from "./data/paperRepository";
 import type { PaperDomainRepository } from "./data/paperDomainRepository";
@@ -123,6 +123,7 @@ describe("PaperLibrary", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.removeItem("paper-library-width");
     dragDropHandler = undefined;
     tauriWebview.onDragDropEvent.mockImplementation(
       async (
@@ -138,6 +139,159 @@ describe("PaperLibrary", () => {
         return unlisten;
       },
     );
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+    localStorage.removeItem("paper-library-width");
+  });
+
+  it("captures a right-edge drag and remembers the width after reopening", async () => {
+    const props = { repository: createRepository(), importer: createImporter() };
+    const view = render(<PaperLibrary {...props} />);
+    await screen.findByText("Imported Paper");
+    const panel = screen.getByRole("complementary", { name: "论文库" });
+    const handle = screen.getByRole("separator", { name: "调整论文库宽度" });
+    handle.setPointerCapture = vi.fn();
+    handle.hasPointerCapture = vi.fn(() => true);
+    handle.releasePointerCapture = vi.fn();
+    const pointer = (type: string, clientX: number, button = 0) => {
+      fireEvent(handle, Object.assign(new MouseEvent(type, { bubbles: true, clientX, button }), { pointerId: 1 }));
+    };
+
+    expect(handle).toHaveAttribute("aria-orientation", "vertical");
+    expect(handle).toHaveAttribute("aria-controls", panel.id);
+    pointer("pointerdown", 310, 2);
+    pointer("pointermove", 390);
+    expect(panel).toHaveStyle({ width: "310px" });
+    expect(handle.setPointerCapture).not.toHaveBeenCalled();
+
+    pointer("pointerdown", 310);
+    expect(handle.setPointerCapture).toHaveBeenCalledWith(1);
+    expect(handle).toHaveFocus();
+    pointer("pointermove", 390);
+    expect(panel).toHaveStyle({ width: "390px" });
+    expect(handle).toHaveAttribute("aria-valuenow", "390");
+    pointer("pointerup", 390);
+    expect(handle.releasePointerCapture).toHaveBeenCalledWith(1);
+    pointer("pointermove", 200);
+    expect(panel).toHaveStyle({ width: "390px" });
+
+    view.unmount();
+    render(<PaperLibrary {...props} />);
+    await screen.findByText("Imported Paper");
+    expect(screen.getByRole("complementary", { name: "论文库" })).toHaveStyle({ width: "390px" });
+  });
+
+  it.each(["pointercancel", "lostpointercapture"])("stops resizing after %s", async (eventType) => {
+    render(<PaperLibrary repository={createRepository()} importer={createImporter()} />);
+    await screen.findByText("Imported Paper");
+    const handle = screen.getByRole("separator");
+    handle.setPointerCapture = vi.fn();
+    fireEvent(handle, new MouseEvent("pointerdown", { bubbles: true, clientX: 310, button: 0 }));
+    fireEvent(handle, new MouseEvent("pointermove", { bubbles: true, clientX: 350 }));
+    expect(handle).toHaveAttribute("aria-valuenow", "350");
+    fireEvent(handle, new Event(eventType, { bubbles: true }));
+    fireEvent(handle, new MouseEvent("pointermove", { bubbles: true, clientX: 400 }));
+    expect(handle).toHaveAttribute("aria-valuenow", "350");
+  });
+
+  it("supports keyboard bounds, viewport changes, and a persistent double-click reset", async () => {
+    vi.stubGlobal("innerWidth", 1200);
+    const user = userEvent.setup();
+    const props = { repository: createRepository(), importer: createImporter() };
+    const view = render(<PaperLibrary {...props} />);
+    await screen.findByText("Imported Paper");
+    const handle = screen.getByRole("separator");
+    handle.focus();
+    await user.keyboard("{ArrowRight}");
+    expect(handle).toHaveAttribute("aria-valuenow", "326");
+    await user.keyboard("{ArrowLeft}");
+    expect(handle).toHaveAttribute("aria-valuenow", "310");
+    await user.keyboard("{Home}{ArrowLeft}");
+    expect(handle).toHaveAttribute("aria-valuenow", "260");
+    await user.keyboard("{End}{ArrowRight}");
+    expect(handle).toHaveAttribute("aria-valuenow", "504");
+    expect(handle).toHaveAttribute("aria-valuemax", "504");
+
+    vi.stubGlobal("innerWidth", 800);
+    fireEvent(window, new Event("resize"));
+    expect(handle).toHaveAttribute("aria-valuenow", "336");
+    expect(handle).toHaveAttribute("aria-valuemax", "336");
+    fireEvent.doubleClick(handle);
+    expect(handle).toHaveAttribute("aria-valuenow", "310");
+    view.unmount();
+    render(<PaperLibrary {...props} />);
+    await screen.findByText("Imported Paper");
+    expect(screen.getByRole("complementary", { name: "论文库" })).toHaveStyle({ width: "310px" });
+  });
+
+  it.each([["not-a-width", "310"], ["900", "430"]])("handles stored width %s within viewport bounds", async (saved, expected) => {
+    vi.stubGlobal("innerWidth", 1024);
+    localStorage.setItem("paper-library-width", saved);
+    render(<PaperLibrary repository={createRepository()} importer={createImporter()} />);
+    await screen.findByText("Imported Paper");
+    expect(screen.getByRole("separator")).toHaveAttribute("aria-valuenow", expected);
+  });
+
+  it("still resizes when browser storage is unavailable", async () => {
+    vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => { throw new Error("unavailable"); });
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => { throw new Error("unavailable"); });
+    render(<PaperLibrary repository={createRepository()} importer={createImporter()} />);
+    await screen.findByText("Imported Paper");
+    const handle = screen.getByRole("separator");
+    fireEvent.keyDown(handle, { key: "ArrowRight" });
+    expect(handle).toHaveAttribute("aria-valuenow", "326");
+  });
+
+  it("exposes row actions through one keyboard disclosure and dismisses it with Escape", async () => {
+    const user = userEvent.setup();
+    const onPaperSelect = vi.fn();
+    const onOpenPaper = vi.fn();
+    render(<PaperLibrary repository={createRepository()} importer={createImporter()} onPaperSelect={onPaperSelect} onOpenPaper={onOpenPaper} />);
+    const trigger = await screen.findByRole("button", { name: "Imported Paper 的更多操作" });
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("combobox", { name: "移动 Imported Paper 到领域" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "删除 Imported Paper" })).not.toBeInTheDocument();
+
+    trigger.focus();
+    await user.keyboard("{Enter}");
+    expect(trigger).toHaveAttribute("aria-expanded", "true");
+    const select = screen.getByRole("combobox", { name: "移动 Imported Paper 到领域" });
+    expect(select).toBeVisible();
+    await user.tab();
+    expect(select).toHaveFocus();
+    await user.tab();
+    expect(screen.getByRole("button", { name: "删除 Imported Paper" })).toHaveFocus();
+    await user.keyboard("{Escape}");
+    expect(trigger).toHaveFocus();
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("button", { name: "删除 Imported Paper" })).not.toBeInTheDocument();
+    expect(onPaperSelect).not.toHaveBeenCalled();
+    expect(onOpenPaper).not.toHaveBeenCalled();
+  });
+
+  it("dismisses row actions on outside pointer or focus interaction and when another menu opens", async () => {
+    const user = userEvent.setup();
+    render(<PaperLibrary domainRepository={createDomainRepository()} repository={createRepository()} importer={createImporter()} />);
+    const trigger = await screen.findByRole("button", { name: "Imported Paper 的更多操作" });
+    const otherTrigger = screen.getByRole("button", { name: "Legacy Canvas Paper 的更多操作" });
+    await user.click(trigger);
+    document.body.addEventListener("pointerdown", (event) => event.stopPropagation(), { once: true });
+    fireEvent.pointerDown(document.body);
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+    await user.click(trigger);
+    await user.click(otherTrigger);
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+    expect(otherTrigger).toHaveAttribute("aria-expanded", "true");
+    expect(screen.queryByRole("button", { name: "删除 Imported Paper" })).not.toBeInTheDocument();
+    await user.tab();
+    await user.tab();
+    expect(screen.getByRole("button", { name: "删除 Legacy Canvas Paper" })).toHaveFocus();
+    await user.tab();
+    expect(otherTrigger).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("button", { name: "删除 Legacy Canvas Paper" })).not.toBeInTheDocument();
   });
 
   it("loads papers, keeps legacy entries visible, and filters locally", async () => {
@@ -195,8 +349,11 @@ describe("PaperLibrary", () => {
       />,
     );
 
+    await user.click(
+      await screen.findByRole("button", { name: "Legacy Canvas Paper 的更多操作" }),
+    );
     await user.selectOptions(
-      await screen.findByLabelText("移动 Legacy Canvas Paper 到领域"),
+      screen.getByRole("combobox", { name: "移动 Legacy Canvas Paper 到领域" }),
       aiDomain.id,
     );
 
@@ -694,14 +851,16 @@ describe("PaperLibrary", () => {
     expect(screen.queryByText("只支持 PDF 文件。")).not.toBeInTheDocument();
   });
 
-  it("notifies its owner when a paper is selected", async () => {
+  it("selects on a single click and opens the exact paper on a double-click", async () => {
     const onPaperSelect = vi.fn();
+    const onOpenPaper = vi.fn();
     const user = userEvent.setup();
     render(
       <PaperLibrary
         repository={createRepository()}
         importer={createImporter()}
         onPaperSelect={onPaperSelect}
+        onOpenPaper={onOpenPaper}
       />,
     );
 
@@ -710,6 +869,24 @@ describe("PaperLibrary", () => {
     );
 
     expect(onPaperSelect).toHaveBeenCalledWith(imported);
+    expect(onPaperSelect).toHaveBeenCalledOnce();
+    expect(onOpenPaper).not.toHaveBeenCalled();
+
+    await user.dblClick(screen.getByRole("button", { name: "Imported Paper" }));
+    expect(onOpenPaper).toHaveBeenCalledExactlyOnceWith(imported);
+    expect(onPaperSelect).toHaveBeenCalledTimes(3);
+  });
+
+  it("keeps selection and keyboard activation working without an open callback", async () => {
+    const onPaperSelect = vi.fn();
+    const user = userEvent.setup();
+    render(<PaperLibrary repository={createRepository()} importer={createImporter()} onPaperSelect={onPaperSelect} />);
+    const paper = await screen.findByRole("button", { name: "Imported Paper" });
+    await user.dblClick(paper);
+    expect(onPaperSelect).toHaveBeenCalledTimes(2);
+    await user.keyboard("{Enter}");
+    expect(onPaperSelect).toHaveBeenCalledTimes(3);
+    expect(onPaperSelect).toHaveBeenLastCalledWith(imported);
   });
 
   it("asks for confirmation and lets the user cancel a paper deletion", async () => {
@@ -728,14 +905,16 @@ describe("PaperLibrary", () => {
     );
 
     await user.click(
-      await screen.findByRole("button", { name: "删除 Imported Paper" }),
+      await screen.findByRole("button", { name: "Imported Paper 的更多操作" }),
     );
+    await user.click(screen.getByRole("button", { name: "删除 Imported Paper" }));
     const dialog = screen.getByRole("dialog");
     expect(within(dialog).getByText(/Imported Paper/)).toBeInTheDocument();
 
     await user.click(within(dialog).getByRole("button", { name: "取消" }));
 
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Imported Paper 的更多操作" })).toHaveFocus();
     expect(mutator.deletePaper).not.toHaveBeenCalled();
     expect(beforePaperDelete).not.toHaveBeenCalled();
     expect(onPaperDeleted).not.toHaveBeenCalled();
@@ -753,11 +932,12 @@ describe("PaperLibrary", () => {
         mutator={createMutator()}
       />,
     );
-    const deleteButton = await screen.findByRole("button", {
-      name: "删除 Imported Paper",
+    const menuTrigger = await screen.findByRole("button", {
+      name: "Imported Paper 的更多操作",
     });
 
-    await user.click(deleteButton);
+    await user.click(menuTrigger);
+    await user.click(screen.getByRole("button", { name: "删除 Imported Paper" }));
     const dialog = screen.getByRole("dialog");
     const cancelButton = within(dialog).getByRole("button", { name: "取消" });
     const confirmButton = within(dialog).getByRole("button", {
@@ -772,7 +952,9 @@ describe("PaperLibrary", () => {
     await user.keyboard("{Escape}");
 
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    expect(deleteButton).toHaveFocus();
+    expect(menuTrigger).toBeVisible();
+    expect(menuTrigger).toHaveFocus();
+    expect(menuTrigger).toHaveAttribute("aria-expanded", "false");
   });
 
   it("awaits beforePaperDelete, deletes the paper, and reports successful deletion", async () => {
@@ -805,8 +987,9 @@ describe("PaperLibrary", () => {
     );
 
     await user.click(
-      await screen.findByRole("button", { name: "删除 Imported Paper" }),
+      await screen.findByRole("button", { name: "Imported Paper 的更多操作" }),
     );
+    await user.click(screen.getByRole("button", { name: "删除 Imported Paper" }));
     await user.click(
       within(screen.getByRole("dialog")).getByRole("button", {
         name: "确认删除",
@@ -839,8 +1022,9 @@ describe("PaperLibrary", () => {
     );
 
     await user.click(
-      await screen.findByRole("button", { name: "删除 Imported Paper" }),
+      await screen.findByRole("button", { name: "Imported Paper 的更多操作" }),
     );
+    await user.click(screen.getByRole("button", { name: "删除 Imported Paper" }));
     await user.click(screen.getByRole("button", { name: "确认删除" }));
 
     expect(trackPersistenceOperation).toHaveBeenCalledOnce();
@@ -865,8 +1049,9 @@ describe("PaperLibrary", () => {
     );
 
     await user.click(
-      await screen.findByRole("button", { name: "删除 Imported Paper" }),
+      await screen.findByRole("button", { name: "Imported Paper 的更多操作" }),
     );
+    await user.click(screen.getByRole("button", { name: "删除 Imported Paper" }));
     await user.click(
       within(screen.getByRole("dialog")).getByRole("button", {
         name: "确认删除",
@@ -902,8 +1087,9 @@ describe("PaperLibrary", () => {
     );
 
     await user.click(
-      await screen.findByRole("button", { name: "删除 Imported Paper" }),
+      await screen.findByRole("button", { name: "Imported Paper 的更多操作" }),
     );
+    await user.click(screen.getByRole("button", { name: "删除 Imported Paper" }));
     await user.click(
       within(screen.getByRole("dialog")).getByRole("button", {
         name: "确认删除",

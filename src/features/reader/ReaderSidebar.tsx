@@ -13,10 +13,15 @@ import {
 } from "react";
 import type { PdfHighlight } from "./model/pdfHighlight";
 
-type ReaderWorkspace = "notes" | "mindmap" | "discussion";
+import type { ReaderWorkspace } from "./model/readerState";
+import type { NoteCitation } from "./model/noteCitation";
 
 export interface ReaderSidebarProps {
   initialWorkspace?: ReaderWorkspace;
+  workspace?: ReaderWorkspace;
+  onWorkspaceChange?: (workspace: ReaderWorkspace) => void;
+  onAddHighlightToNotes?: (highlight: PdfHighlight) => void;
+  onCitation?: (citation: NoteCitation) => void;
   discussion?: ReactNode;
   errorMessage?: string | null;
   highlights: PdfHighlight[];
@@ -43,6 +48,10 @@ export interface ReaderSidebarProps {
 
 export function ReaderSidebar({
   initialWorkspace = "notes",
+  workspace,
+  onWorkspaceChange,
+  onAddHighlightToNotes,
+  onCitation,
   discussion,
   errorMessage,
   highlights,
@@ -68,16 +77,22 @@ export function ReaderSidebar({
 }: ReaderSidebarProps) {
   const toolbar = useContext(ReaderToolbarContext);
   const [search, setSearch] = useState("");
-  const [activeWorkspace, setActiveWorkspace] =
+  const [localWorkspace, setActiveWorkspace] =
     useState<ReaderWorkspace>(initialWorkspace);
-  const [hasOpenedMindMap, setHasOpenedMindMap] = useState(false);
+  const activeWorkspace = workspace ?? localWorkspace;
+  const [hasOpenedMindMap, setHasOpenedMindMap] = useState(initialWorkspace === "mindmap" || workspace === "mindmap");
+  const [highlightsExpanded, setHighlightsExpanded] = useState(true);
+  const [searchOpen, setSearchOpen] = useState(false);
   const tabIdPrefix = useId();
   const notesTabRef = useRef<HTMLButtonElement>(null);
   const mindMapTabRef = useRef<HTMLButtonElement>(null);
   const discussionTabRef = useRef<HTMLButtonElement>(null);
   const activateWorkspace = (workspace: ReaderWorkspace) => {
+    setSearchOpen(false);
+    setSearch("");
     if (workspace === "mindmap") setHasOpenedMindMap(true);
     setActiveWorkspace(workspace);
+    onWorkspaceChange?.(workspace);
   };
   const navigateWorkspaceTabs = (
     event: KeyboardEvent<HTMLButtonElement>,
@@ -218,6 +233,7 @@ export function ReaderSidebar({
               fileName={noteFileName}
               onReload={onReloadNote}
               onReveal={onRevealNote}
+              onCitation={onCitation}
             />
           )}
           {noteSaveError && (
@@ -238,7 +254,7 @@ export function ReaderSidebar({
           id={`${tabIdPrefix}-mindmap-panel`}
           role="tabpanel"
         >
-          {hasOpenedMindMap &&
+          {(hasOpenedMindMap || activeWorkspace === "mindmap") &&
             (mindMap ?? (
               <p className="paper-reader__mindmap-unavailable">
                 Mind map is unavailable for this paper.
@@ -262,23 +278,27 @@ export function ReaderSidebar({
 
       {activeWorkspace === "notes" && (
         <section
-          aria-labelledby="highlights-heading"
-          className="paper-reader__highlights"
+          aria-label="Highlights"
+          className={`paper-reader__highlights${highlights.length === 0 || !highlightsExpanded ? " is-compact" : ""}`}
         >
-          <div className="paper-reader__highlights-heading">
-            <h2 id="highlights-heading">Highlights</h2>
-            <span>{highlights.length}</span>
-          </div>
-          <label className="paper-reader__highlight-search">
-            <span aria-hidden="true">⌕</span>
-            <input
-              aria-label="Search highlights"
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search highlights"
-              type="search"
-              value={search}
-            />
-          </label>
+          {highlights.length === 0 ? (
+            <p className="paper-reader__highlight-hint">Select PDF text to add a highlight or annotation.</p>
+          ) : <>
+            <div className="paper-reader__highlights-heading">
+              <button type="button" aria-expanded={highlightsExpanded} aria-controls={`${tabIdPrefix}-highlights`}
+                onClick={() => setHighlightsExpanded((expanded) => !expanded)}>
+                <span aria-hidden="true">{highlightsExpanded ? "▾" : "▸"}</span> Highlights <span>{highlights.length}</span>
+              </button>
+              {highlightsExpanded && <button type="button" aria-label="Find highlights" aria-expanded={searchOpen}
+                onClick={() => { setSearchOpen((open) => !open); setSearch(""); }}>⌕</button>}
+            </div>
+            {highlightsExpanded && searchOpen && <label className="paper-reader__highlight-search">
+              <input aria-label="Search highlights" autoFocus
+                onChange={(event) => setSearch(event.target.value)} placeholder="Search highlights"
+                onKeyDown={(event) => { if (event.key === "Escape") { setSearchOpen(false); setSearch(""); } }}
+                type="search" value={search} />
+            </label>}
+          </>}
 
           {errorMessage && (
             <div className="paper-reader__highlight-error" role="alert">
@@ -291,7 +311,7 @@ export function ReaderSidebar({
             </div>
           )}
 
-          <div className="paper-reader__highlight-list">
+          {highlights.length > 0 && <div className="paper-reader__highlight-list" id={`${tabIdPrefix}-highlights`} hidden={!highlightsExpanded}>
             {visibleHighlights.map((highlight) => (
               <article
                 className={`paper-reader__highlight${
@@ -314,6 +334,10 @@ export function ReaderSidebar({
                     </span>
                   )}
                 </button>
+                {onAddHighlightToNotes && <button type="button" className="paper-reader__highlight-add"
+                  disabled={isNoteDisabled || !!noteLoadError}
+                  aria-label={`Add highlight from page ${highlight.pageNumber} to notes`}
+                  onClick={() => onAddHighlightToNotes(highlight)}>Add to notes</button>}
                 <button
                   aria-label={`Delete highlight from page ${highlight.pageNumber}`}
                   className="paper-reader__highlight-delete"
@@ -332,7 +356,7 @@ export function ReaderSidebar({
                   : "No highlights match this search."}
               </p>
             )}
-          </div>
+          </div>}
         </section>
       )}
     </aside>

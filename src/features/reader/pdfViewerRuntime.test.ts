@@ -244,6 +244,58 @@ describe("createPdfViewerRuntime", () => {
     vi.unstubAllGlobals();
   });
 
+  it("saves explicit navigation before a quick close without waiting for scroll debounce", async () => {
+    const { container, viewer } = createElements();
+    const onLocationChange = vi.fn();
+    const runtime = await createPdfViewerRuntime({ container, viewer, document: createDocument(3), onLocationChange });
+    runtime.setPage(2);
+    runtime.setPage(3);
+    runtime.destroy();
+    expect(onLocationChange).toHaveBeenLastCalledWith({ pageNumber: 3, offset: 0, zoom: 1 });
+    vi.advanceTimersByTime(200);
+    expect(onLocationChange).toHaveBeenCalledTimes(2);
+  });
+
+  it("restores a late lazy page without waiting for all pages and persists its within-page offset", async () => {
+    let firstReady!: (page: object) => void;
+    runtimeFakes.nextFirstPagePromise = new Promise((resolve) => { firstReady = resolve; });
+    runtimeFakes.nextPagesPromise = new Promise(() => {});
+    const { container, viewer } = createElements();
+    const div = document.createElement("div");
+    div.getBoundingClientRect = vi.fn(() => DOMRect.fromRect({ y: 10000 - container.scrollTop, width: 1200, height: 1600 }));
+    const targetView = { div, pdfPage: null as object | null, setPdfPage: vi.fn((page: object) => { targetView.pdfPage = page; }) };
+    let targetReady!: (page: object) => void;
+    const getPage = vi.fn(() => new Promise<object>((resolve) => { targetReady = resolve; }));
+    const onLocationChange = vi.fn();
+    const loading = createPdfViewerRuntime({ container, viewer, document: { ...createDocument(1500), getPage } as unknown as PDFDocumentProxy,
+      initialLocation: { pageNumber: 1200, offset: .4, zoom: 2 }, onLocationChange });
+    await vi.waitFor(() => expect(runtimeFakes.viewers).toHaveLength(1));
+    const pdfViewer = runtimeFakes.viewers[0];
+    const lookup = vi.spyOn(pdfViewer, "getPageView").mockImplementation((index) => index === 1199 ? targetView : undefined);
+    firstReady({});
+    await vi.waitFor(() => expect(getPage).toHaveBeenCalledWith(1200));
+    pdfViewer.options.eventBus.dispatch("updateviewarea", { location: { pageNumber: 1 } });
+    vi.advanceTimersByTime(200);
+    expect(onLocationChange).not.toHaveBeenCalled();
+    targetReady({});
+    const runtime = await loading;
+    expect(runtime.currentPage).toBe(1200);
+    expect(runtime.currentZoom).toBe(2);
+    expect(container.scrollTop).toBe(10640);
+    expect(getPage).toHaveBeenCalledTimes(1);
+    container.scrollTop = 10960;
+    // A sliver of the previous page can remain visible above the current page.
+    pdfViewer.options.eventBus.dispatch("updateviewarea", { location: { pageNumber: 1199 } });
+    vi.advanceTimersByTime(149);
+    expect(onLocationChange).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(1);
+    expect(onLocationChange).toHaveBeenLastCalledWith({ pageNumber: 1200, offset: .6, zoom: 2 });
+    container.scrollTop = 11120;
+    runtime.destroy();
+    expect(onLocationChange).toHaveBeenLastCalledWith({ pageNumber: 1200, offset: .7, zoom: 2 });
+    expect(lookup.mock.calls.length).toBeLessThan(10);
+  });
+
   it("creates the official viewer at a real PDF.js 100% scale", async () => {
     const { container, viewer } = createElements();
     const onPageChange = vi.fn();
@@ -1153,8 +1205,7 @@ describe("createPdfViewerRuntime", () => {
   });
 
   it("cleans up when PDF.js rejects page initialization", async () => {
-    runtimeFakes.nextFirstPagePromise = Promise.resolve({});
-    runtimeFakes.nextPagesPromise = Promise.reject(
+    runtimeFakes.nextFirstPagePromise = Promise.reject(
       new Error("Unable to initialize PDF pages"),
     );
     const { container, viewer } = createElements();

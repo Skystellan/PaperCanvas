@@ -1,14 +1,10 @@
 use tauri_plugin_sql::{Migration, MigrationKind};
 
 pub mod backend;
-pub mod codex_runtime;
 mod markdown_notes;
 mod paper_import;
 mod web_chat;
 
-use codex_runtime::{
-    cancel_codex_turn, codex_runtime_status, start_codex_turn, CancellationRegistry,
-};
 pub use paper_import::{
     delete_paper_from_library, import_pdf_into_library, import_pdf_into_library_with_domain,
     reconcile_paper_storage, DeletePaperError, ImportPdfError, ImportedPaper,
@@ -248,6 +244,18 @@ pub fn migrations() -> Vec<Migration> {
             sql: paper_web_chats_migration_sql(),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 16,
+            description: "add explanations and evidence to board edges",
+            sql: include_str!("../migrations/0016_board_annotations.sql"),
+            kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 17,
+            description: "store manually supplied Mermaid mind maps",
+            sql: include_str!("../migrations/0017_paper_mermaid_maps.sql"),
+            kind: MigrationKind::Up,
+        },
     ]
 }
 
@@ -255,7 +263,6 @@ pub fn migrations() -> Vec<Migration> {
 pub fn run() {
     let migrations = migrations();
     tauri::Builder::default()
-        .manage(CancellationRegistry::default())
         .manage(markdown_notes::NoteFileState::default())
         .manage(web_chat::WebChatState::default())
         .plugin(tauri_plugin_dialog::init())
@@ -272,9 +279,6 @@ pub fn run() {
             import_pdf,
             delete_paper,
             reconcile_pdf_storage,
-            codex_runtime_status,
-            start_codex_turn,
-            cancel_codex_turn,
             web_chat::list_paper_web_chats,
             web_chat::save_paper_web_chat,
             web_chat::layout_paper_web_chat,

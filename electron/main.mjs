@@ -4,7 +4,7 @@ import path from 'node:path';
 import { mkdir } from 'node:fs/promises';
 import { Backend } from './backend.mjs';
 import { Chats, CHAT_PARTITION } from './chats.mjs';
-import { APP_URL, assetPath, isHttps, isLocalFrame } from './security.mjs';
+import { APP_URL, assetPath, canWriteChatClipboard, isHttps, isLocalFrame } from './security.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const dataDirectory = process.env.PAPERCANVAS_DATA_DIR || path.join(
@@ -25,7 +25,7 @@ const fileGrants = new Set();
 const commands = new Set([
   'database_load', 'database_select', 'database_execute',
   'load_markdown_note', 'save_markdown_note', 'list_paper_web_chats', 'save_paper_web_chat',
-  'reconcile_pdf_storage', 'codex_runtime_status', 'start_codex_turn', 'cancel_codex_turn',
+  'reconcile_pdf_storage',
 ]);
 
 function emit(event, payload) {
@@ -115,8 +115,10 @@ else {
   session.defaultSession.setPermissionRequestHandler((contents, permission, callback) => callback(localClipboard(contents, permission)));
   session.defaultSession.setPermissionCheckHandler(localClipboard);
   const chatSession = session.fromPartition(CHAT_PARTITION);
-  chatSession.setPermissionRequestHandler((_webContents, _permission, callback) => callback(false));
-  chatSession.setPermissionCheckHandler(() => false);
+  chatSession.setPermissionRequestHandler((_contents, permission, callback, details) =>
+    callback(canWriteChatClipboard(permission, details.requestingUrl, details.isMainFrame)));
+  chatSession.setPermissionCheckHandler((_contents, permission, origin, details) =>
+    canWriteChatClipboard(permission, details.requestingUrl || origin, details.isMainFrame));
   // Use the normal Chromium UA; Electron's product suffix needlessly selects unsupported-browser paths.
   chatSession.setUserAgent(chatSession.getUserAgent().replace(/\s(?:Electron|PaperCanvas|paper-canvas)\/\S+/g, ''));
 
@@ -129,7 +131,7 @@ else {
   const binary = app.isPackaged
     ? path.join(resources, 'paper-canvas-backend')
     : path.join(root, 'src-tauri/target/debug/paper-canvas-backend');
-  backend = new Backend(binary, dataDirectory, resources, emit);
+  backend = new Backend(binary, dataDirectory);
   chats = new Chats(mainWindow, backend, emit);
   ipcMain.handle('paper-canvas:invoke', async (event, command, args = {}) => {
     if (!isLocalFrame(event, mainWindow)) return { error: 'Only the local reader can access PaperCanvas.' };

@@ -50,6 +50,59 @@ function clampUnit(value: number): number {
   return Math.min(1, Math.max(0, value));
 }
 
+/** Join glyph boxes using their original geometry, not an ever-growing bounding box. */
+export function mergePdfClientRects(rects: readonly ClientRectLike[]): ClientRectLike[] {
+  const parents = rects.map((_, index) => index);
+  const root = (index: number): number => {
+    while (parents[index] !== index) index = parents[index];
+    return index;
+  };
+  // Selections are capped at 256 rectangles. Pairwise comparison keeps script and
+  // fraction fragments together without making DOM order a proxy for reading order.
+  for (let i = 0; i < rects.length; i++) {
+    for (let j = i + 1; j < rects.length; j++) {
+      const a = rects[i], b = rects[j];
+      const overlapX = Math.min(a.left + a.width, b.left + b.width) - Math.max(a.left, b.left);
+      const overlapY = Math.min(a.top + a.height, b.top + b.height) - Math.max(a.top, b.top);
+      const shortHeight = Math.min(a.height, b.height);
+      const sameLine = overlapX >= -shortHeight * 0.45 &&
+        overlapY >= shortHeight * 0.2 &&
+        Math.abs(a.top + a.height / 2 - b.top - b.height / 2) <= Math.max(a.height, b.height) * 0.65;
+      // Close, narrow stacked fragments also cover fractions whose rule is not
+      // in the text layer. Ordinary line spacing and column gutters stay open.
+      const fraction = overlapX >= Math.min(a.width, b.width) * 0.65 &&
+        overlapY >= -shortHeight * 0.25 &&
+        a.width <= a.height * 6 && b.width <= b.height * 6;
+      if (sameLine || fraction) parents[root(j)] = root(i);
+    }
+  }
+  const groups = new Map<number, ClientRectLike>();
+  rects.forEach((rect, index) => {
+    const key = root(index), previous = groups.get(key);
+    if (!previous) { groups.set(key, { ...rect }); return; }
+    const left = Math.min(previous.left, rect.left), top = Math.min(previous.top, rect.top);
+    groups.set(key, {
+      left, top,
+      width: Math.max(previous.left + previous.width, rect.left + rect.width) - left,
+      height: Math.max(previous.top + previous.height, rect.top + rect.height) - top,
+    });
+  });
+  return [...groups.values()];
+}
+
+/** Also used on stored rectangles so pre-existing annotations benefit at any zoom. */
+export function mergeNormalizedPdfRects(
+  rects: readonly NormalizedPdfRect[], width: number, height: number,
+): NormalizedPdfRect[] {
+  return mergePdfClientRects(rects.map((rect) => ({
+    left: rect.left * width, top: rect.top * height,
+    width: rect.width * width, height: rect.height * height,
+  }))).map((rect) => ({
+    left: rect.left / width, top: rect.top / height,
+    width: rect.width / width, height: rect.height / height,
+  }));
+}
+
 export function normalizePdfClientRects(
   pageBounds: ClientRectLike,
   rects: readonly ClientRectLike[],
@@ -66,7 +119,7 @@ export function normalizePdfClientRects(
   const pageRight = pageBounds.left + pageBounds.width;
   const pageBottom = pageBounds.top + pageBounds.height;
 
-  return rects.slice(0, MAX_PDF_SELECTION_RECTS).flatMap((rect) => {
+  const clipped = rects.slice(0, MAX_PDF_SELECTION_RECTS).flatMap((rect) => {
     if (
       !Number.isFinite(rect.left) ||
       !Number.isFinite(rect.top) ||
@@ -91,6 +144,7 @@ export function normalizePdfClientRects(
       },
     ];
   });
+  return mergeNormalizedPdfRects(clipped, pageBounds.width, pageBounds.height);
 }
 
 function isNormalizedPdfRect(value: unknown): value is NormalizedPdfRect {

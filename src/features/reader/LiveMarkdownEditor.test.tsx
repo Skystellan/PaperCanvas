@@ -14,7 +14,9 @@ describe("inline Markdown", () => {
   it("renders in the editable surface, reveals the clicked block and re-renders after leaving it", async () => {
     render(<Editor />);
     const heading = await screen.findByRole("heading", { name: "Title" });
+    fireEvent.click(screen.getByText("View", { selector: "summary" }));
     expect(screen.getByRole("button", { name: "Live preview" })).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(screen.getByText("View", { selector: "summary" }));
     expect(screen.queryByRole("article", { name: "Markdown preview" })).toBeNull();
     fireEvent.mouseDown(heading, { button: 0 });
     const field = screen.getByRole("textbox", { name: "Paper notes" });
@@ -24,8 +26,10 @@ describe("inline Markdown", () => {
     expect(screen.getByText("bold", { selector: "strong" })).toBeVisible();
     const view = EditorView.findFromDOM(field)!;
     act(() => view.dispatch({ changes: { from: 2, to: 7, insert: "中文标题" }, selection: { anchor: 6 } }));
+    fireEvent.click(screen.getByText("View", { selector: "summary" }));
     fireEvent.click(screen.getByRole("button", { name: "Source" }));
     expect((screen.getByRole("textbox", { name: "Paper notes" }) as HTMLTextAreaElement).value).toContain("# 中文标题");
+    fireEvent.click(screen.getByText("View", { selector: "summary" }));
     fireEvent.click(screen.getByRole("button", { name: "Live preview" }));
     act(() => field.blur());
     expect(await screen.findByRole("heading", { name: "中文标题" })).toBeVisible();

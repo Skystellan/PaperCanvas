@@ -13,6 +13,11 @@ export function isGoogleSignIn(value) {
   return isHttps(value) && new URL(value).hostname === 'accounts.google.com';
 }
 
+export function canWriteChatClipboard(permission, url, isMainFrame) {
+  return permission === 'clipboard-sanitized-write' && isMainFrame &&
+    isHttps(url) && new URL(url).origin === 'https://chatgpt.com';
+}
+
 export function isLocalFrame(event, window) {
   return !!window && !window.isDestroyed() && event.sender === window.webContents &&
     event.senderFrame === window.webContents.mainFrame && event.senderFrame.url === APP_URL;

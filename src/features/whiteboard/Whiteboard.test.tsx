@@ -16,6 +16,8 @@ import type { BoardNodeRecord, PaperFlowNode } from "./model/boardNode";
 
 const flow = vi.hoisted(() => ({
   fitView: vi.fn(),
+  setCenter: vi.fn(),
+  deleteElements: vi.fn(),
   getZoom: vi.fn(() => 1),
   screenToFlowPosition: vi.fn(({ x, y }: { x: number; y: number }) => ({ x, y })),
 }));
@@ -42,6 +44,8 @@ vi.mock("@xyflow/react", async (importOriginal) => {
     ...actual,
     useReactFlow: () => ({
       fitView: flow.fitView,
+      setCenter: flow.setCenter,
+      deleteElements: flow.deleteElements,
       getZoom: flow.getZoom,
       screenToFlowPosition: flow.screenToFlowPosition,
     }),
@@ -117,6 +121,14 @@ vi.mock("@xyflow/react", async (importOriginal) => {
       zoomOnScroll: boolean;
       children: ReactNode;
     }) => {
+      flow.deleteElements.mockImplementation(async (selection: { nodes: PaperFlowNode[]; edges: typeof edges }) => {
+        const nodeIds = new Set(selection.nodes.map(({ id }) => id));
+        const matchingEdges = edges.filter((edge) => selection.edges.some(({ id }) => id === edge.id) || nodeIds.has(edge.source) || nodeIds.has(edge.target));
+        const result = await onBeforeDelete({ nodes: selection.nodes, edges: matchingEdges });
+        const removed = typeof result === "boolean" ? result ? { nodes: selection.nodes, edges: matchingEdges } : { nodes: [], edges: [] } : result;
+        onEdgesChange(removed.edges.map(({ id }) => ({ id, type: "remove" })));
+        onNodesChange(removed.nodes.map(({ id }) => ({ id, type: "remove" })));
+      });
       const first = nodes[0];
       const second = nodes[1];
       const nearFirst =
@@ -178,7 +190,11 @@ vi.mock("@xyflow/react", async (importOriginal) => {
           <div key={node.id}>
             <button
               type="button"
-              onClick={() => onNodeClick?.({}, node)}
+              onClick={() => {
+                onNodesChange(nodes.map(({ id }) => ({ id, type: "select", selected: id === node.id })));
+                onEdgesChange(edges.map(({ id }) => ({ id, type: "select", selected: false })));
+                onNodeClick?.({}, node);
+              }}
               onDoubleClick={() => onNodeDoubleClick({}, node)}
             >
               {node.data.paper.title}
@@ -391,7 +407,10 @@ vi.mock("@xyflow/react", async (importOriginal) => {
             <button
               type="button"
               aria-label={`Select ${edge.id}`}
-              onClick={() => onEdgeClick?.({}, edge)}
+              onClick={() => {
+                onEdgesChange(edges.map(({ id }) => ({ id, type: "select", selected: id === edge.id })));
+                onEdgeClick?.({}, edge);
+              }}
             >
               Select
             </button>
@@ -469,6 +488,8 @@ const firstEdge: BoardEdgeRecord = {
   sourceNodeId: "node-attention",
   targetNodeId: "node-bert",
   relation: null,
+  explanation: "",
+  evidence: "",
 };
 
 function createRepository() {
@@ -478,6 +499,8 @@ function createRepository() {
     createPaperNode: vi.fn().mockResolvedValue(secondNode),
     createEdge: vi.fn().mockResolvedValue(firstEdge),
     updateEdgeRelation: vi.fn().mockResolvedValue(undefined),
+    updateEdgeAnnotations: vi.fn().mockResolvedValue(undefined),
+    deleteNodes: vi.fn().mockResolvedValue(undefined),
     deleteEdges: vi.fn().mockResolvedValue(undefined),
   };
   return repository as typeof repository & Mocked<BoardRepository>;
@@ -580,6 +603,95 @@ describe("Whiteboard", () => {
     flow.getZoom.mockReturnValue(1);
     flow.fitView.mockResolvedValue(true);
     flow.screenToFlowPosition.mockImplementation(({ x, y }) => ({ x, y }));
+  });
+
+  it("focuses an existing card across scopes, repeats requests, and does not add absent papers", async () => {
+    const repository = createRepository();
+    const domains = [{ id: "domain-transformers", name: "Transformers" }];
+    const view = render(<Whiteboard repository={repository} domains={domains} />);
+    await screen.findByText(firstNode.paper.title);
+    fireEvent.click(screen.getByRole("button", { name: "未分区" }));
+    expect(screen.queryByText(firstNode.paper.title)).toBeNull();
+    view.rerender(<Whiteboard repository={repository} domains={domains}
+      paperFocusRequest={{ paperId: firstNode.paper.id, revision: 1 }} />);
+    expect(await screen.findByText(firstNode.paper.title)).toBeVisible();
+    expect(screen.getByRole("button", { name: "All" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "从白板移除选中卡片" })).toBeVisible();
+    expect(flow.setCenter).toHaveBeenCalledWith(260, 174, { zoom: 1, duration: 300 });
+    view.rerender(<Whiteboard repository={repository} domains={domains}
+      paperFocusRequest={{ paperId: firstNode.paper.id, revision: 2 }} />);
+    expect(flow.setCenter).toHaveBeenCalledTimes(2);
+    view.rerender(<Whiteboard repository={repository} domains={domains}
+      paperFocusRequest={{ paperId: "absent", revision: 3 }} />);
+    expect(flow.setCenter).toHaveBeenCalledTimes(2);
+    expect(repository.createPaperNode).not.toHaveBeenCalled();
+    expect(repository.saveNodePositions).not.toHaveBeenCalled();
+  });
+
+  it("waits for loading before handling a paper focus request", async () => {
+    const repository = createRepository();
+    const loading = deferred<{ nodes: BoardNodeRecord[]; edges: BoardEdgeRecord[] }>();
+    repository.loadBoard.mockReturnValue(loading.promise);
+    render(<Whiteboard repository={repository} paperFocusRequest={{ paperId: firstNode.paper.id, revision: 1 }} />);
+    expect(flow.setCenter).not.toHaveBeenCalled();
+    await act(async () => loading.resolve({ nodes: [firstNode], edges: [] }));
+    expect(flow.setCenter).toHaveBeenCalledOnce();
+  });
+
+  it("keeps annotation drafts across selection, retries errors, and flushes the latest edit before navigation", async () => {
+    const repository = createRepository();
+    repository.loadBoard.mockResolvedValue({ nodes: [firstNode, secondNode], edges: [firstEdge] });
+    render(<Whiteboard repository={repository} />);
+    fireEvent.click(await screen.findByRole("button", { name: `Select ${firstEdge.id}` }));
+    fireEvent.change(screen.getByLabelText("解释"), { target: { value: "Same result" } });
+    fireEvent.change(screen.getByLabelText("证据"), { target: { value: "Page 4" } });
+    expect(persistence.writer?.isDirty()).toBe(true);
+    fireEvent.click(screen.getByRole("button", { name: firstNode.paper.title }));
+    expect(screen.queryByLabelText("解释")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: `Select ${firstEdge.id}` }));
+    expect(screen.getByLabelText("解释")).toHaveValue("Same result");
+    repository.updateEdgeAnnotations.mockRejectedValueOnce(new Error("disk full"));
+    await act(async () => {
+      await expect(persistence.writer!.flush()).rejects.toThrow("disk full");
+    });
+    expect(screen.getByRole("alert")).toHaveTextContent("草稿已保留");
+    expect(persistence.writer?.isDirty()).toBe(true);
+
+    const saving = deferred<void>();
+    repository.updateEdgeAnnotations.mockReturnValueOnce(saving.promise);
+    fireEvent.click(screen.getByRole("button", { name: "重试保存解释与证据" }));
+    fireEvent.change(screen.getByLabelText("解释"), { target: { value: "Latest explanation" } });
+    await act(async () => { saving.resolve(); await persistence.writer!.flush(); });
+    expect(repository.updateEdgeAnnotations).toHaveBeenLastCalledWith(firstEdge.id, {
+      explanation: "Latest explanation", evidence: "Page 4",
+    });
+    expect(persistence.writer?.isDirty()).toBe(false);
+    expect(screen.getByLabelText("解释")).toHaveValue("Latest explanation");
+  });
+
+  it("drains position saves before removing a card, retains failed deletions, and allows drag-back", async () => {
+    const repository = createRepository();
+    const saving = deferred<void>();
+    repository.saveNodePositions.mockReturnValueOnce(saving.promise);
+    repository.deleteNodes.mockRejectedValueOnce(new Error("busy"));
+    const view = render(<Whiteboard repository={repository} />);
+    fireEvent.click(await screen.findByRole("button", { name: `Move ${firstNode.paper.title}` }));
+    fireEvent.click(screen.getByRole("button", { name: firstNode.paper.title }));
+    fireEvent.click(screen.getByRole("button", { name: "从白板移除选中卡片" }));
+    expect(repository.deleteNodes).not.toHaveBeenCalled();
+    await act(async () => saving.resolve());
+    expect(await screen.findByRole("alert")).toHaveTextContent("could not be removed");
+    expect(screen.getByText(firstNode.paper.title)).toBeVisible();
+    fireEvent.keyDown(document.body, { key: "Delete" });
+    await waitFor(() => expect(screen.queryByText(firstNode.paper.title)).toBeNull());
+    repository.loadBoard.mockResolvedValue({ nodes: [], edges: [] });
+    view.rerender(<Whiteboard repository={repository} paperCatalogChange={{ kind: "organized", paperIds: [], revision: 1 }} />);
+    await waitFor(() => expect(repository.loadBoard).toHaveBeenCalledTimes(2));
+    expect(screen.queryByText(firstNode.paper.title)).toBeNull();
+    repository.createPaperNode.mockResolvedValueOnce(firstNode);
+    dropPaper(firstNode.paper.id);
+    expect(await screen.findByText(firstNode.paper.title)).toBeVisible();
+    expect(repository.createPaperNode).toHaveBeenCalledOnce();
   });
 
   it("loads persisted cards and ordinary edges as one board", async () => {

@@ -1,6 +1,6 @@
 const { contextBridge, ipcRenderer, webUtils } = require('electron');
 
-const events = new Set(['paper-web-chat-updated', 'paper-web-chat-error', 'paper-web-chat-login-required', 'paper-web-chat-load-state', 'codex-stream', 'native-close-requested']);
+const events = new Set(['paper-web-chat-updated', 'paper-web-chat-error', 'paper-web-chat-login-required', 'paper-web-chat-load-state', 'native-close-requested']);
 contextBridge.exposeInMainWorld('paperCanvas', {
   async invoke(command, args = {}) {
     const response = await ipcRenderer.invoke('paper-canvas:invoke', command, args);

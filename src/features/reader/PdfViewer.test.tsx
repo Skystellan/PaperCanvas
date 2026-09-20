@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { formulaSamples } from "./model/pdfHighlight.samples";
 import {
   act,
   createEvent,
@@ -228,7 +230,7 @@ describe("PdfViewer", () => {
       top: "40%",
       width: "50%",
     });
-    expect(setPage).toHaveBeenCalledWith(2);
+    expect(setPage).toHaveBeenCalledWith(2, 0.32);
 
     setPage.mockClear();
     fireEvent.click(screen.getByRole("button", { name: "Previous page" }));
@@ -320,6 +322,62 @@ describe("PdfViewer", () => {
     expect(dialog).toHaveTextContent("Official selection");
   });
 
+  it.each(["official", "test"] as const)("uses coherent formula boxes for selections and legacy highlights in the %s renderer", async (renderer) => {
+    const pdf = createPdf(1);
+    const rects = formulaSamples.flatMap((sample, index) => sample.rects.map((rect) => ({ ...rect, top: rect.top + index * 100 })));
+    const expected = formulaSamples.flatMap((sample, index) => sample.boxes.map((rect) => ({ ...rect, top: rect.top + index * 100 })));
+    const highlight: PdfHighlight = {
+      id: "legacy-formula", paperId: "paper-1", pageNumber: 1, comment: "", text: "Formula samples", createdAt: 1, updatedAt: 1,
+      rects: rects.map((rect) => ({ left: rect.left / 600, top: rect.top / 800, width: rect.width / 600, height: rect.height / 800 })),
+    };
+    let selectedText: Node | undefined;
+    const saveNote = vi.fn();
+    const pageBounds = DOMRect.fromRect({ width: 600, height: 800 });
+    const viewerRuntimeFactory = vi.fn(async ({ viewer }: CreatePdfViewerRuntimeOptions): Promise<PdfViewerRuntime> => {
+      const page = document.createElement("div"), canvas = document.createElement("div"), layer = document.createElement("div");
+      page.className = "page"; page.dataset.pageNumber = "1";
+      canvas.className = "canvasWrapper"; canvas.getBoundingClientRect = () => pageBounds;
+      Object.defineProperties(canvas, { clientWidth: { value: 600 }, clientHeight: { value: 800 } });
+      layer.className = "textLayer"; selectedText = document.createTextNode("Formula samples"); layer.append(selectedText);
+      page.append(canvas, layer); viewer.append(page);
+      return { currentPage: 1, currentZoom: 1, pagesCount: 1, setPage: vi.fn(), stepZoom: vi.fn(), zoomTo: vi.fn(), destroy: vi.fn() };
+    });
+    if (renderer === "official") pdf.document.viewerDocument = {};
+    render(<PdfViewer filePath="formulas.pdf" highlights={[highlight]} pdfJs={pdf.adapter}
+      readPdfFile={vi.fn().mockResolvedValue(new Uint8Array([1]))} viewerRuntimeFactory={viewerRuntimeFactory} selectionActions={{ saveNote }} />);
+    const pages = await screen.findByLabelText("PDF pages");
+    const target = renderer === "official" ? pages : await screen.findByTestId("pdf-text-layer-1");
+    if (renderer === "test") {
+      target.getBoundingClientRect = () => pageBounds;
+      await waitFor(() => expect(target).toHaveTextContent("Selectable PDF text"));
+      selectedText = target.firstChild!;
+    }
+    const markers = await screen.findAllByTestId("pdf-persisted-highlight-legacy-formula");
+    expect(markers).toHaveLength(expected.length);
+    markers.forEach((marker, i) => {
+      expect(parseFloat(marker.style.width)).toBeCloseTo(expected[i].width / 6);
+      expect(parseFloat(marker.style.top)).toBeCloseTo(expected[i].top / 8);
+    });
+    // Vitest stubs CSS imports; apply the real stylesheet for this compositing assertion.
+    const readerStyles = readFileSync("src/features/reader/reader.css", "utf8");
+    const styles = document.createElement("style"); styles.textContent = readerStyles; document.head.append(styles);
+    // Parent opacity composites opaque children once, including overlaps between annotations.
+    expect(getComputedStyle(markers[0].parentElement!).opacity).toBe("0.32");
+    expect(getComputedStyle(markers[0]).backgroundColor).toBe("rgb(242, 202, 55)");
+    styles.remove();
+    vi.spyOn(window, "getSelection").mockReturnValue({ isCollapsed: false, rangeCount: 1, toString: () => "Formula samples", removeAllRanges: vi.fn(),
+      getRangeAt: () => ({ startContainer: selectedText, endContainer: selectedText,
+        getBoundingClientRect: () => DOMRect.fromRect({ x: 40, y: 34, width: 407, height: 544 }),
+        getClientRects: () => rects.map((rect) => DOMRect.fromRect({ x: rect.left, y: rect.top, width: rect.width, height: rect.height })),
+      }),
+    } as unknown as Selection);
+    fireEvent.mouseUp(target);
+    expect(await screen.findAllByTestId("pdf-selection-highlight")).toHaveLength(expected.length);
+    fireEvent.click(screen.getByRole("button", { name: "Save annotation" }));
+    await waitFor(() => expect(saveNote).toHaveBeenCalledOnce());
+    expect(saveNote.mock.calls[0][0].selection.rects).toHaveLength(expected.length);
+  });
+
   it("refuses a hostile PDF page count before allocating page wrappers", async () => {
     const pdf = createPdf(MAX_SUPPORTED_PDF_PAGES + 1);
 
@@ -387,17 +445,12 @@ describe("PdfViewer", () => {
       top: "108px",
       width: "280px",
     });
-    expect(screen.getByRole("button", { name: "Note" })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
-    expect(screen.getByRole("button", { name: "Translate (coming soon)" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Ask AI (coming soon)" })).toBeDisabled();
-    fireEvent.change(screen.getByRole("textbox", { name: "Note about selection" }), {
+    expect(screen.queryByRole("button", { name: /Translate|Ask AI/ })).toBeNull();
+    fireEvent.change(screen.getByRole("textbox", { name: "Annotation about selection" }), {
       target: { value: "Compare this with the prior result." },
     });
     fireEvent.click(
-      screen.getByRole("button", { name: "Save note" }),
+      screen.getByRole("button", { name: "Save annotation" }),
     );
 
     await waitFor(() =>
@@ -503,69 +556,6 @@ describe("PdfViewer", () => {
     expect(screen.queryByRole("dialog", { name: "PDF selection tools" })).toBeNull();
   });
 
-  it("shows Translate and Ask AI results inside the PaperCanvas selection card", async () => {
-    const pdf = createPdf(1);
-    const translate = vi.fn().mockResolvedValue("可组合的选区操作");
-    const askAi = vi.fn().mockResolvedValue("This passage describes a composable action.");
-    vi.spyOn(window, "getSelection").mockReturnValue({
-      getRangeAt: () => ({
-        getBoundingClientRect: () => ({
-          bottom: 160,
-          height: 20,
-          left: 120,
-          right: 260,
-          top: 140,
-          width: 140,
-          x: 120,
-          y: 140,
-        }),
-      }),
-      isCollapsed: false,
-      rangeCount: 1,
-      removeAllRanges: vi.fn(),
-      toString: () => "Composable selection action",
-    } as unknown as Selection);
-
-    render(
-      <PdfViewer
-        filePath="papers/future-actions.pdf"
-        pdfJs={pdf.adapter}
-        readPdfFile={vi.fn().mockResolvedValue(new Uint8Array([1]))}
-        selectionActions={{ askAi, saveNote: vi.fn(), translate }}
-      />,
-    );
-
-    const textLayer = await screen.findByTestId("pdf-text-layer-1");
-    await waitFor(() => expect(textLayer).toHaveTextContent("Selectable PDF text"));
-    fireEvent.mouseUp(textLayer);
-    fireEvent.click(screen.getByRole("button", { name: "Translate" }));
-    fireEvent.click(screen.getByRole("button", { name: "Translate selection" }));
-    await waitFor(() =>
-      expect(translate).toHaveBeenCalledWith(
-        expect.objectContaining({ text: "Composable selection action" }),
-        expect.any(AbortSignal),
-      ),
-    );
-    expect(await screen.findByText("可组合的选区操作")).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: "Ask AI" }));
-    fireEvent.change(screen.getByRole("textbox", { name: "Question about selection" }), {
-      target: { value: "Why does this matter?" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Ask Codex" }));
-    await waitFor(() =>
-      expect(askAi).toHaveBeenCalledWith(
-        expect.objectContaining({
-          question: "Why does this matter?",
-          selection: expect.objectContaining({ text: "Composable selection action" }),
-        }),
-      ),
-    );
-    expect(
-      await screen.findByText("This passage describes a composable action."),
-    ).toBeInTheDocument();
-  });
-
   it("keeps the inline note and selection available when saving fails", async () => {
     const pdf = createPdf(1);
     const saveNote = vi
@@ -604,16 +594,16 @@ describe("PdfViewer", () => {
     await waitFor(() => expect(textLayer).toHaveTextContent("Selectable PDF text"));
     fireEvent.mouseUp(textLayer);
     const comment = await screen.findByRole("textbox", {
-      name: "Note about selection",
+      name: "Annotation about selection",
     });
     fireEvent.change(comment, { target: { value: "Retained draft" } });
-    fireEvent.click(screen.getByRole("button", { name: "Save note" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save annotation" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Your selection is still here",
     );
     expect(comment).toHaveValue("Retained draft");
-    fireEvent.click(screen.getByRole("button", { name: "Save note" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save annotation" }));
     await waitFor(() =>
       expect(screen.queryByRole("dialog", { name: "PDF selection tools" })).toBeNull(),
     );

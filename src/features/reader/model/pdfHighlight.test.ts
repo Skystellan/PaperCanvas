@@ -67,7 +67,7 @@ describe("normalizePdfClientRects", () => {
         { height: 100, left: 0, top: 0, width: 100 },
         rectangles,
       ),
-    ).toHaveLength(MAX_PDF_SELECTION_RECTS);
+    ).toHaveLength(1);
     expect(parseNormalizedPdfRects(rectangles)).toHaveLength(
       MAX_PDF_SELECTION_RECTS,
     );
@@ -84,5 +84,31 @@ describe("normalizePdfClientRects", () => {
     expect(
       isUtf8WithinLimit(`${clipped}论`, MAX_PDF_SELECTION_TEXT_BYTES),
     ).toBe(false);
+  });
+});
+
+import { formulaSamples } from "./pdfHighlight.samples";
+import { mergeNormalizedPdfRects } from "./pdfHighlight";
+
+describe("formula backgrounds", () => {
+  it.each(formulaSamples)("coalesces $name at multiple zooms and repairs stored glyph rectangles", ({ rects, boxes }) => {
+    for (const zoom of [0.5, 1, 2.75]) {
+      const page = { left: 100, top: 70, width: 600 * zoom, height: 800 * zoom };
+      const normalized = normalizePdfClientRects(page, rects.map((rect) => ({
+        left: page.left + rect.left * zoom, top: page.top + rect.top * zoom,
+        width: rect.width * zoom, height: rect.height * zoom,
+      })));
+      const legacy = rects.map((rect) => ({ left: rect.left / 600, top: rect.top / 800, width: rect.width / 600, height: rect.height / 800 }));
+      const repaired = mergeNormalizedPdfRects(legacy, page.width, page.height);
+      for (const result of [normalized, repaired]) {
+        expect(result).toHaveLength(boxes.length);
+        result.forEach((rect, i) => {
+          expect(rect.left).toBeCloseTo(boxes[i].left / 600);
+          expect(rect.top).toBeCloseTo(boxes[i].top / 800);
+          expect(rect.width).toBeCloseTo(boxes[i].width / 600);
+          expect(rect.height).toBeCloseTo(boxes[i].height / 800);
+        });
+      }
+    }
   });
 });

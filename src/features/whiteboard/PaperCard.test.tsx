@@ -127,6 +127,7 @@ describe("PaperCard", () => {
     render(<PaperCard {...props} />);
 
     expect(screen.queryByText("·")).not.toBeInTheDocument();
-    expect(screen.getByText("Metadata unavailable")).toBeVisible();
+    expect(screen.queryByText("Metadata unavailable")).not.toBeInTheDocument();
+    expect(screen.getByRole("article").querySelector("p")).toBeNull();
   });
 });

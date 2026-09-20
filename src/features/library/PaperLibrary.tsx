@@ -4,6 +4,7 @@ import {
   type KeyboardEvent,
   useCallback,
   useEffect,
+  useId,
   useMemo,
   useRef,
   useState,
@@ -28,6 +29,27 @@ import "./PaperLibrary.css";
 
 export const PAPER_DRAG_MIME = "application/papercanvas-paper";
 const UNCLASSIFIED_GROUP_KEY = "__unclassified__";
+const WIDTH_STORAGE_KEY = "paper-library-width";
+const DEFAULT_WIDTH = 310;
+const MIN_WIDTH = 260;
+
+function maximumWidth() {
+  return Math.max(MIN_WIDTH, Math.min(520, Math.floor(window.innerWidth * 0.42)));
+}
+
+function clampWidth(width: number, maximum: number) {
+  return Math.max(MIN_WIDTH, Math.min(maximum, width));
+}
+
+function storedWidth() {
+  try {
+    const saved = Number(localStorage.getItem(WIDTH_STORAGE_KEY));
+    if (Number.isFinite(saved) && saved > 0) return clampWidth(saved, maximumWidth());
+  } catch {
+    // Width remains usable when browser storage is unavailable.
+  }
+  return clampWidth(DEFAULT_WIDTH, maximumWidth());
+}
 
 const defaultRepository = new SqlitePaperRepository();
 const defaultDomainRepository = sqlitePaperDomainRepository;
@@ -44,6 +66,7 @@ export interface PaperLibraryProps {
   onPaperDrop?: (intent: PaperDropIntent) => void;
   onPaperDeleted?: (paper: Paper) => void;
   onPaperSelect?: (paper: Paper) => void;
+  onOpenPaper?: (paper: Paper) => void;
   onPapersImported?: (papers: readonly Paper[]) => void;
   onOrganizationChanged?: (paperIds: readonly string[]) => void;
   selectedPaperId?: string | null;
@@ -84,6 +107,7 @@ interface PaperDomainSectionProps {
   onDragStart: (event: DragEvent<HTMLButtonElement>, paperId: string) => void;
   onImport: (domainId: string | null) => void;
   onPaperSelect?: (paper: Paper) => void;
+  onOpenPaper?: (paper: Paper) => void;
   onRename: (domainId: string, name: string) => void;
   onRenameDraftChange: (name: string) => void;
   onToggle: (groupKey: string) => void;
@@ -107,6 +131,7 @@ function PaperDomainSection({
   onDragStart,
   onImport,
   onPaperSelect,
+  onOpenPaper,
   onRename,
   onRenameDraftChange,
   onToggle,
@@ -116,6 +141,28 @@ function PaperDomainSection({
 }: PaperDomainSectionProps) {
   const expanded = forceExpanded || !collapsed;
   const panelId = `paper-domain-${group.key}`;
+  const [openPaperId, setOpenPaperId] = useState<string | null>(null);
+  const disclosure = useRef<HTMLDivElement | null>(null);
+  const menuTrigger = useRef<HTMLButtonElement | null>(null);
+
+  useEffect(() => {
+    if (!openPaperId) return;
+    const dismissOutside = (event: Event) => {
+      if (!disclosure.current?.contains(event.target as Node)) setOpenPaperId(null);
+    };
+    const dismissOnEscape = (event: globalThis.KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      setOpenPaperId(null);
+      menuTrigger.current?.focus();
+    };
+    document.addEventListener("pointerdown", dismissOutside, true);
+    document.addEventListener("keydown", dismissOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", dismissOutside, true);
+      document.removeEventListener("keydown", dismissOnEscape);
+    };
+  }, [openPaperId]);
 
   return (
     <section className="paper-library__domain">
@@ -200,6 +247,8 @@ function PaperDomainSection({
         ) : null}
         {group.papers.map((paper) => {
           const metadata = paperMetadata(paper);
+          const menuOpen = openPaperId === paper.id;
+          const actionsId = `paper-actions-${paper.id}`;
           return (
             <div className="paper-library__item-row" key={paper.id}>
               <button
@@ -212,6 +261,7 @@ function PaperDomainSection({
                 }`}
                 draggable
                 onClick={() => onPaperSelect?.(paper)}
+                onDoubleClick={() => onOpenPaper?.(paper)}
                 onDragEnd={() => onDragEnd(paper.id)}
                 onDragStart={(event) => onDragStart(event, paper.id)}
                 type="button"
@@ -225,37 +275,61 @@ function PaperDomainSection({
                   ) : null}
                 </span>
               </button>
-              <div className="paper-library__item-actions">
-                <select
-                  aria-label={`移动 ${paper.title} 到领域`}
-                  disabled={busy}
-                  onChange={(event) => {
-                    const domainId = event.currentTarget.value || null;
-                    if (domainId !== paper.domainId) {
-                      onAssignPaper(paper.id, domainId);
-                    }
-                  }}
-                  title="移动到领域"
-                  value={paper.domainId ?? ""}
-                >
-                  <option value="">未分区</option>
-                  {domains.map((domain) => (
-                    <option key={domain.id} value={domain.id}>
-                      {domain.name}
-                    </option>
-                  ))}
-                </select>
+              <div
+                className="paper-library__item-actions"
+                ref={menuOpen ? disclosure : undefined}
+                onBlur={(event) => {
+                  if (!event.currentTarget.contains(event.relatedTarget)) setOpenPaperId(null);
+                }}
+              >
                 <button
-                  aria-label={`删除 ${paper.title}`}
-                  className="paper-library__delete"
-                  disabled={busy}
-                  onClick={(event) =>
-                    onDeletePaper(paper, event.currentTarget)
-                  }
+                  aria-label={`${paper.title} 的更多操作`}
+                  aria-expanded={menuOpen}
+                  aria-controls={actionsId}
+                  className="paper-library__more"
+                  onClick={(event) => {
+                    menuTrigger.current = event.currentTarget;
+                    setOpenPaperId(menuOpen ? null : paper.id);
+                  }}
                   type="button"
                 >
-                  <span aria-hidden="true">×</span>
+                  <span aria-hidden="true">⋯</span>
                 </button>
+                {menuOpen ? (
+                  <div className="paper-library__item-actions-panel" id={actionsId}>
+                    <label>
+                      移动到领域
+                      <select
+                        aria-label={`移动 ${paper.title} 到领域`}
+                        disabled={busy}
+                        onChange={(event) => {
+                          const domainId = event.currentTarget.value || null;
+                          if (domainId !== paper.domainId) onAssignPaper(paper.id, domainId);
+                        }}
+                        value={paper.domainId ?? ""}
+                      >
+                        <option value="">未分区</option>
+                        {domains.map((domain) => (
+                          <option key={domain.id} value={domain.id}>
+                            {domain.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <button
+                      aria-label={`删除 ${paper.title}`}
+                      className="paper-library__delete"
+                      disabled={busy}
+                      onClick={() => {
+                        onDeletePaper(paper, menuTrigger.current!);
+                        setOpenPaperId(null);
+                      }}
+                      type="button"
+                    >
+                      删除
+                    </button>
+                  </div>
+                ) : null}
               </div>
             </div>
           );
@@ -275,11 +349,35 @@ export function PaperLibrary({
   onPaperDrop,
   onPaperDeleted,
   onPaperSelect,
+  onOpenPaper,
   onPapersImported,
   onOrganizationChanged,
   selectedPaperId,
   trackPersistenceOperation,
 }: PaperLibraryProps) {
+  const [maxWidth, setMaxWidth] = useState(maximumWidth);
+  const [width, setWidth] = useState(storedWidth);
+  const resizeDrag = useRef<{ x: number; width: number; pointerId: number } | null>(null);
+  const panelId = useId();
+
+  useEffect(() => {
+    const resize = () => {
+      const maximum = maximumWidth();
+      setMaxWidth(maximum);
+      setWidth((current) => clampWidth(current, maximum));
+    };
+    window.addEventListener("resize", resize);
+    return () => window.removeEventListener("resize", resize);
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(WIDTH_STORAGE_KEY, String(width));
+    } catch {
+      // Resizing does not depend on persistence being available.
+    }
+  }, [width]);
+
   const [papers, setPapers] = useState<Paper[]>([]);
   const [domains, setDomains] = useState<PaperDomain[]>([]);
   const [loadState, setLoadState] = useState<LoadState>("loading");
@@ -825,7 +923,54 @@ export function PaperLibrary({
       className="paper-library"
       aria-label="论文库"
       aria-busy={loadState === "loading"}
+      id={panelId}
+      style={{ width }}
     >
+      <div
+        className="paper-library__resizer"
+        role="separator"
+        tabIndex={0}
+        aria-label="调整论文库宽度"
+        aria-orientation="vertical"
+        aria-controls={panelId}
+        aria-valuemin={MIN_WIDTH}
+        aria-valuemax={maxWidth}
+        aria-valuenow={width}
+        aria-valuetext={`${width} 像素`}
+        title="拖动或使用左右方向键调整宽度，双击重置"
+        onPointerDown={(event) => {
+          if (event.button !== 0) return;
+          event.preventDefault();
+          event.currentTarget.focus();
+          resizeDrag.current = { x: event.clientX, width, pointerId: event.pointerId };
+          event.currentTarget.setPointerCapture(event.pointerId);
+        }}
+        onPointerMove={(event) => {
+          const drag = resizeDrag.current;
+          if (drag && drag.pointerId === event.pointerId) {
+            setWidth(clampWidth(drag.width + event.clientX - drag.x, maxWidth));
+          }
+        }}
+        onPointerUp={(event) => {
+          resizeDrag.current = null;
+          if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+            event.currentTarget.releasePointerCapture(event.pointerId);
+          }
+        }}
+        onPointerCancel={() => { resizeDrag.current = null; }}
+        onLostPointerCapture={() => { resizeDrag.current = null; }}
+        onDoubleClick={() => setWidth(clampWidth(DEFAULT_WIDTH, maxWidth))}
+        onKeyDown={(event) => {
+          const next = event.key === "ArrowLeft" ? width - 16
+            : event.key === "ArrowRight" ? width + 16
+            : event.key === "Home" ? MIN_WIDTH
+            : event.key === "End" ? maxWidth : null;
+          if (next !== null) {
+            event.preventDefault();
+            setWidth(clampWidth(next, maxWidth));
+          }
+        }}
+      />
       <div className="paper-library__header">
         <div>
           <span className="paper-library__eyebrow">LIBRARY</span>
@@ -975,6 +1120,7 @@ export function PaperLibrary({
                 onDragStart={handlePaperDragStart}
                 onImport={requestDomainImport}
                 onPaperSelect={onPaperSelect}
+                onOpenPaper={onOpenPaper}
                 onRename={requestDomainRename}
                 onRenameDraftChange={setRenameDraft}
                 onToggle={toggleDomainGroup}

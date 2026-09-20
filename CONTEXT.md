@@ -1,6 +1,6 @@
 # PaperCanvas
 
-PaperCanvas is a local-first workspace for reading papers, arranging them spatially, and discussing them with Codex while the source PDF remains in view.
+PaperCanvas is a local-first workspace for reading papers, arranging them spatially, and discussing them in embedded ChatGPT while the source PDF remains in view.
 
 ## Language
 
@@ -25,5 +25,5 @@ The whiteboard projection that shows every paper and visually encloses papers fr
 _Avoid_: Global domain, root domain
 
 **Discussion**:
-A locally persisted AI conversation whose full interaction surface belongs in the PDF reader; the main workspace only presents recent discussion summaries.
+A paper-bound ChatGPT conversation link whose name and URL are stored locally. Its messages remain on ChatGPT. The full discussion surface belongs in the PDF reader; the main workspace presents recent discussion links.
 _Avoid_: Chat thread, prompt history

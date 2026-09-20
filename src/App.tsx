@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from "react";
-import { ChatPanel, RecentDiscussions } from "./features/ai";
+import { WebChatPanel, RecentDiscussions } from "./features/ai";
 import {
   PaperLibrary,
   SqlitePaperRepository,
@@ -22,9 +22,10 @@ function PaperCanvasApp() {
   const [requestedWebChatId, setRequestedWebChatId] = useState<string | null>(null);
   const [selectedPaperId, setSelectedPaperId] = useState<string | null>(null);
   const [readingPaper, setReadingPaper] = useState<Paper | null>(null);
-  const [activeDiscussionId, setActiveDiscussionId] = useState<string | null>(
-    null,
-  );
+  const [paperFocusRequest, setPaperFocusRequest] = useState<{
+    paperId: string;
+    revision: number;
+  } | null>(null);
   const [paperDropIntent, setPaperDropIntent] =
     useState<PaperDropIntent | null>(null);
   const [paperCatalogChange, setPaperCatalogChange] =
@@ -68,13 +69,9 @@ function PaperCanvasApp() {
         <PaperReader
           initialDiscussionOpen={requestedWebChatId !== null}
           discussion={
-            <ChatPanel
-              currentPaper={readingPaper}
-              embedded
-              initialSessionId={activeDiscussionId}
-              initialWebChatId={requestedWebChatId}
-              onActiveSessionChange={setActiveDiscussionId}
-              paperCatalogChange={paperCatalogChange}
+            <WebChatPanel
+              paper={readingPaper}
+              initialChatId={requestedWebChatId}
             />
           }
           paper={readingPaper}
@@ -91,7 +88,14 @@ function PaperCanvasApp() {
             beforeOrganizationChange={() => flushPending()}
             trackPersistenceOperation={trackOperation}
             selectedPaperId={selectedPaperId}
-            onPaperSelect={(paper) => setSelectedPaperId(paper.id)}
+            onPaperSelect={(paper) => {
+              setSelectedPaperId(paper.id);
+              setPaperFocusRequest((current) => ({
+                paperId: paper.id,
+                revision: (current?.revision ?? 0) + 1,
+              }));
+            }}
+            onOpenPaper={(paper) => void openReader(paper)}
             onPapersImported={(papers) => {
               if (papers[0]) setSelectedPaperId(papers[0].id);
               publishPaperCatalogChange(
@@ -104,6 +108,9 @@ function PaperCanvasApp() {
                 current === paper.id ? null : current,
               );
               setPaperDropIntent((current) =>
+                current?.paperId === paper.id ? null : current,
+              );
+              setPaperFocusRequest((current) =>
                 current?.paperId === paper.id ? null : current,
               );
               publishPaperCatalogChange("deleted", [paper.id]);
@@ -119,6 +126,7 @@ function PaperCanvasApp() {
             onPaperDropComplete={() => setPaperDropIntent(null)}
             paperCatalogChange={paperCatalogChange}
             paperDropIntent={paperDropIntent}
+            paperFocusRequest={paperFocusRequest}
           />
           <RecentDiscussions
             active={readingPaper === null}

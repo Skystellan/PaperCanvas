@@ -1,6 +1,17 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { APP_URL, assetPath, chatBounds, isGoogleSignIn, isHttps, isLocalFrame } from './security.mjs';
+import { APP_URL, assetPath, canWriteChatClipboard, chatBounds, isGoogleSignIn, isHttps, isLocalFrame } from './security.mjs';
+
+test('ChatGPT can copy without granting remote clipboard reads or other permissions', () => {
+  assert.equal(canWriteChatClipboard('clipboard-sanitized-write', 'https://chatgpt.com/c/test', true), true);
+  assert.equal(canWriteChatClipboard('clipboard-sanitized-write', 'https://chatgpt.com/', false), false);
+  for (const permission of ['clipboard-read', 'media', 'notifications']) {
+    assert.equal(canWriteChatClipboard(permission, 'https://chatgpt.com/', true), false);
+  }
+  for (const url of ['https://chatgpt.com.evil.test/', 'http://chatgpt.com/', 'https://example.com/', 'invalid']) {
+    assert.equal(canWriteChatClipboard('clipboard-sanitized-write', url, true), false);
+  }
+});
 
 test('Google sign-in detection is scoped to the real HTTPS account host', () => {
   assert.equal(isGoogleSignIn('https://accounts.google.com/o/oauth2/v2/auth?state=private'), true);

@@ -1,6 +1,11 @@
 import type { Edge } from "@xyflow/react";
 
-export interface BoardEdgeRecord {
+export interface BoardEdgeAnnotations {
+  explanation: string;
+  evidence: string;
+}
+
+export interface BoardEdgeRecord extends BoardEdgeAnnotations {
   id: string;
   boardId: string;
   sourceNodeId: string;
@@ -10,7 +15,7 @@ export interface BoardEdgeRecord {
 
 export type BoardEdgeRelation = "support" | "challenge" | null;
 
-interface PaperEdgeData extends Record<string, unknown> {
+interface PaperEdgeData extends Record<string, unknown>, BoardEdgeAnnotations {
   relation: BoardEdgeRelation;
 }
 
@@ -103,7 +108,7 @@ export function toFlowEdge(record: BoardEdgeRecord): PaperFlowEdge {
     source: record.sourceNodeId,
     target: record.targetNodeId,
     type: "straight",
-    data: { relation: null },
+    data: { relation: null, explanation: record.explanation, evidence: record.evidence },
   }, record.relation ?? null);
 }
 
@@ -119,6 +124,6 @@ export function withEdgeRelation(
     ...edge,
     ariaLabel: `${relationLabel} connection`,
     className: relation ? `whiteboard__edge--${relation}` : undefined,
-    data: { ...edge.data, relation },
+    data: { explanation: "", evidence: "", ...edge.data, relation },
   };
 }

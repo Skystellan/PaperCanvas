@@ -1,3 +1,5 @@
+import type { PdfReadingLocation } from "./model/readerState";
+import type { NoteCitation } from "./model/noteCitation";
 import { BaseDirectory, readFile } from "../../platform/fs";
 import {
   type CSSProperties,
@@ -5,6 +7,7 @@ import {
   memo,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -13,6 +16,7 @@ import { flushSync } from "react-dom";
 import { PdfSelectionPopover } from "./PdfSelectionPopover";
 import {
   normalizePdfClientRects,
+  mergeNormalizedPdfRects,
   type PdfHighlight,
 } from "./model/pdfHighlight";
 import {
@@ -41,10 +45,8 @@ import "pdfjs-dist/legacy/web/pdf_viewer.css";
 import "./reader.css";
 
 export type {
-  PdfSelectionActionResult,
   PdfSelectionActions,
   PdfSelectionAnchor,
-  PdfSelectionAskRequest,
   PdfSelectionNoteRequest,
   PdfTextSelection,
 } from "./model/pdfSelection";
@@ -178,6 +180,9 @@ export type PdfFileReader = (
 
 export interface PdfViewerProps {
   filePath: string | null;
+  initialLocation?: PdfReadingLocation;
+  onLocationChange?: (location: PdfReadingLocation) => void;
+  navigationTarget?: NoteCitation | null;
   focusedHighlightId?: string | null;
   highlights?: PdfHighlight[];
   pdfJs?: PdfJsAdapter;
@@ -532,7 +537,7 @@ function PdfPageCanvas({
       />
       <div aria-hidden="true" className="pdf-viewer__persisted-highlights">
         {highlights.flatMap((highlight) =>
-          highlight.rects.map((rect, index) => (
+          mergeNormalizedPdfRects(highlight.rects, viewport.width, viewport.height).map((rect, index) => (
             <span
               className={focusedHighlightId === highlight.id ? "is-focused" : undefined}
               data-testid={`pdf-persisted-highlight-${highlight.id}`}
@@ -567,6 +572,9 @@ function PdfPageCanvas({
 
 export function PdfViewer({
   filePath,
+  initialLocation,
+  onLocationChange,
+  navigationTarget,
   focusedHighlightId,
   highlights = [],
   pdfJs,
@@ -585,6 +593,9 @@ export function PdfViewer({
   return (
     <PdfViewerFile
       filePath={filePath}
+      initialLocation={initialLocation}
+      onLocationChange={onLocationChange}
+      navigationTarget={navigationTarget}
       focusedHighlightId={focusedHighlightId}
       highlights={highlights}
       key={filePath}
@@ -627,7 +638,7 @@ function syncOfficialHighlightLayers(
     }
     const fragments = (highlightsByPage.get(pageNumber) ?? [])
       .flatMap((highlight) =>
-        highlight.rects.map((rect) => {
+        mergeNormalizedPdfRects(highlight.rects, canvasWrapper.clientWidth || 600, canvasWrapper.clientHeight || 800).map((rect) => {
           const marker = globalThis.document.createElement("span");
           if (focusedHighlightId === highlight.id) {
             marker.classList.add("is-focused");
@@ -738,6 +749,9 @@ function captureOfficialTextSelection(
 
 const OfficialPdfPages = memo(function OfficialPdfPages({
   document,
+  initialLocation,
+  onLocationChange,
+  navigationTarget,
   focusedHighlightId,
   highlights,
   onError,
@@ -750,6 +764,9 @@ const OfficialPdfPages = memo(function OfficialPdfPages({
   viewerRuntimeFactory,
 }: {
   document: unknown;
+  initialLocation?: PdfReadingLocation;
+  onLocationChange?: (location: PdfReadingLocation) => void;
+  navigationTarget?: NoteCitation | null;
   focusedHighlightId?: string | null;
   highlights: PdfHighlight[];
   onError: () => void;
@@ -768,17 +785,19 @@ const OfficialPdfPages = memo(function OfficialPdfPages({
     () => indexHighlightsByPage(highlights),
     [highlights],
   );
+  const latestTargetRef = useRef(navigationTarget);
   const latestHighlightsRef = useRef(highlights);
   const latestHighlightsByPageRef = useRef(highlightsByPage);
   const latestFocusedHighlightIdRef = useRef(focusedHighlightId);
 
   useEffect(() => {
+    latestTargetRef.current = navigationTarget;
     latestHighlightsRef.current = highlights;
     latestHighlightsByPageRef.current = highlightsByPage;
     latestFocusedHighlightIdRef.current = focusedHighlightId;
-  }, [focusedHighlightId, highlights, highlightsByPage]);
+  }, [focusedHighlightId, highlights, highlightsByPage, navigationTarget]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const container = containerRef.current;
     const viewer = viewerRef.current;
     if (!container || !viewer) return;
@@ -789,6 +808,8 @@ const OfficialPdfPages = memo(function OfficialPdfPages({
       abortSignal: runtimeAbortController.signal,
       container,
       document: document as never,
+      initialLocation,
+      onLocationChange,
       onInteraction,
       onPageChange,
       onPageRendered: (pageNumber) => {
@@ -821,7 +842,8 @@ const OfficialPdfPages = memo(function OfficialPdfPages({
           (highlight) =>
             highlight.id === latestFocusedHighlightIdRef.current,
         );
-        if (focusedHighlight) createdRuntime.setPage(focusedHighlight.pageNumber);
+        if (focusedHighlight) { createdRuntime.setPage(focusedHighlight.pageNumber, Math.max(0, (focusedHighlight.rects[0]?.top ?? 0) - 0.08)); onPageChange(focusedHighlight.pageNumber); }
+        else if (latestTargetRef.current) createdRuntime.setPage(latestTargetRef.current.pageNumber);
       },
       () => {
         if (active) onError();
@@ -836,6 +858,8 @@ const OfficialPdfPages = memo(function OfficialPdfPages({
     };
   }, [
     document,
+    initialLocation,
+    onLocationChange,
     onError,
     onInteraction,
     onPageChange,
@@ -856,8 +880,9 @@ const OfficialPdfPages = memo(function OfficialPdfPages({
     const focusedHighlight = highlights.find(
       (highlight) => highlight.id === focusedHighlightId,
     );
-    if (focusedHighlight) runtimeRef.current?.setPage(focusedHighlight.pageNumber);
-  }, [focusedHighlightId, highlights, highlightsByPage]);
+    if (focusedHighlight) runtimeRef.current?.setPage(focusedHighlight.pageNumber, Math.max(0, (focusedHighlight.rects[0]?.top ?? 0) - 0.08));
+    else if (navigationTarget) runtimeRef.current?.setPage(navigationTarget.pageNumber);
+  }, [focusedHighlightId, highlights, highlightsByPage, navigationTarget]);
 
   return (
     <div className="pdf-viewer__official-stage">
@@ -881,6 +906,9 @@ const OfficialPdfPages = memo(function OfficialPdfPages({
 
 function PdfViewerFile({
   filePath,
+  initialLocation,
+  onLocationChange,
+  navigationTarget,
   focusedHighlightId,
   highlights,
   pdfJs,
@@ -889,6 +917,9 @@ function PdfViewerFile({
   viewerRuntimeFactory,
 }: {
   filePath: string;
+  initialLocation?: PdfReadingLocation;
+  onLocationChange?: (location: PdfReadingLocation) => void;
+  navigationTarget?: NoteCitation | null;
   focusedHighlightId?: string | null;
   highlights: PdfHighlight[];
   pdfJs?: PdfJsAdapter;
@@ -899,16 +930,16 @@ function PdfViewerFile({
   const [document, setDocument] = useState<PdfDocumentLike | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [zoom, setZoom] = useState(1);
-  const [renderZoom, setRenderZoom] = useState(1);
+  const [currentPage, setCurrentPage] = useState(initialLocation?.pageNumber ?? 1);
+  const [zoom, setZoom] = useState(initialLocation?.zoom ?? 1);
+  const [renderZoom, setRenderZoom] = useState(initialLocation?.zoom ?? 1);
   const [textSelection, setTextSelection] =
     useState<ActivePdfTextSelection | null>(null);
   const pageElementsRef = useRef(new Map<number, HTMLDivElement>());
-  const currentPageRef = useRef(1);
+  const currentPageRef = useRef(initialLocation?.pageNumber ?? 1);
   const pagesRef = useRef<HTMLDivElement>(null);
   const zoomLabelRef = useRef<HTMLSpanElement>(null);
-  const zoomRef = useRef(1);
+  const zoomRef = useRef(initialLocation?.zoom ?? 1);
   const zoomPreviewRef = useRef<ZoomPreview | null>(null);
   const zoomPreviewFrameRef = useRef<number | null>(null);
   const ignoreTrackpadUntilRef = useRef(0);
@@ -951,6 +982,11 @@ function PdfViewerFile({
           return;
         }
 
+        if (initialLocation) {
+          const page = Math.min(initialLocation.pageNumber, loadedDocument.numPages);
+          currentPageRef.current = page;
+          setCurrentPage(page);
+        }
         setDocument(loadedDocument);
         setIsLoading(false);
       } catch {
@@ -966,7 +1002,7 @@ function PdfViewerFile({
       if (loadingTask) ignoreCleanupFailure(loadingTask.destroy());
       if (loadedDocument) ignoreCleanupFailure(loadedDocument.destroy());
     };
-  }, [filePath, pdfJs, readPdfFile]);
+  }, [filePath, initialLocation, pdfJs, readPdfFile]);
 
   const registerPage = useCallback(
     (pageNumber: number): RefCallback<HTMLDivElement> =>
@@ -1261,7 +1297,7 @@ function PdfViewerFile({
     ],
   );
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const pages = pagesRef.current;
     if (!pages || !document) return;
 
@@ -1402,17 +1438,34 @@ function PdfViewerFile({
   );
 
   useEffect(() => {
-    if (!focusedHighlightId) return;
+    if (!document || document.viewerDocument) return;
     const highlight = highlights.find(({ id }) => id === focusedHighlightId);
-    if (!highlight) return;
-    let active = true;
-    queueMicrotask(() => {
-      if (active) showPage(highlight.pageNumber);
-    });
-    return () => {
-      active = false;
+    const target = highlight ?? navigationTarget;
+    if (!target) return;
+    const page = pageElementsRef.current.get(Math.min(target.pageNumber, document.numPages));
+    page?.scrollIntoView?.({ behavior: "smooth", block: "start" });
+  }, [document, focusedHighlightId, highlights, navigationTarget]);
+
+  useEffect(() => {
+    if (!document || document.viewerDocument) return;
+    const page = Math.min(initialLocation?.pageNumber ?? 1, document.numPages);
+    const element = pageElementsRef.current.get(page);
+    const container = pagesRef.current;
+    if (initialLocation && element && container) {
+      element.scrollIntoView?.({ block: "start" });
+      container.scrollTop += initialLocation.offset * element.getBoundingClientRect().height;
+    }
+    const capture = () => {
+      const bounds = pageElementsRef.current.get(currentPageRef.current)?.getBoundingClientRect();
+      if (!bounds || bounds.height <= 0 || !container || zoomPreviewRef.current) return;
+      onLocationChange?.({ pageNumber: currentPageRef.current, offset: Math.min(1, Math.max(0, (container.getBoundingClientRect().top - bounds.top) / bounds.height)), zoom: zoomRef.current });
     };
-  }, [focusedHighlightId, highlights, showPage]);
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const schedule = () => { clearTimeout(timer); timer = setTimeout(capture, 150); };
+    container?.addEventListener("scroll", schedule);
+    window.addEventListener("pagehide", capture);
+    return () => { clearTimeout(timer); capture(); container?.removeEventListener("scroll", schedule); window.removeEventListener("pagehide", capture); };
+  }, [document, initialLocation, onLocationChange]);
 
   return (
     <section className="pdf-viewer" aria-label="PDF viewer">
@@ -1478,6 +1531,9 @@ function PdfViewerFile({
       {document?.viewerDocument ? (
         <OfficialPdfPages
           document={document.viewerDocument}
+          initialLocation={initialLocation}
+          onLocationChange={onLocationChange}
+          navigationTarget={navigationTarget}
           focusedHighlightId={focusedHighlightId}
           highlights={highlights}
           onError={handleOfficialRuntimeError}
