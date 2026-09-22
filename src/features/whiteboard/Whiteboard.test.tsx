@@ -555,7 +555,7 @@ function renderedDomainFrame(domainId: string) {
 
 function expectRenderedNodesNotToOverlap(
   nodeIds: readonly string[],
-  gap = 24,
+  gap = 0,
 ) {
   const width = 280;
   const height = 128;
@@ -746,7 +746,7 @@ describe("Whiteboard", () => {
     expect(repository.saveNodePositions).not.toHaveBeenCalled();
   });
 
-  it("renders separated domain frames without a load animation", async () => {
+  it("repairs saved intersecting regions without mixing their member nodes", async () => {
     const repository = createRepository();
     const records: BoardNodeRecord[] = [
       { ...firstNode, position: { x: 0, y: 0 } },
@@ -794,16 +794,20 @@ describe("Whiteboard", () => {
     expect(motion.callback).toBeNull();
     const first = renderedDomainFrame("domain-transformers");
     const second = renderedDomainFrame("domain-vision");
-
-    expect(
-      first.x + first.width <= second.x ||
-        second.x + second.width <= first.x ||
-        first.y + first.height <= second.y ||
-        second.y + second.height <= first.y,
-    ).toBe(true);
+    expect(first.x + first.width <= second.x || second.x + second.width <= first.x ||
+      first.y + first.height <= second.y || second.y + second.height <= first.y).toBe(true);
+    for (const record of records) {
+      const frame = record.paper.domainId === "domain-transformers" ? first : second;
+      const position = renderedPosition(record.id);
+      expect(position.x).toBeGreaterThan(frame.x);
+      expect(position.y).toBeGreaterThan(frame.y);
+      expect(position.x + record.size.width).toBeLessThan(frame.x + frame.width);
+      expect(position.y + record.size.height).toBeLessThan(frame.y + frame.height);
+    }
+    await waitFor(() => expect(repository.saveNodePositions).toHaveBeenCalledOnce());
   });
 
-  it("separates an affected domain after a local drag", async () => {
+  it("cools a drag without relocating whole domains on its final frame", async () => {
     const user = userEvent.setup();
     const repository = createRepository();
     const visionNode: BoardNodeRecord = {
@@ -830,26 +834,29 @@ describe("Whiteboard", () => {
         name: "Push Attention Is All You Need into BERT",
       }),
     );
-    const pushedDomainPosition = renderedPosition(visionNode.id);
     await user.click(
       screen.getByRole("button", { name: "Release drag Attention Is All You Need" }),
     );
+    let previous = [renderedPosition(firstNode.id), renderedPosition(visionNode.id)];
+    for (let frame = 0; frame < 300 && motion.callback; frame += 1) {
+      const callback = motion.callback;
+      motion.callback = null;
+      act(() => callback?.(frame * 16));
+      const positions = [renderedPosition(firstNode.id), renderedPosition(visionNode.id)];
+      positions.forEach((position, index) => {
+        expect(Math.hypot(position.x - previous[index].x, position.y - previous[index].y)).toBeLessThan(40);
+      });
+      previous = positions;
+    }
+    expect(motion.callback).toBeNull();
     await act(async () => persistence.writer?.flush());
-    const first = renderedDomainFrame("domain-transformers");
-    const second = renderedDomainFrame("domain-vision");
-
-    expect(
-      first.x + first.width <= second.x ||
-        second.x + second.width <= first.x ||
-        first.y + first.height <= second.y ||
-        second.y + second.height <= first.y,
-    ).toBe(true);
-    expect(renderedPosition(visionNode.id).x).toBeGreaterThanOrEqual(
-      pushedDomainPosition.x,
-    );
+    expect(repository.saveNodePositions).toHaveBeenLastCalledWith([
+      { id: firstNode.id, ...previous[0] },
+      { id: visionNode.id, ...previous[1] },
+    ]);
   });
 
-  it("separates a graph-external domain pushed during a local drag", async () => {
+  it("moves the background with a freely dragged node and smoothly yields neighboring regions", async () => {
     const user = userEvent.setup();
     const repository = createRepository();
     const pushedNode: BoardNodeRecord = {
@@ -869,7 +876,7 @@ describe("Whiteboard", () => {
     };
     repository.loadBoard.mockResolvedValue({
       nodes: [firstNode, pushedNode, fixedNode],
-      edges: [],
+      edges: [{ ...firstEdge, targetNodeId: pushedNode.id }],
     });
     render(
       <Whiteboard
@@ -884,27 +891,45 @@ describe("Whiteboard", () => {
     await screen.findByText("Fixed Paper");
     const pushedPosition = renderedPosition(pushedNode.id);
     const fixedPosition = renderedPosition(fixedNode.id);
+    const frames = ["domain-transformers", "domain-pushed", "domain-fixed"].map(renderedDomainFrame);
 
     await user.click(
       screen.getByRole("button", {
         name: "Push Attention Is All You Need into BERT",
       }),
     );
-    expect(renderedPosition(pushedNode.id).x).toBeGreaterThan(pushedPosition.x);
+    expect(renderedPosition(pushedNode.id)).toEqual(pushedPosition);
+    expect(renderedPosition(firstNode.id)).toEqual({ x: 300, y: pushedPosition.y });
+    const movedFrame = renderedDomainFrame("domain-transformers");
+    expect(movedFrame.x).toBe(300 - 48);
+    expect(movedFrame.y).toBe(pushedPosition.y - 48);
+    expect(movedFrame).not.toEqual(frames[0]);
+    let previous = [pushedPosition, fixedPosition];
+    for (let frame = 0; frame < 90; frame += 1) {
+      const callback = motion.callback;
+      motion.callback = null;
+      act(() => callback?.(frame * 16));
+      const positions = [renderedPosition(pushedNode.id), renderedPosition(fixedNode.id)];
+      positions.forEach((position, index) => {
+        expect(Math.hypot(position.x - previous[index].x, position.y - previous[index].y)).toBeLessThanOrEqual(24.00001);
+      });
+      previous = positions;
+      expect(renderedPosition(firstNode.id)).toEqual({ x: 300, y: pushedPosition.y });
+    }
+    expect(renderedPosition(pushedNode.id)).not.toEqual(pushedPosition);
+    const activeFrame = renderedDomainFrame("domain-transformers");
+    const otherFrame = renderedDomainFrame("domain-pushed");
+    expect(activeFrame.x + activeFrame.width <= otherFrame.x || otherFrame.x + otherFrame.width <= activeFrame.x ||
+      activeFrame.y + activeFrame.height <= otherFrame.y || otherFrame.y + otherFrame.height <= activeFrame.y).toBe(true);
     await user.click(
       screen.getByRole("button", { name: "Release drag Attention Is All You Need" }),
     );
     await act(async () => persistence.writer?.flush());
-    const pushed = renderedDomainFrame("domain-pushed");
-    const fixed = renderedDomainFrame("domain-fixed");
-
-    expect(
-      pushed.x + pushed.width <= fixed.x ||
-        fixed.x + fixed.width <= pushed.x ||
-        pushed.y + pushed.height <= fixed.y ||
-        fixed.y + fixed.height <= pushed.y,
-    ).toBe(true);
-    expect(renderedPosition(fixedNode.id)).toEqual(fixedPosition);
+    expectRenderedNodesNotToOverlap([firstNode.id, pushedNode.id, fixedNode.id]);
+    for (const domainId of ["domain-transformers", "domain-pushed", "domain-fixed"]) {
+      const frame = renderedDomainFrame(domainId);
+      expect(Number.isFinite(frame.x + frame.y + frame.width + frame.height)).toBe(true);
+    }
   });
 
   it("keeps every card mutually exclusive at the settled force targets", async () => {
@@ -946,7 +971,7 @@ describe("Whiteboard", () => {
     ]);
   });
 
-  it("keeps every card mutually exclusive during each force animation frame", async () => {
+  it("moves cards continuously while collisions settle", async () => {
     const user = userEvent.setup();
     const repository = createRepository();
     const leftNode = {
@@ -976,19 +1001,23 @@ describe("Whiteboard", () => {
     await screen.findByText("Blocker");
     await user.click(screen.getByRole("button", { name: "重新整理布局" }));
 
-    for (let frame = 1; frame <= 240 && motion.callback; frame += 1) {
+    const nodeIds = [leftNode.id, rightNode.id, blockerNode.id];
+    let previous = nodeIds.map(renderedPosition);
+    for (let frame = 1; frame <= 300 && motion.callback; frame += 1) {
       const callback = motion.callback;
       motion.callback = null;
       act(() => callback?.(frame * 16));
-      expectRenderedNodesNotToOverlap([
-        leftNode.id,
-        rightNode.id,
-        blockerNode.id,
-      ]);
+      const positions = nodeIds.map(renderedPosition);
+      positions.forEach((position, index) => {
+        expect(Math.hypot(position.x - previous[index].x, position.y - previous[index].y)).toBeLessThan(60);
+      });
+      previous = positions;
     }
+    expect(motion.callback).toBeNull();
+    expectRenderedNodesNotToOverlap(nodeIds);
   });
 
-  it("keeps a released card group rigid instead of pulling it back", async () => {
+  it("keeps a dragged card group rigid and releases it into the cooling layout", async () => {
     const user = userEvent.setup();
     const repository = createRepository();
     const nodes: BoardNodeRecord[] = [
@@ -1017,14 +1046,16 @@ describe("Whiteboard", () => {
     render(<Whiteboard repository={repository} />);
     await screen.findByTestId("position-d");
     await user.click(screen.getByRole("button", { name: "Drag all cards" }));
-    await user.click(screen.getByRole("button", { name: "Release all cards" }));
-
-    const firstFrame = motion.callback;
-    expect(firstFrame).not.toBeNull();
-    act(() => firstFrame?.(16));
-
+    const dragFrame = motion.callback;
+    act(() => dragFrame?.(16));
     expect(renderedPosition("c").y - renderedPosition("a").y).toBe(48);
     expect(renderedPosition("d").y - renderedPosition("b").y).toBe(48);
+
+    const heldPositions = nodes.map(({ id }) => renderedPosition(id));
+    await user.click(screen.getByRole("button", { name: "Release all cards" }));
+    const releaseFrame = motion.callback;
+    act(() => releaseFrame?.(32));
+    expect(nodes.map(({ id }) => renderedPosition(id))).not.toEqual(heldPositions);
   });
 
   it("reloads the existing canvas for each new deleted catalog revision", async () => {
@@ -1195,6 +1226,11 @@ describe("Whiteboard", () => {
     });
     expect(await screen.findByText("BERT")).toBeVisible();
     expect(screen.getByTestId("position-node-bert")).toHaveTextContent("520,245");
+    expectRenderedNodesNotToOverlap([firstNode.id, secondNode.id]);
+    await waitFor(() => expect(repository.saveNodePositions).toHaveBeenLastCalledWith([
+      { id: firstNode.id, ...renderedPosition(firstNode.id) },
+      { id: secondNode.id, ...renderedPosition(secondNode.id) },
+    ]));
   });
 
   it("places a bridged native Library drop at its logical canvas position", async () => {
@@ -1501,7 +1537,7 @@ describe("Whiteboard", () => {
     expect(renderedPosition(firstNode.id)).toEqual({ x: 300, y: 245 });
   });
 
-  it("keeps a dropped card pinned when a pending connection finishes saving", async () => {
+  it("continues cooling a released card when a pending connection finishes saving", async () => {
     const user = userEvent.setup();
     const repository = createRepository();
     const creation = deferred<BoardEdgeRecord>();
@@ -1528,7 +1564,11 @@ describe("Whiteboard", () => {
     await act(async () => creation.resolve(firstEdge));
     await act(async () => persistence.writer?.flush());
 
-    expect(renderedPosition(firstNode.id)).toEqual({ x: 300, y: 245 });
+    expect(renderedPosition(firstNode.id)).not.toEqual({ x: 300, y: 245 });
+    expect(repository.saveNodePositions).toHaveBeenLastCalledWith([
+      { id: firstNode.id, ...renderedPosition(firstNode.id) },
+      { id: secondNode.id, ...renderedPosition(secondNode.id) },
+    ]);
   });
 
   it("does not cancel the current domain layout when another domain's connection finishes", async () => {
@@ -1646,7 +1686,7 @@ describe("Whiteboard", () => {
     expect(repository.createEdge).not.toHaveBeenCalled();
   });
 
-  it("keeps the dragged card under the pointer, separates its neighbor, and flushes the safe target", async () => {
+  it("keeps the dragged card under the pointer and moves its neighbor gradually before saving", async () => {
     const user = userEvent.setup();
     const repository = createRepository();
     repository.loadBoard.mockResolvedValue({
@@ -1665,25 +1705,23 @@ describe("Whiteboard", () => {
     expect(screen.getByTestId("position-node-attention")).toHaveTextContent(
       "300,245",
     );
-    expect(
-      renderedPosition(secondNode.id).x,
-    ).toBeGreaterThanOrEqual(604);
-    expectRenderedNodesNotToOverlap([firstNode.id, secondNode.id]);
+    expect(renderedPosition(secondNode.id)).toEqual(secondNode.position);
     expect(repository.saveNodePositions).not.toHaveBeenCalled();
 
     const firstFrame = motion.callback;
     expect(firstFrame).not.toBeNull();
     act(() => firstFrame?.(16));
     const intermediate = screen.getByTestId("position-node-bert").textContent;
-    expect(Number(intermediate?.split(",")[0])).toBeGreaterThanOrEqual(604);
-    expectRenderedNodesNotToOverlap([firstNode.id, secondNode.id]);
+    expect(Number(intermediate?.split(",")[0])).toBeGreaterThan(secondNode.position.x);
+    expect(Number(intermediate?.split(",")[0]) - secondNode.position.x).toBeLessThan(40);
+    expect(renderedPosition(firstNode.id)).toEqual({ x: 300, y: 245 });
 
     await user.click(
       screen.getByRole("button", { name: "Release drag Attention Is All You Need" }),
     );
     await act(async () => persistence.writer?.flush());
 
-    expect(renderedPosition(firstNode.id)).toEqual({ x: 300, y: 245 });
+    expect(renderedPosition(firstNode.id)).not.toEqual({ x: 300, y: 245 });
     expect(repository.saveNodePositions).toHaveBeenCalledOnce();
     const saved = repository.saveNodePositions.mock.calls[0][0];
     expect(saved).toEqual([
@@ -1766,7 +1804,7 @@ describe("Whiteboard", () => {
     expect(savedLinked?.x).toBeGreaterThan(-300);
   });
 
-  it("does not move nodes beyond two graph hops during a drag", async () => {
+  it("allows the connected graph beyond two hops to respond during a drag", async () => {
     const user = userEvent.setup();
     const repository = createRepository();
     const thirdNode: BoardNodeRecord = {
@@ -1811,7 +1849,8 @@ describe("Whiteboard", () => {
     motion.callback = null;
     act(() => firstFrame?.(16));
 
-    expect(renderedPosition(distantNode.id)).toEqual(distantNode.position);
+    expect(renderedPosition(distantNode.id)).not.toEqual(distantNode.position);
+    expect(renderedPosition(firstNode.id)).toEqual({ x: 300, y: 245 });
   });
 
   it("persists a multi-card drag as one complete release snapshot", async () => {
@@ -1845,7 +1884,7 @@ describe("Whiteboard", () => {
     ]);
   });
 
-  it("repels a static neighbor reached by any card in a multi-card drag", async () => {
+  it("smoothly repels a neighbor reached by any card in a multi-card drag", async () => {
     const user = userEvent.setup();
     const repository = createRepository();
     const staticNeighbor: BoardNodeRecord = {
@@ -1867,14 +1906,7 @@ describe("Whiteboard", () => {
     await screen.findByText("Static Neighbor");
 
     await user.click(screen.getByRole("button", { name: "Drag selected cards" }));
-    expect(
-      renderedPosition(staticNeighbor.id).x,
-    ).toBeGreaterThanOrEqual(844);
-    expectRenderedNodesNotToOverlap([
-      firstNode.id,
-      secondNode.id,
-      staticNeighbor.id,
-    ]);
+    expect(renderedPosition(staticNeighbor.id)).toEqual(staticNeighbor.position);
     const firstFrame = motion.callback;
     expect(firstFrame).not.toBeNull();
     act(() => firstFrame?.(16));
@@ -1884,12 +1916,9 @@ describe("Whiteboard", () => {
         .textContent?.split(",")[0],
     );
     expect(intermediate).toBeGreaterThan(824);
-    expect(intermediate).toBeGreaterThanOrEqual(844);
-    expectRenderedNodesNotToOverlap([
-      firstNode.id,
-      secondNode.id,
-      staticNeighbor.id,
-    ]);
+    expect(intermediate - staticNeighbor.position.x).toBeLessThan(20);
+    expect(renderedPosition(firstNode.id)).toEqual({ x: 140, y: 120 });
+    expect(renderedPosition(secondNode.id)).toEqual({ x: 540, y: 255 });
 
     await user.click(screen.getByRole("button", { name: "Release selected cards" }));
     await act(async () => persistence.writer?.flush());

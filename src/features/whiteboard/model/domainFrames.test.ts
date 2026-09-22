@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { countEdgeCrossings, type PaperFlowEdge } from "./boardEdge";
 import type { PaperFlowNode } from "./boardNode";
-import { computeDomainFrames, separateDomainGroups } from "./domainFrames";
+import { computeDomainFrames, separateDomainGroups, withDomainRegions } from "./domainFrames";
 
 function node(
   id: string,
@@ -29,6 +29,45 @@ function node(
 }
 
 describe("computeDomainFrames", () => {
+  it("expands and shrinks the region with its nodes instead of retaining a fixed drag extent", () => {
+    const nodes = withDomainRegions([
+      node("a", "domain-a", 0, 0), node("b", "domain-a", 400, 180),
+    ]);
+    const domains = [{ id: "domain-a", name: "A" }];
+    const initial = computeDomainFrames(nodes, domains)[0];
+    const expanded = computeDomainFrames([
+      nodes[0], { ...nodes[1], position: { x: 1_000, y: 500 } },
+    ], domains)[0];
+    expect(expanded.width).toBe(initial.width + 600);
+    expect(expanded.height).toBe(initial.height + 320);
+    const contracted = computeDomainFrames([
+      nodes[0], { ...nodes[1], position: { x: 300, y: 140 } },
+    ], domains)[0];
+    expect(contracted.width).toBe(initial.width - 100);
+    expect(contracted.height).toBe(initial.height - 40);
+    expect(nodes.every((node) => node.extent === undefined)).toBe(true);
+  });
+
+  it("repairs intersecting saved groups without adding fixed boundaries", () => {
+    const nodes = withDomainRegions([
+      node("a", "domain-a", 0, 0), node("b", "domain-b", 100, 0), node("loose", null, 150, 0),
+    ]);
+    const frames = computeDomainFrames(nodes, [
+      { id: "domain-a", name: "A" }, { id: "domain-b", name: "B" }, { id: "", name: "未分区" },
+    ]);
+    for (let index = 0; index < frames.length; index += 1) {
+      const frame = frames[index];
+      for (const other of frames.slice(index + 1)) {
+        expect(frame.x + frame.width <= other.x || other.x + other.width <= frame.x ||
+          frame.y + frame.height <= other.y || other.y + other.height <= frame.y).toBe(true);
+      }
+      expect(nodes[index].extent).toBeUndefined();
+      expect(nodes[index].position.x + 280).toBeLessThan(frame.x + frame.width);
+      expect(nodes[index].position.y).toBeGreaterThan(frame.y);
+    }
+    expect(withDomainRegions(nodes).map(({ position }) => position)).toEqual(nodes.map(({ position }) => position));
+  });
+
   it("encloses each named domain without turning it into a parent node", () => {
     const frames = computeDomainFrames(
       [

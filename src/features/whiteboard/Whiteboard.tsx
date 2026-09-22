@@ -54,14 +54,12 @@ import {
 } from "./model/boardNode";
 import {
   findCollisionFreePosition,
-  pushNodeGroupDuringDrag,
-  resolveNodeOverlaps,
   toNodeRectangle,
   type NodeRectangle,
 } from "./model/nodeCollision";
 import {
   computeDomainFrames,
-  separateDomainGroups,
+  withDomainRegions,
   type WhiteboardDomain,
 } from "./model/domainFrames";
 import {
@@ -132,21 +130,11 @@ function mergeLayoutPositions(
   nodes: readonly PaperFlowNode[],
   layoutNodeIds: ReadonlySet<string>,
   positions: ReadonlyMap<string, { x: number; y: number }>,
-  pinnedNodeIds: ReadonlySet<string>,
 ) {
-  const positionedLayoutNodes = resolveNodeOverlaps(
-    nodes
-      .filter(({ id }) => layoutNodeIds.has(id))
-      .map((node) => ({
-        ...node,
-        position: positions.get(node.id) ?? node.position,
-      })),
-    { pinnedNodeIds },
-  );
-  const positionedById = new Map(
-    positionedLayoutNodes.map((node) => [node.id, node] as const),
-  );
-  return nodes.map((node) => positionedById.get(node.id) ?? node);
+  return nodes.map((node) => {
+    const position = layoutNodeIds.has(node.id) ? positions.get(node.id) : undefined;
+    return position ? { ...node, position } : node;
+  });
 }
 
 function WhiteboardCanvas({
@@ -225,14 +213,7 @@ function WhiteboardCanvas({
   const motionFrame = useRef<number | null>(null);
   const motionTick = useRef<FrameRequestCallback>(() => undefined);
   const persistAfterMotion = useRef(false);
-  const domainsToSeparateAfterMotion = useRef<
-    ReadonlySet<string> | null | undefined
-  >(undefined);
-  const dragPreviousPositions = useRef(
-    new Map<string, { x: number; y: number }>(),
-  );
   const dragSessionNodeIds = useRef(new Set<string>());
-  const settlePinnedNodeIds = useRef(new Set<string>());
   const handledCatalogRevision = useRef<number | null>(
     paperCatalogChange?.kind === "deleted" ||
       (paperCatalogChange?.kind as string | undefined) === "organized"
@@ -350,40 +331,25 @@ function WhiteboardCanvas({
         forceLayoutNodeIds.current = null;
         pendingPaperPlacements.current.clear();
         persistAfterMotion.current = false;
-        domainsToSeparateAfterMotion.current = undefined;
         boardGeneration.current += 1;
         const sourceNodes = board.nodes.map(toFlowNode);
+        const loadedNodes = withDomainRegions(sourceNodes);
+        const layoutChanged = loadedNodes.some((node, index) =>
+          node.position.x !== sourceNodes[index].position.x || node.position.y !== sourceNodes[index].position.y);
+
         const loadedEdges = board.edges.map(toFlowEdge);
-        const loadedNodes = separateDomainGroups(
-          sourceNodes,
-          48,
-          64,
-          undefined,
-          loadedEdges,
-        );
-        const layoutChanged = loadedNodes.some((node, index) => {
-          const previous = sourceNodes[index].position;
-          return (
-            node.position.x !== previous.x || node.position.y !== previous.y
-          );
-        });
         replaceNodes(loadedNodes);
         replaceEdges(loadedEdges);
         layoutRevision.current = Number(layoutChanged);
         persistedLayoutRevision.current = 0;
         latestEnqueuedLayoutRevision.current = 0;
-        dragPreviousPositions.current.clear();
         dragSessionNodeIds.current.clear();
-        settlePinnedNodeIds.current.clear();
         setConnectionSourceId(null);
         setSelectedEdgeId(null);
         updateSaveState("idle");
         setLoadState("ready");
         if (layoutChanged) {
-          void enqueuePositionSnapshot(
-            toPositionUpdates(loadedNodes),
-            layoutRevision.current,
-          ).catch(() => undefined);
+          void enqueuePositionSnapshot(toPositionUpdates(loadedNodes), layoutRevision.current).catch(() => undefined);
         }
       },
       () => {
@@ -417,30 +383,13 @@ function WhiteboardCanvas({
       } else {
         layout.tick();
       }
-      const pinnedNodeIds = new Set([
-        ...dragSessionNodeIds.current,
-        ...settlePinnedNodeIds.current,
-      ]);
       const settled =
         layout.isSettled() && dragSessionNodeIds.current.size === 0;
-      let nextNodes = mergeLayoutPositions(
+      const nextNodes = mergeLayoutPositions(
         nodesRef.current,
         forceLayoutNodeIds.current ?? new Set(),
         layout.positions(),
-        pinnedNodeIds,
       );
-      const domainScope = domainsToSeparateAfterMotion.current;
-      if (settled && domainScope !== undefined) {
-        nextNodes = separateDomainGroups(
-          nextNodes,
-          48,
-          64,
-          domainScope ?? undefined,
-          edgesRef.current,
-        );
-        domainsToSeparateAfterMotion.current = undefined;
-      }
-      layout.sync(nextNodes);
       const changed = nextNodes.some((node, index) => {
         const previous = nodesRef.current[index].position;
         return node.position.x !== previous.x || node.position.y !== previous.y;
@@ -457,7 +406,6 @@ function WhiteboardCanvas({
       }
       forceLayout.current = null;
       forceLayoutNodeIds.current = null;
-      settlePinnedNodeIds.current.clear();
       if (persistAfterMotion.current) {
         persistAfterMotion.current = false;
         void enqueuePositionSnapshot(
@@ -485,28 +433,11 @@ function WhiteboardCanvas({
     const layoutNodeIds = forceLayoutNodeIds.current ?? new Set<string>();
     forceLayoutNodeIds.current = null;
     persistAfterMotion.current = false;
-    const pinnedNodeIds = new Set([
-      ...dragSessionNodeIds.current,
-      ...settlePinnedNodeIds.current,
-    ]);
-    let nextNodes = mergeLayoutPositions(
+    const nextNodes = mergeLayoutPositions(
       nodesRef.current,
       layoutNodeIds,
       layout.positions(),
-      pinnedNodeIds,
     );
-    const domainScope = domainsToSeparateAfterMotion.current;
-    if (domainScope !== undefined) {
-      nextNodes = separateDomainGroups(
-        nextNodes,
-        48,
-        64,
-        domainScope ?? undefined,
-        edgesRef.current,
-      );
-      domainsToSeparateAfterMotion.current = undefined;
-    }
-    settlePinnedNodeIds.current.clear();
     const changed = nextNodes.some((node, index) => {
       const previous = nodesRef.current[index].position;
       return node.position.x !== previous.x || node.position.y !== previous.y;
@@ -527,8 +458,6 @@ function WhiteboardCanvas({
     forceLayout.current = null;
     forceLayoutNodeIds.current = null;
     persistAfterMotion.current = false;
-    domainsToSeparateAfterMotion.current = undefined;
-    settlePinnedNodeIds.current.clear();
     return hadLayout;
   }, []);
 
@@ -724,50 +653,41 @@ function WhiteboardCanvas({
       seedNodeIds?: Iterable<string>,
     ) => {
       const activeScope = scopeRef.current;
-      const layoutNodes = nodesRef.current.filter((node) =>
-        nodeBelongsToScope(node, activeScope),
-      );
+      const seeds = seedNodeIds ? new Set(seedNodeIds) : undefined;
+      const activeDomains = seeds
+        ? new Set(nodesRef.current.filter((node) => seeds.has(node.id) || dragSessionNodeIds.current.has(node.id))
+          .map((node) => node.data.paper.domainId))
+        : undefined;
+      const scopeNodes = nodesRef.current.filter((node) => nodeBelongsToScope(node, activeScope));
+      const simulationDomains = activeDomains ?? new Set(scopeNodes.map((node) => node.data.paper.domainId));
+      const layoutNodes = nodesRef.current;
       if (layoutNodes.length === 0) return null;
       const layoutNodeIds = new Set(layoutNodes.map(({ id }) => id));
       const layoutEdges = connectionEdges.filter(
         ({ source, target }) =>
           layoutNodeIds.has(source) && layoutNodeIds.has(target),
       );
-      const activeSeeds = seedNodeIds
-        ? [...seedNodeIds].filter((id) => layoutNodeIds.has(id))
+      const visibleIds = new Set(scopeNodes.map(({ id }) => id));
+      const activeSeeds = seeds
+        ? [...seeds].filter((id) => visibleIds.has(id))
         : undefined;
       if (activeSeeds && activeSeeds.length === 0) return null;
       if (motionFrame.current !== null) {
         cancelMotionFrame(motionFrame.current);
         motionFrame.current = null;
       }
-      const movableNodeIds = activeSeeds
-        ? localLayoutNodeIds(activeSeeds, layoutEdges)
-        : undefined;
+      const movableNodeIds =
+        activeSeeds && dragSessionNodeIds.current.size === 0
+          ? localLayoutNodeIds(activeSeeds, layoutEdges)
+          : undefined;
       const layout = createObsidianForceLayout(
         layoutNodes,
         layoutEdges,
-        movableNodeIds ? { movableNodeIds } : undefined,
+        { movableNodeIds, activeDomainIds: simulationDomains },
       );
       forceLayout.current = layout;
       forceLayoutNodeIds.current = layoutNodeIds;
-      domainsToSeparateAfterMotion.current =
-        activeScope.kind === "all"
-          ? movableNodeIds
-            ? new Set(
-                layoutNodes.flatMap((node) =>
-                  movableNodeIds.has(node.id) && node.data.paper.domainId
-                    ? [node.data.paper.domainId]
-                    : [],
-                ),
-              )
-            : null
-          : undefined;
-      const pinnedNodeIds = new Set([
-        ...dragSessionNodeIds.current,
-        ...settlePinnedNodeIds.current,
-      ]);
-      for (const nodeId of pinnedNodeIds) {
+      for (const nodeId of dragSessionNodeIds.current) {
         const node = nodesRef.current.find((candidate) => candidate.id === nodeId);
         if (node) layout.pin(nodeId, node.position);
       }
@@ -818,14 +738,23 @@ function WhiteboardCanvas({
       void operation.then(
         (record) => {
           pendingPaperPlacements.current.delete(paperId);
-          replaceNodes([...nodesRef.current, toFlowNode(record)]);
+          // New membership replaces the simulation's previous geometry.
+          cancelForceLayout();
+          dragSessionNodeIds.current.clear();
+          const added = toFlowNode(record);
+          added.position = findCollisionFreePosition(toNodeRectangle(added),
+            nodesRef.current.filter((node) => node.data.paper.domainId === record.paper.domainId).map(toNodeRectangle));
+          const nextNodes = withDomainRegions([...nodesRef.current, added]);
+          replaceNodes(nextNodes);
+          layoutRevision.current += 1;
+          void enqueuePositionSnapshot(toPositionUpdates(nextNodes), layoutRevision.current).catch(() => undefined);
         },
         () => {
           if (isMounted.current) setActionError("paper");
         },
       ).finally(() => pendingPaperPlacements.current.delete(paperId));
     },
-    [replaceNodes, repository, screenToFlowPosition, trackMutation],
+    [cancelForceLayout, enqueuePositionSnapshot, replaceNodes, repository, screenToFlowPosition, trackMutation],
   );
 
   const onDrop = useCallback(
@@ -886,7 +815,9 @@ function WhiteboardCanvas({
         (record) => {
           const nextEdges = [...edgesRef.current, toFlowEdge(record)];
           replaceEdges(nextEdges);
-          organizeConnections(nextEdges, [source, target]);
+          const sourceDomain = nodesRef.current.find((node) => node.id === source)?.data.paper.domainId;
+          const targetDomain = nodesRef.current.find((node) => node.id === target)?.data.paper.domainId;
+          if (sourceDomain === targetDomain) organizeConnections(nextEdges, [source, target]);
         },
         () => {
           if (isMounted.current) setActionError("connection");
@@ -906,25 +837,16 @@ function WhiteboardCanvas({
           nodeBelongsToScope(node, nextScope),
         );
         if (scopeNodes.length > 1) {
-          const scopeNodeIds = new Set(scopeNodes.map(({ id }) => id));
-          const scopeEdges = edgesRef.current.filter(
-            ({ source, target }) =>
-              scopeNodeIds.has(source) && scopeNodeIds.has(target),
-          );
-          const layout = createObsidianForceLayout(scopeNodes, scopeEdges);
+          const layout = createObsidianForceLayout(nextNodes, edgesRef.current, {
+            activeDomainIds: new Set([nextScope.domainId]),
+          });
           // ponytail: synchronous settle; switch to frame-driven scope layout if large domains make tab changes jank.
           layout.settle();
           const positions = layout.positions();
-          const arrangedNodes = resolveNodeOverlaps(
-            scopeNodes.map((node) => ({
-              ...node,
-              position: positions.get(node.id) ?? node.position,
-            })),
-          );
-          const arrangedById = new Map(
-            arrangedNodes.map((node) => [node.id, node] as const),
-          );
-          nextNodes = nextNodes.map((node) => arrangedById.get(node.id) ?? node);
+          nextNodes = nextNodes.map((node) => ({
+            ...node,
+            position: positions.get(node.id) ?? node.position,
+          }));
           scopeLayoutChanged = nextNodes.some((node, index) => {
             const previous = nodesRef.current[index].position;
             return (
@@ -1079,11 +1001,6 @@ function WhiteboardCanvas({
         draggedNodes.map((node) => [node.id, node] as const),
       );
       sessionNodes.set(activeNode.id, activeNode);
-      dragPreviousPositions.current.clear();
-      settlePinnedNodeIds.current.clear();
-      for (const node of sessionNodes.values()) {
-        dragPreviousPositions.current.set(node.id, { ...node.position });
-      }
       dragSessionNodeIds.current = new Set(sessionNodes.keys());
       const layout = organizeConnections(
         edgesRef.current,
@@ -1113,60 +1030,13 @@ function WhiteboardCanvas({
         forceLayout.current ??
         organizeConnections(edgesRef.current, dragSessionNodeIds.current);
       if (!layout) return;
-      const previousPositions = new Map<string, { x: number; y: number }>();
-      for (const node of currentDraggedNodes.values()) {
-        previousPositions.set(
-          node.id,
-          dragPreviousPositions.current.get(node.id) ?? node.position,
-        );
-      }
-      const scopeNodes = nodesRef.current.filter((node) =>
-        nodeBelongsToScope(node, scopeRef.current),
-      );
-      const collisionSafeScopeNodes = pushNodeGroupDuringDrag(
-        [...currentDraggedNodes.values()],
-        previousPositions,
-        scopeNodes,
-      );
-      const collisionSafeById = new Map(
-        collisionSafeScopeNodes.map((node) => [node.id, node] as const),
-      );
-      const collisionSafeNodes = nodesRef.current.map(
-        (node) => collisionSafeById.get(node.id) ?? node,
-      );
-      let collisionChanged = false;
-      const movedDomainIds = new Set<string>();
-      collisionSafeNodes.forEach((node, index) => {
-        const previous = nodesRef.current[index].position;
-        if (
-          node.position.x !== previous.x ||
-          node.position.y !== previous.y
-        ) {
-          collisionChanged = true;
-          if (node.data.paper.domainId) {
-            movedDomainIds.add(node.data.paper.domainId);
-          }
-        }
-      });
-      const domainScope = domainsToSeparateAfterMotion.current;
-      if (domainScope && movedDomainIds.size > 0) {
-        domainsToSeparateAfterMotion.current = new Set([
-          ...domainScope,
-          ...movedDomainIds,
-        ]);
-      }
-      if (collisionChanged) {
-        replaceNodes(collisionSafeNodes);
-        layoutRevision.current += 1;
-      }
-      layout.sync(collisionSafeNodes);
+      // React Flow owns the pointer position; the simulation owns every other node.
       for (const node of currentDraggedNodes.values()) {
         layout.pin(node.id, node.position);
-        dragPreviousPositions.current.set(node.id, { ...node.position });
       }
       ensureMotionFrame();
     },
-    [ensureMotionFrame, organizeConnections, replaceNodes],
+    [ensureMotionFrame, organizeConnections],
   );
 
   const onNodeDragStop: OnNodeDrag<PaperFlowNode> = useCallback(
@@ -1177,12 +1047,13 @@ function WhiteboardCanvas({
       releasedNodes.set(activeNode.id, activeNode);
       const layout = forceLayout.current;
       if (!layout) return;
-      settlePinnedNodeIds.current = new Set(releasedNodes.keys());
       for (const node of releasedNodes.values()) {
         layout.pin(node.id, node.position);
       }
+      for (const nodeId of new Set([...dragSessionNodeIds.current, ...releasedNodes.keys()])) {
+        layout.release(nodeId);
+      }
       layout.cool();
-      dragPreviousPositions.current.clear();
       dragSessionNodeIds.current.clear();
       persistAfterMotion.current = true;
       ensureMotionFrame();
@@ -1271,7 +1142,12 @@ function WhiteboardCanvas({
   const domainFrames = useMemo(
     () =>
       resolvedScope.kind === "all"
-        ? computeDomainFrames(nodes, availableDomains)
+        ? computeDomainFrames(nodes, [
+            ...availableDomains,
+            ...(nodes.some((node) => node.data.paper.domainId === null) &&
+                nodes.some((node) => node.data.paper.domainId !== null)
+              ? [{ id: "", name: "未分区" }] : []),
+          ])
         : [],
     [availableDomains, nodes, resolvedScope.kind],
   );

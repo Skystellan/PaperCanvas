@@ -43,6 +43,8 @@ export async function workspaceSmoke({ wc, backend, paper, dataDirectory, evalua
   await backend.call('database_execute', { query: 'INSERT INTO board_edges(id,board_id,source_node_id,target_node_id,created_at) VALUES(?,?,?,?,?)', values: ['smoke-edge','board-default','smoke-paper-node','node-attention',1] });
   await reload();
   await until(`!!document.querySelector('.react-flow__edge[data-testid="rf__edge-smoke-edge"]')`, 'test canvas connection');
+  const { whiteboardDragSmoke } = await import('./whiteboard-drag-smoke.mjs');
+  await whiteboardDragSmoke({ wc, backend, dataDirectory, evaluate, until, reload });
   assert.equal(await evaluate(`document.querySelector('.recent-discussions').classList.contains('is-collapsed')`), false);
   const sizes = await evaluate(`[...document.querySelectorAll('.paper-library__header button, .paper-library__header select, .paper-library__search input')].map(e=>getComputedStyle(e).fontSize)`);
   assert.ok(sizes.length >= 2 && sizes.every(size=>size === '12px'), 'Library controls use the same text size');

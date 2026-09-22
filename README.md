@@ -32,6 +32,14 @@ annotations and Markdown-based Markmap mind maps work entirely offline.
 - Recent discussions remains expanded by default
 - Coordinated navigation/close saving and additive SQLite migrations
 
+Canvas dragging uses a continuous force layout within each domain. Region
+backgrounds follow their member cards, expanding and shrinking as cards move.
+When a region grows into a neighbor, that neighboring group smoothly moves aside
+as a whole, preserving its internal arrangement and domain membership.
+Cross-domain links remain visible without pulling regions together. Connections
+may cross, and released cards settle before their positions are saved. Existing
+intersecting regions are separated on load, while valid saved positions are kept.
+
 ## Local data and embedded conversations
 
 - `papercanvas.db` stays in the existing `com.papercanvas.desktop` application

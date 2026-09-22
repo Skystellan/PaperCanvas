@@ -20,15 +20,46 @@ export interface DomainFrame {
   height: number;
 }
 
+// Repair intersecting saved groups without imposing a movement boundary.
+export function withDomainRegions(nodes: readonly PaperFlowNode[]): PaperFlowNode[] {
+  const groups = new Map<string | null, PaperFlowNode[]>();
+  for (const node of nodes) {
+    const id = node.data.paper.domainId;
+    const group = groups.get(id) ?? [];
+    group.push(node);
+    groups.set(id, group);
+  }
+  if (groups.size < 2) return [...nodes];
+
+  const positioned = new Map<string, PaperFlowNode>();
+  const placed: NodeRectangle[] = [];
+  for (const [id, group] of groups) {
+    const rectangles = group.map(toNodeRectangle);
+    const x = Math.min(...rectangles.map((node) => node.position.x)) - 48;
+    const y = Math.min(...rectangles.map((node) => node.position.y)) - 48;
+    const right = Math.max(...rectangles.map((node) => node.position.x + node.size.width)) + 48;
+    const bottom = Math.max(...rectangles.map((node) => node.position.y + node.size.height)) + 48;
+    const rectangle = { id: id ?? "", position: { x, y }, size: { width: right - x, height: bottom - y } };
+    const position = findCollisionFreePosition(rectangle, placed, 64);
+    for (const node of group) {
+      positioned.set(node.id, {
+        ...node,
+        position: { x: node.position.x + position.x - x, y: node.position.y + position.y - y },
+      });
+    }
+    placed.push({ ...rectangle, position });
+  }
+  return nodes.map((node) => positioned.get(node.id)!);
+}
+
 export function computeDomainFrames(
   nodes: readonly PaperFlowNode[],
   domains: readonly WhiteboardDomain[],
   padding = 48,
 ): DomainFrame[] {
   return domains.flatMap((domain) => {
-    const rectangles = nodes
-      .filter((node) => node.data.paper.domainId === domain.id)
-      .map(toNodeRectangle);
+    const group = nodes.filter((node) => (node.data.paper.domainId ?? "") === domain.id);
+    const rectangles = group.map(toNodeRectangle);
     if (rectangles.length === 0) return [];
 
     const left = Math.min(...rectangles.map(({ position }) => position.x));

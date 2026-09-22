@@ -104,7 +104,7 @@ export interface ResolveNodeOverlapsStats {
 const MAX_OVERLAP_RESOLUTION_PASSES = 16;
 const OVERLAP_SEPARATION_EPSILON = 0.001;
 
-function overlapCorrection(
+export function overlapCorrection(
   first: NodeRectangle,
   second: NodeRectangle,
   gap: number,
