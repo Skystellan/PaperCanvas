@@ -2,10 +2,27 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-PaperCanvas is a minimal, local-first desktop workspace for arranging, reading,
-annotating, and discussing research papers. PDFs and product data stay in
-app-owned local storage. The current macOS desktop uses Chromium through Electron.
-The reader can open ChatGPT in an embedded browser;
+**Drag papers. Connect ideas. Build your own research network.**
+
+**拖动论文，连接思路，构建属于自己的论文网络。**
+
+PaperCanvas turns your paper library into a visual map of your thinking.
+Bring papers onto an infinite canvas, connect their ideas, and shape the network
+as your understanding grows.
+
+![PaperCanvas demo: drag a paper from the library, connect it to other papers, and move a card as its network and topic regions adjust. Includes English and Chinese captions.](docs/media/paper-network-demo.gif)
+
+[Watch the HD demo](docs/media/paper-network-demo.mp4) · [Static preview](docs/media/paper-network-poster.png)
+
+- **Drop a paper.** Drag it from your library onto the canvas. 从论文库拖入画布。
+- **Connect your ideas.** Link papers and record support, challenges, and evidence. 连起论文之间的关系。
+- **Make the space yours.** Move cards while connections and topic regions follow smoothly. 拖动整理，让研究脉络逐渐清晰。
+
+*Real app demo · sample papers and illustrative connections · 2× playback.*
+
+Read, highlight, annotate, and discuss papers in the same local-first workspace.
+PDFs and product data stay in app-owned local storage. The current macOS desktop
+uses Chromium through Electron. The reader can open ChatGPT in an embedded browser;
 annotations and Markdown-based Markmap mind maps work entirely offline.
 
 ## What is included
