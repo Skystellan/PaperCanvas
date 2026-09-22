@@ -33,6 +33,8 @@ import {
 } from "../library";
 import { usePersistenceWriter } from "../persistence";
 import { PaperCard } from "./PaperCard";
+import { PaperEdge } from "./PaperEdge";
+import { routePaperEdges } from "./model/edgeRouting";
 import type { BoardRepository } from "./data/boardRepository";
 import {
   boardRepository,
@@ -73,6 +75,7 @@ export { PAPER_DRAG_MIME };
 const nodeTypes = {
   paper: PaperCard,
 } satisfies NodeTypes;
+const edgeTypes = { paper: PaperEdge };
 
 export interface WhiteboardProps {
   active?: boolean;
@@ -164,6 +167,7 @@ function WhiteboardCanvas({
   const [loadState, setLoadState] = useState<LoadState>("loading");
   const [loadAttempt, setLoadAttempt] = useState(0);
   const [saveState, setSaveState] = useState<SaveState>("idle");
+  const [layoutMoving, setLayoutMoving] = useState(false);
   const [actionError, setActionError] = useState<ActionError>(null);
   const [scope, setScope] = useState<WhiteboardScope>(ALL_SCOPE);
   const [connectionMode, setConnectionMode] = useState(false);
@@ -329,6 +333,7 @@ function WhiteboardCanvas({
         }
         forceLayout.current = null;
         forceLayoutNodeIds.current = null;
+        setLayoutMoving(false);
         pendingPaperPlacements.current.clear();
         persistAfterMotion.current = false;
         boardGeneration.current += 1;
@@ -406,6 +411,7 @@ function WhiteboardCanvas({
       }
       forceLayout.current = null;
       forceLayoutNodeIds.current = null;
+      setLayoutMoving(false);
       if (persistAfterMotion.current) {
         persistAfterMotion.current = false;
         void enqueuePositionSnapshot(
@@ -427,6 +433,7 @@ function WhiteboardCanvas({
     }
     const layout = forceLayout.current;
     if (!layout) return false;
+    setLayoutMoving(false);
     layout.cool();
     layout.settle();
     forceLayout.current = null;
@@ -456,6 +463,7 @@ function WhiteboardCanvas({
     }
     const hadLayout = forceLayout.current !== null;
     forceLayout.current = null;
+    setLayoutMoving(false);
     forceLayoutNodeIds.current = null;
     persistAfterMotion.current = false;
     return hadLayout;
@@ -686,6 +694,7 @@ function WhiteboardCanvas({
         { movableNodeIds, activeDomainIds: simulationDomains },
       );
       forceLayout.current = layout;
+      setLayoutMoving(true);
       forceLayoutNodeIds.current = layoutNodeIds;
       for (const nodeId of dragSessionNodeIds.current) {
         const node = nodesRef.current.find((candidate) => candidate.id === nodeId);
@@ -1124,12 +1133,20 @@ function WhiteboardCanvas({
     [visibleNodes],
   );
   const visibleEdges = useMemo(
-    () =>
-      edges.filter(
+    () => {
+      const selectedIds = new Set(visibleNodes.filter(node => node.selected).map(node => node.id));
+      const scopedEdges = edges.filter(
         (edge) =>
           visibleNodeIds.has(edge.source) && visibleNodeIds.has(edge.target),
-      ),
-    [edges, visibleNodeIds],
+      );
+      // Keep pointer updates cheap; route only after the force layout has cooled.
+      const routedEdges = layoutMoving ? scopedEdges : routePaperEdges(visibleNodes, scopedEdges);
+      return routedEdges.map(edge => ({ ...edge, className: [edge.className,
+        selectedIds.size > 0 && !edge.selected && !selectedIds.has(edge.source) && !selectedIds.has(edge.target)
+          ? "is-unrelated" : "",
+      ].filter(Boolean).join(" ") }));
+    },
+    [edges, layoutMoving, visibleNodeIds, visibleNodes],
   );
   const selectedEdge = useMemo(
     () => visibleEdges.find(({ id }) => id === selectedEdgeId) ?? null,
@@ -1329,6 +1346,7 @@ function WhiteboardCanvas({
           nodes={visibleNodes}
           edges={visibleEdges}
           nodeTypes={nodeTypes}
+          edgeTypes={edgeTypes}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onNodeDragStart={onNodeDragStart}

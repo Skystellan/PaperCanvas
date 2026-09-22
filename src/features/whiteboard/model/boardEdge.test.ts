@@ -28,7 +28,7 @@ describe("toFlowEdge", () => {
       id: "edge-1",
       source: "node-a",
       target: "node-b",
-      type: "straight",
+      type: "paper",
     });
   });
 });

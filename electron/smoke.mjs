@@ -64,9 +64,10 @@ export async function smoke({ window, backend, chats, dataDirectory, chatSession
     });
     await reload();
     await until(`!!document.querySelector('.react-flow__edge[data-testid="rf__edge-drag-smoke-edge"]')`, 'connected canvas fixture');
-    const { whiteboardDragSmoke, whiteboardDomainSmoke } = await import('./whiteboard-drag-smoke.mjs');
+    const { whiteboardDragSmoke, whiteboardDomainSmoke, whiteboardEdgeSmoke } = await import('./whiteboard-drag-smoke.mjs');
     await whiteboardDragSmoke({ wc, backend, dataDirectory, evaluate, until, reload });
     await whiteboardDomainSmoke({ wc, backend, dataDirectory, evaluate, until, reload });
+    await whiteboardEdgeSmoke({ wc, backend, dataDirectory, evaluate, until, reload });
     return;
   }
   // Missing grants must fail even when the caller is the trusted renderer.

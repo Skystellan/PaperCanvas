@@ -39,6 +39,9 @@ as a whole, preserving its internal arrangement and domain membership.
 Cross-domain links remain visible without pulling regions together. Connections
 may cross, and released cards settle before their positions are saved. Existing
 intersecting regions are separated on load, while valid saved positions are kept.
+Connections attach at separate points on card borders and route around other
+cards. Crossing lines have a small visual gap, and selecting a card fades
+unrelated connections to make its relationships easier to trace.
 
 ## Local data and embedded conversations
 

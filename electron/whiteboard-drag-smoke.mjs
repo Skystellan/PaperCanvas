@@ -218,3 +218,32 @@ export async function whiteboardDomainSmoke({ wc, backend, dataDirectory, evalua
   for (const [, key] of nodeKeys) assert.deepEqual(restored[key], finalState[key], 'Reload preserves the separated layout');
   console.log('Whiteboard domains:', JSON.stringify({ expands: true, shrinks: true, maximumNeighborStep, separate: true, saved: true, restored: true }));
 }
+
+export async function whiteboardEdgeSmoke({ wc, backend, dataDirectory, evaluate, until, reload }) {
+  await backend.call('database_execute', { query: 'UPDATE papers SET domain_id=NULL', values: [] });
+  for (const [id, x] of [['node-attention', 120], ['node-resnet', 520], ['node-bert', 920]]) {
+    await backend.call('database_execute', { query: 'UPDATE board_nodes SET x=?,y=110 WHERE id=?', values: [x, id] });
+  }
+  await reload();
+  await until(`!!document.querySelector('.react-flow__edge-path')`, 'routed connections');
+  await evaluate('new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))');
+  const result = await evaluate(`(() => {
+    const path = document.querySelector('.react-flow__edge-path');
+    const cards = [...document.querySelectorAll('.react-flow__node')].map(node => {
+      const matrix = new DOMMatrix(getComputedStyle(node).transform);
+      return { x: matrix.m41, y: matrix.m42, width: node.offsetWidth, height: node.offsetHeight };
+    });
+    let insideCard = false;
+    for (let i = 0; i <= 500; i++) {
+      const point = path.getPointAtLength(path.getTotalLength() * i / 500);
+      insideCard ||= cards.some(card => point.x > card.x + 0.1 && point.x < card.x + card.width - 0.1 &&
+        point.y > card.y + 0.1 && point.y < card.y + card.height - 0.1);
+    }
+    return { insideCard, halo: !!document.querySelector('.whiteboard__edge-halo'), path: path.getAttribute('d') };
+  })()`);
+  assert.equal(result.insideCard, false, 'The rendered connection avoids every card, including the intervening paper');
+  assert.equal(result.halo, true, 'Crossings have a visual separation');
+  assert.match(result.path, /Q/, 'The detour has rounded corners');
+  await writeFile(path.join(dataDirectory, 'whiteboard-edge-routing.png'), (await wc.capturePage()).toPNG());
+  console.log('Whiteboard connections:', JSON.stringify({ avoidsCards: true, rounded: true, halo: true }));
+}

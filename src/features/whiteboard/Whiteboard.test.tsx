@@ -1438,7 +1438,7 @@ describe("Whiteboard", () => {
     await act(async () => creation.resolve(firstEdge));
     expect(await screen.findByTestId("edge-edge-attention-bert")).toHaveAttribute(
       "data-edge-type",
-      "straight",
+      "paper",
     );
     expect(screen.getByText(/连线模式：请选择第一个节点/)).toBeVisible();
 

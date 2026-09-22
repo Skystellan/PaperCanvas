@@ -52,6 +52,17 @@
   stroke-dasharray: 6 3;
 }
 
+.whiteboard__edge-halo {
+  stroke: #ecf0f6;
+  stroke-width: 6;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
+.whiteboard .react-flow__edge.is-unrelated {
+  opacity: 0.15;
+}
+
 .whiteboard__edge-editor {
   position: absolute;
   z-index: 6;

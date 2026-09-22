@@ -26,8 +26,8 @@ beforeEach(() => {
 });
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
-function setup() {
-  const nodes: BoardNodeRecord[] = ["a", "b"].map((id, i) => ({
+function setup(extraConnection = false) {
+  const nodes: BoardNodeRecord[] = (extraConnection ? ["a", "b", "c", "d"] : ["a", "b"]).map((id, i) => ({
     id, boardId: "board-default",
     paper: { id: `paper-${id}`, title: `Paper ${id}`, authors: null, year: null,
       filePath: `${id}.pdf`, domainId: null, createdAt: i },
@@ -35,7 +35,8 @@ function setup() {
   }));
   const repository = {
     loadBoard: vi.fn().mockResolvedValue({ nodes, edges: [{ id: "a-b",
-      boardId: "board-default", sourceNodeId: "a", targetNodeId: "b", relation: null }] }),
+      boardId: "board-default", sourceNodeId: "a", targetNodeId: "b", relation: null },
+      ...(extraConnection ? [{ id: "c-d", boardId: "board-default", sourceNodeId: "c", targetNodeId: "d", relation: null }] : [])] }),
     saveNodePositions: vi.fn().mockResolvedValue(undefined),
     createPaperNode: vi.fn(), createEdge: vi.fn(),
     updateEdgeRelation: vi.fn().mockResolvedValue(undefined),
@@ -48,6 +49,19 @@ function setup() {
 }
 
 describe("real React Flow deletion", () => {
+  it("keeps routed edges selectable and dims unrelated connections when focusing a paper", async () => {
+    setup(true);
+    const related = await screen.findByTestId("rf__edge-a-b");
+    const unrelated = await screen.findByTestId("rf__edge-c-d");
+    expect(related.querySelector(".whiteboard__edge-halo")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Paper a"));
+    await waitFor(() => expect(unrelated).toHaveClass("is-unrelated"));
+    expect(related).not.toHaveClass("is-unrelated");
+    fireEvent.click(unrelated.querySelector(".react-flow__edge-interaction")!);
+    await waitFor(() => expect(unrelated).toHaveClass("selected"));
+    expect(unrelated).not.toHaveClass("is-unrelated");
+  });
+
   it.each(["Delete", "Backspace"])("selects an edge and deletes with %s", async (key) => {
     const { repository } = setup();
     const edge = await screen.findByTestId("rf__edge-a-b");
