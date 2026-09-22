@@ -59,10 +59,6 @@
   pointer-events: none;
 }
 
-.whiteboard .react-flow__edge.is-unrelated {
-  opacity: 0.15;
-}
-
 .whiteboard__edge-editor {
   position: absolute;
   z-index: 6;

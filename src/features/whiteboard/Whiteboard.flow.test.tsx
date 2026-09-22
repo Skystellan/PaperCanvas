@@ -49,13 +49,14 @@ function setup(extraConnection = false) {
 }
 
 describe("real React Flow deletion", () => {
-  it("keeps straight edges selectable and dims unrelated connections when focusing a paper", async () => {
+  it("keeps all connections visible and selectable while a paper remains selected", async () => {
     setup(true);
     const related = await screen.findByTestId("rf__edge-a-b");
     const unrelated = await screen.findByTestId("rf__edge-c-d");
     expect(related.querySelector(".whiteboard__edge-halo")).toBeInTheDocument();
     fireEvent.click(screen.getByText("Paper a"));
-    await waitFor(() => expect(unrelated).toHaveClass("is-unrelated"));
+    await waitFor(() => expect(screen.getByText("Paper a").closest(".react-flow__node")).toHaveClass("selected"));
+    expect(unrelated).not.toHaveClass("is-unrelated");
     expect(related).not.toHaveClass("is-unrelated");
     fireEvent.click(unrelated.querySelector(".react-flow__edge-interaction")!);
     await waitFor(() => expect(unrelated).toHaveClass("selected"));

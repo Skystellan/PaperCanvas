@@ -43,7 +43,7 @@ Connections remain straight. After released cards slow down, gentle repulsion
 gradually separates nearby or crossing connections and opens space around cards.
 Springs accept the settled lengths and can stretch as the layout relaxes; forces
 ramp up and fade out with bounded movement per frame. Dense graphs can retain
-crossings. Selecting a card fades unrelated connections to help trace relationships.
+crossings. All connections remain fully visible while selecting or dragging cards.
 
 ## Local data and embedded conversations
 

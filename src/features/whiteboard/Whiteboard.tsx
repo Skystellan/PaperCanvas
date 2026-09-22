@@ -1126,18 +1126,12 @@ function WhiteboardCanvas({
     [visibleNodes],
   );
   const visibleEdges = useMemo(
-    () => {
-      const selectedIds = new Set(visibleNodes.filter(node => node.selected).map(node => node.id));
-      const scopedEdges = edges.filter(
+    () =>
+      edges.filter(
         (edge) =>
           visibleNodeIds.has(edge.source) && visibleNodeIds.has(edge.target),
-      );
-      return scopedEdges.map(edge => ({ ...edge, className: [edge.className,
-        selectedIds.size > 0 && !edge.selected && !selectedIds.has(edge.source) && !selectedIds.has(edge.target)
-          ? "is-unrelated" : "",
-      ].filter(Boolean).join(" ") }));
-    },
-    [edges, visibleNodeIds, visibleNodes],
+      ),
+    [edges, visibleNodeIds],
   );
   const selectedEdge = useMemo(
     () => visibleEdges.find(({ id }) => id === selectedEdgeId) ?? null,
