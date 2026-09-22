@@ -23,7 +23,7 @@ try {
     platform: 'darwin', arch: process.arch, electronVersion: manifest.devDependencies.electron,
     icon: path.join(root, 'src-tauri/icons/icon.icns'),
     download: { cacheRoot: '/private/tmp/papercanvas-electron-cache' },
-    extraResource: [path.join(root, 'src-tauri/target/debug/paper-canvas-backend')],
+    extraResource: [path.join(root, 'src-tauri/target/release/paper-canvas-backend')],
   });
   for (const output of paths) console.log(output);
 } finally { await rm(stage, { recursive: true, force: true }); }

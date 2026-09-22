@@ -1,6 +1,7 @@
 # PaperCanvas
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Download for macOS](https://img.shields.io/badge/Download-macOS%20Apple%20Silicon-007AFF)](https://github.com/Skystellan/PaperCanvas/releases/latest)
 
 **Drag papers. Connect ideas. Build your own research network.**
 
@@ -24,6 +25,21 @@ Read, highlight, annotate, and discuss papers in the same local-first workspace.
 PDFs and product data stay in app-owned local storage. The current macOS desktop
 uses Chromium through Electron. The reader can open ChatGPT in an embedded browser;
 annotations and Markdown-based Markmap mind maps work entirely offline.
+
+## Download
+
+Get the app from [GitHub Releases](https://github.com/Skystellan/PaperCanvas/releases/latest).
+The current binary supports **Apple Silicon Macs (M1 or newer), macOS 13+**.
+
+1. Download `PaperCanvas-0.2.0-macOS-arm64.zip` from the release's **Assets**.
+2. Unzip it and move `PaperCanvas.app` to **Applications**. Quit an older copy before replacing it.
+3. Open PaperCanvas and import your PDFs. Upgrading the app preserves your local library and notes.
+
+This community build is ad-hoc signed, without an Apple Developer ID or notarization.
+If macOS blocks the first launch and you trust this download, use **System Settings →
+Privacy & Security → Open Anyway** after attempting to open it. See
+[Apple's opening instructions](https://support.apple.com/en-us/102445).
+Intel Mac, Windows, and Linux binaries are not included in this release.
 
 ## What is included
 
@@ -212,8 +228,9 @@ The bundle is generated under
 `release/PaperCanvas-darwin-arm64/PaperCanvas.app` on Apple
 Silicon. Quit the running copy before installing it in a fixed location such as
 `~/Applications/PaperCanvas.app`. Moving the application does not move its
-paper database or persistent ChatGPT profile. External distribution still
-requires a Developer ID signature, notarization, and a release build.
+paper database or persistent ChatGPT profile. Packaging uses the optimized Rust
+release backend. The published community build is ad-hoc signed; Developer ID
+signing and notarization are needed for a verified publisher and smoother first launch.
 
 ## Releases and update notifications
 

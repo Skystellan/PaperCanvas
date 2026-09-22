@@ -15,8 +15,9 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "chromium:backend": "cargo build --manifest-path src-tauri/Cargo.toml --bin paper-canvas-backend --locked",
+    "chromium:backend:release": "cargo build --release --manifest-path src-tauri/Cargo.toml --bin paper-canvas-backend --locked",
     "chromium:dev": "npm run build && npm run chromium:backend && electron electron/main.mjs",
-    "chromium:build": "npm run build && npm run chromium:backend && node electron/package.mjs",
+    "chromium:build": "npm run build && npm run chromium:backend:release && node electron/package.mjs",
     "chromium:test": "node --test electron/*.test.mjs",
     "chromium:smoke": "npm run build && npm run chromium:backend && node electron/run-smoke.mjs"
   },
