@@ -172,6 +172,7 @@ describe("PdfViewer", () => {
     const stepZoom = vi.fn();
     const zoomTo = vi.fn();
     const runtime: PdfViewerRuntime = {
+      find: vi.fn(), closeFind: vi.fn(), getOutline: vi.fn().mockResolvedValue([]), goToDestination: vi.fn().mockResolvedValue(undefined),
       currentPage: 1,
       currentZoom: 1,
       destroy,
@@ -255,6 +256,7 @@ describe("PdfViewer", () => {
     pdf.document.viewerDocument = {};
     let selectedText: Text | undefined;
     const runtime: PdfViewerRuntime = {
+      find: vi.fn(), closeFind: vi.fn(), getOutline: vi.fn().mockResolvedValue([]), goToDestination: vi.fn().mockResolvedValue(undefined),
       currentPage: 1,
       currentZoom: 1,
       destroy: vi.fn(),
@@ -340,7 +342,7 @@ describe("PdfViewer", () => {
       Object.defineProperties(canvas, { clientWidth: { value: 600 }, clientHeight: { value: 800 } });
       layer.className = "textLayer"; selectedText = document.createTextNode("Formula samples"); layer.append(selectedText);
       page.append(canvas, layer); viewer.append(page);
-      return { currentPage: 1, currentZoom: 1, pagesCount: 1, setPage: vi.fn(), stepZoom: vi.fn(), zoomTo: vi.fn(), destroy: vi.fn() };
+      return { find: vi.fn(), closeFind: vi.fn(), getOutline: vi.fn().mockResolvedValue([]), goToDestination: vi.fn().mockResolvedValue(undefined), currentPage: 1, currentZoom: 1, pagesCount: 1, setPage: vi.fn(), stepZoom: vi.fn(), zoomTo: vi.fn(), destroy: vi.fn() };
     });
     if (renderer === "official") pdf.document.viewerDocument = {};
     render(<PdfViewer filePath="formulas.pdf" highlights={[highlight]} pdfJs={pdf.adapter}

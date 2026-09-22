@@ -255,14 +255,12 @@
   background: rgb(255 255 255 / 45%);
 }
 
-.paper-reader__sidebar-resizer::after {
-  background: var(--glass-line);
+:is(.paper-library__resizer, .recent-discussions__resizer, .paper-reader__sidebar-resizer)::after {
+  background: transparent;
+  transition: background 120ms ease, box-shadow 120ms ease;
 }
 
-.paper-reader__sidebar-resizer:hover::after,
-.paper-reader__sidebar-resizer:focus-visible::after,
-.recent-discussions__resizer:hover::after,
-.recent-discussions__resizer:focus-visible::after {
+:is(.paper-library__resizer, .recent-discussions__resizer, .paper-reader__sidebar-resizer):is(:hover, :focus-visible, :active)::after {
   background: var(--glass-accent);
   box-shadow: 0 0 0 3px var(--glass-focus);
 }

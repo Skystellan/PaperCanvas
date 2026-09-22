@@ -16,9 +16,9 @@
   position: absolute;
   z-index: 2;
   top: 0;
-  right: 0;
+  right: -5px;
   bottom: 0;
-  width: 8px;
+  width: 10px;
   cursor: col-resize;
   touch-action: none;
   user-select: none;
@@ -26,30 +26,13 @@
 
 .paper-library__resizer::after {
   position: absolute;
-  inset: 0 0 0 6px;
+  inset: 0 4px;
   content: "";
-  background: #b4b8ad;
-}
-
-.paper-library__resizer::before {
-  position: absolute;
-  top: calc(50% - 18px);
-  right: 2px;
-  width: 4px;
-  height: 36px;
-  border-radius: 3px;
-  content: "";
-  background: #939b89;
-}
-
-.paper-library__resizer:hover::after,
-.paper-library__resizer:focus-visible::after {
-  background: #6d7967;
+  background: transparent;
 }
 
 .paper-library__resizer:focus-visible {
-  outline: 2px solid #6d7967;
-  outline-offset: -2px;
+  outline: none;
 }
 
 .paper-library__header {
@@ -75,7 +58,6 @@
   overflow: hidden;
   background: #f9f8f4;
   color: #77766f;
-  font-size: 9px;
   text-overflow: ellipsis;
 }
 
@@ -128,7 +110,7 @@
   background: #fffefa;
   color: #5c5d57;
   cursor: pointer;
-  font-size: 9px;
+  font-size: 12px;
   letter-spacing: normal;
   text-transform: none;
 }
@@ -148,8 +130,6 @@
   padding: 5px 7px;
   background: #fffefa;
   color: #3f403b;
-  font: inherit;
-  font-size: 10px;
 }
 
 .paper-library__domain-form input:focus {

@@ -23,7 +23,14 @@ body,
   overflow: hidden;
 }
 
-button {
+body {
+  font-size: 12px;
+}
+
+button,
+input,
+select,
+textarea {
   font: inherit;
 }
 

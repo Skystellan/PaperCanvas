@@ -1,5 +1,6 @@
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import type { PdfReadingLocation } from "./model/readerState";
+import { loadPdfOutline, type PdfOutlineEntry } from "./model/pdfOutline";
 import "./pdfJsCompatibility";
 import {
   capturePdfZoomPreviewPages,
@@ -53,12 +54,22 @@ interface TouchManagerConstructor {
   }): TouchManagerLike;
 }
 
+export interface PdfFindState {
+  current: number;
+  total: number;
+  pending: boolean;
+}
+
 export interface PdfViewerRuntime {
   readonly currentPage: number;
   readonly currentZoom: number;
   readonly pagesCount: number;
   destroy(): void;
   setPage(pageNumber: number, offset?: number): void;
+  find(query: string, previous?: boolean, again?: boolean): void;
+  closeFind(): void;
+  getOutline(): Promise<PdfOutlineEntry[]>;
+  goToDestination(destination: string | unknown[]): Promise<void>;
   stepZoom(direction: -1 | 1): void;
   zoomTo(
     zoom: number,
@@ -77,6 +88,7 @@ export interface CreatePdfViewerRuntimeOptions {
   onPageChange?: (pageNumber: number) => void;
   onPageRendered?: (pageNumber: number) => void;
   onScaleChange?: (zoom: number) => void;
+  onFindUpdate?: (state: PdfFindState) => void;
   viewer: HTMLDivElement;
 }
 
@@ -178,6 +190,7 @@ export async function createPdfViewerRuntime({
   onPageChange,
   onPageRendered,
   onScaleChange,
+  onFindUpdate,
   viewer,
 }: CreatePdfViewerRuntimeOptions): Promise<PdfViewerRuntime> {
   const abortController = new AbortController();
@@ -206,7 +219,7 @@ export async function createPdfViewerRuntime({
     throw new DOMException("The PDF viewer runtime was aborted.", "AbortError");
   }
 
-  const { EventBus, PDFViewer } = await import(
+  const { EventBus, PDFViewer, PDFFindController, PDFLinkService } = await import(
     "pdfjs-dist/legacy/web/pdf_viewer.mjs"
   );
   if (abortSignal?.aborted) {
@@ -215,6 +228,8 @@ export async function createPdfViewerRuntime({
   }
 
   const eventBus = new EventBus();
+  const linkService = new PDFLinkService({ eventBus, ignoreDestinationZoom: true });
+  const findController = new PDFFindController({ eventBus, linkService });
   const pdfViewer = new PDFViewer({
     abortSignal: signal,
     annotationEditorMode: pdfjsLib.AnnotationEditorType.DISABLE,
@@ -222,9 +237,22 @@ export async function createPdfViewerRuntime({
     container,
     enableAutoLinking: false,
     eventBus,
+    findController,
+    linkService,
     maxCanvasPixels: MAX_CANVAS_PIXELS,
     viewer,
   } as ConstructorParameters<typeof PDFViewer>[0]);
+  linkService.setViewer(pdfViewer);
+  linkService.setDocument(document);
+
+  let findPending = false;
+  eventBus.on("updatefindcontrolstate", ({ state, matchesCount }: { state: number; matchesCount: { current: number; total: number } }) => {
+    findPending = state === 3;
+    onFindUpdate?.({ ...matchesCount, pending: findPending });
+  }, { signal });
+  eventBus.on("updatefindmatchescount", ({ matchesCount }: { matchesCount: { current: number; total: number } }) => {
+    onFindUpdate?.({ ...matchesCount, pending: findPending });
+  }, { signal });
 
   let destroyed = false;
   let locationReady = false;
@@ -497,6 +525,7 @@ export async function createPdfViewerRuntime({
     abortSignal?.removeEventListener("abort", destroyRuntime);
     abortController.abort();
     pdfViewer.setDocument(null as never);
+    linkService.setDocument(null);
   };
   abortSignal?.addEventListener("abort", destroyRuntime, { once: true });
 
@@ -728,6 +757,22 @@ export async function createPdfViewerRuntime({
       if (destroyed || !Number.isFinite(pageNumber)) return;
       flushPendingZoom();
       void navigate(pageNumber, offset).then(scheduleLocation).catch(() => undefined);
+    },
+    find(query, previous = false, again = false) {
+      if (destroyed) return;
+      flushPendingZoom();
+      eventBus.dispatch("find", {
+        source: pdfViewer, type: again ? "again" : "", query,
+        caseSensitive: false, entireWord: false, highlightAll: true,
+        findPrevious: previous, matchDiacritics: false,
+      });
+    },
+    closeFind() { if (!destroyed) eventBus.dispatch("findbarclose", { source: pdfViewer }); },
+    getOutline() { return loadPdfOutline(document); },
+    async goToDestination(destination) {
+      if (destroyed) return;
+      flushPendingZoom();
+      await linkService.goToDestination(destination);
     },
     stepZoom(direction) {
       if (destroyed) return;

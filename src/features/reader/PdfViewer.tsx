@@ -14,6 +14,8 @@ import {
 } from "react";
 import { flushSync } from "react-dom";
 import { PdfSelectionPopover } from "./PdfSelectionPopover";
+import { PdfSearch } from "./PdfSearch";
+import { PdfOutline } from "./PdfOutline";
 import {
   normalizePdfClientRects,
   mergeNormalizedPdfRects,
@@ -34,6 +36,7 @@ import {
   PDF_MAX_ZOOM,
   PDF_MIN_ZOOM,
   type PdfViewerRuntime,
+  type PdfFindState,
 } from "./pdfViewerRuntime";
 import {
   capturePdfZoomPreviewPages,
@@ -761,6 +764,7 @@ const OfficialPdfPages = memo(function OfficialPdfPages({
   onScroll,
   onTextSelection,
   onZoomChange,
+  onFindUpdate,
   viewerRuntimeFactory,
 }: {
   document: unknown;
@@ -776,6 +780,7 @@ const OfficialPdfPages = memo(function OfficialPdfPages({
   onScroll?: () => void;
   onTextSelection: (selection: ActivePdfTextSelection) => void;
   onZoomChange: (zoom: number) => void;
+  onFindUpdate: (state: PdfFindState) => void;
   viewerRuntimeFactory: typeof createPdfViewerRuntime;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -821,6 +826,7 @@ const OfficialPdfPages = memo(function OfficialPdfPages({
         );
       },
       onScaleChange: onZoomChange,
+      onFindUpdate,
       viewer,
     }).then(
       (createdRuntime) => {
@@ -865,6 +871,7 @@ const OfficialPdfPages = memo(function OfficialPdfPages({
     onPageChange,
     onRuntimeChange,
     onZoomChange,
+    onFindUpdate,
     viewerRuntimeFactory,
   ]);
 
@@ -946,6 +953,8 @@ function PdfViewerFile({
   const lastTrackpadTimeRef = useRef(Number.NEGATIVE_INFINITY);
   const renderCommitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const officialRuntimeRef = useRef<PdfViewerRuntime | null>(null);
+  const [officialRuntime, setOfficialRuntime] = useState<PdfViewerRuntime | null>(null);
+  const [findState, setFindState] = useState<PdfFindState>({ current: 0, total: 0, pending: false });
 
   useEffect(() => {
     let active = true;
@@ -1037,6 +1046,7 @@ function PdfViewerFile({
   const handleOfficialRuntimeChange = useCallback(
     (runtime: PdfViewerRuntime | null) => {
       officialRuntimeRef.current = runtime;
+      setOfficialRuntime(runtime);
     },
     [],
   );
@@ -1488,6 +1498,7 @@ function PdfViewerFile({
           →
         </button>
         <span className="pdf-viewer__toolbar-spacer" />
+        <PdfSearch runtime={officialRuntime} result={findState} />
         <button
           aria-label="Zoom out"
           disabled={zoom <= MIN_ZOOM}
@@ -1543,6 +1554,7 @@ function PdfViewerFile({
           onScroll={textSelection ? clearTextSelection : undefined}
           onTextSelection={setTextSelection}
           onZoomChange={handleOfficialZoomChange}
+          onFindUpdate={setFindState}
           viewerRuntimeFactory={viewerRuntimeFactory}
         />
       ) : ENABLE_TEST_ONLY_PDF_RENDERER && document ? (
@@ -1572,6 +1584,7 @@ function PdfViewerFile({
           </div>
         </div>
       ) : null}
+      {officialRuntime && document && <PdfOutline runtime={officialRuntime} currentPage={currentPage} filePath={filePath} pageCount={document.numPages} />}
     </section>
   );
 }

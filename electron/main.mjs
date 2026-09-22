@@ -5,6 +5,7 @@ import { mkdir } from 'node:fs/promises';
 import { Backend } from './backend.mjs';
 import { Chats, CHAT_PARTITION } from './chats.mjs';
 import { APP_URL, assetPath, canWriteChatClipboard, isHttps, isLocalFrame } from './security.mjs';
+import { UpdateChecker } from './updates.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const dataDirectory = process.env.PAPERCANVAS_DATA_DIR || path.join(
@@ -158,13 +159,22 @@ else {
   });
   mainWindow.on('closed', () => { chats.close(); backend.close(); });
   mainWindow.once('ready-to-show', () => mainWindow.show());
+  const updates = new UpdateChecker({
+    version: app.getVersion(), isPackaged: app.isPackaged, smoke: process.env.PAPERCANVAS_SMOKE === '1',
+    // Suppress late dialogs after closing; a parent keeps macOS dialogs asynchronous.
+    showMessageBox: (options) => mainWindow.isDestroyed()
+      ? Promise.resolve({ response: 1 }) : dialog.showMessageBox(mainWindow, options),
+    openExternal: (url) => shell.openExternal(url),
+  });
   Menu.setApplicationMenu(Menu.buildFromTemplate([
     ...(process.platform === 'darwin' ? [{ role: 'appMenu' }] : []),
     { role: 'fileMenu' }, { role: 'editMenu' },
     { label: 'View', submenu: [{ role: 'togglefullscreen' }, { role: 'resetZoom' }, { role: 'zoomIn' }, { role: 'zoomOut' }] },
     { role: 'windowMenu' },
+    { role: 'help', submenu: [{ label: 'Check for Updates…', click: () => { void updates.check({ manual: true }); } }] },
   ]));
   await mainWindow.loadURL(APP_URL);
+  void updates.check();
   if (!app.isPackaged && process.env.PAPERCANVAS_SMOKE === '1') {
     try {
       const { smoke } = await import('./smoke.mjs');

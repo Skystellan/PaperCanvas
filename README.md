@@ -19,6 +19,8 @@ annotations and Markdown-based Markmap mind maps work entirely offline.
 - Support/challenge relationships with locally saved explanations and evidence
 - PDF.js reader with selectable text, continuous scrolling, trackpad pinch zoom,
   and restoration of each paper's reading position and reader layout
+- PDF text search with Cmd/Ctrl+F, highlighted results and previous/next matches;
+  a compact right-side table of contents and locally saved page bookmarks
 - Persistent highlights and comments, with coherent backgrounds for overlapping
   formula symbols, plus source-linked quotations in Markdown notes
 - Autosaving Markdown notes with live preview, optional source/reading views,
@@ -45,6 +47,20 @@ annotations and Markdown-based Markmap mind maps work entirely offline.
 - The former Codex SDK, runtime bridge, selection Translate/Ask AI, and automatic
   mind-map generation have been removed. Historical migrations and legacy stored
   data remain intact so existing libraries can upgrade without data loss.
+
+## PDF search and navigation
+
+Click the search icon or press **Cmd+F** (macOS) / **Ctrl+F** while reading a PDF.
+Search covers the document's text, including pages that have not rendered yet.
+Use Enter / Shift+Enter for the next / previous match and Escape to close.
+The shortcut leaves note editors' own search handling intact. Scanned PDFs need
+a text layer; this feature does not perform OCR.
+
+The short lines along the PDF's right edge show its embedded outline. Hover or
+focus there to see section titles, or pin the panel open. Click a heading to
+jump to its PDF destination. When a PDF has no outline, the panel offers page
+navigation instead. **收藏本页** saves a page bookmark locally; the same button
+removes it. Bookmarks survive reopening the paper and application upgrades.
 
 ## Mind maps
 
@@ -168,6 +184,33 @@ Silicon. Quit the running copy before installing it in a fixed location such as
 `~/Applications/PaperCanvas.app`. Moving the application does not move its
 paper database or persistent ChatGPT profile. External distribution still
 requires a Developer ID signature, notarization, and a release build.
+
+## Releases and update notifications
+
+Packaged Electron builds check the public
+[latest GitHub release](https://github.com/Skystellan/PaperCanvas/releases/latest)
+once after startup. A newer stable version prompts **View release** or **Later**;
+**Help → Check for Updates…** also reports when the app is up to date or a check
+fails. Checks time out after 10 seconds, with no automatic retries. Startup
+failures stay quiet, and development and smoke runs do not check automatically.
+The request uploads no app data, installed version, or login credentials. The
+app only opens the fixed GitHub release page; it never downloads or installs an
+update itself. Choosing **Later** dismisses the prompt until the next launch or
+manual check. An app left running does not poll for new releases.
+
+To notify installed copies, publish a public, non-draft, non-prerelease GitHub
+Release in `Skystellan/PaperCanvas` and mark it **Latest**. Use a stable semantic
+version tag such as `v1.2.3` (or `1.2.3`) matching the packaged app version, and
+increase its numeric major/minor/patch version for each update. Build metadata
+does not affect comparison; prerelease tags are not supported. Upload the
+installable app assets and include release notes and installation instructions
+before publishing. A commit, pushed tag, or uploaded file alone is insufficient;
+the checker uses GitHub's
+[latest release API](https://docs.github.com/en/rest/releases/releases#get-the-latest-release).
+
+Older versions without this checker cannot receive retroactive alerts. Their
+users must manually install a build containing it before future releases can
+trigger in-app notifications. The legacy Tauri build has no such checker.
 
 ## Chromium desktop and embedded login
 

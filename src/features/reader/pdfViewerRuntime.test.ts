@@ -155,6 +155,8 @@ class FakePdfViewer {
 vi.mock("pdfjs-dist/legacy/web/pdf_viewer.mjs", () => ({
   EventBus: FakeEventBus,
   PDFViewer: FakePdfViewer,
+  PDFFindController: class { setDocument = vi.fn(); },
+  PDFLinkService: class { setViewer = vi.fn(); setDocument = vi.fn(); goToDestination = vi.fn().mockResolvedValue(undefined); },
 }));
 
 function createDocument(pageCount = 2): PDFDocumentProxy {

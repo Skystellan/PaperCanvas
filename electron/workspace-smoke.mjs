@@ -44,6 +44,10 @@ export async function workspaceSmoke({ wc, backend, paper, dataDirectory, evalua
   await reload();
   await until(`!!document.querySelector('.react-flow__edge[data-testid="rf__edge-smoke-edge"]')`, 'test canvas connection');
   assert.equal(await evaluate(`document.querySelector('.recent-discussions').classList.contains('is-collapsed')`), false);
+  const sizes = await evaluate(`[...document.querySelectorAll('.paper-library__header button, .paper-library__header select, .paper-library__search input')].map(e=>getComputedStyle(e).fontSize)`);
+  assert.ok(sizes.length >= 2 && sizes.every(size=>size === '12px'), 'Library controls use the same text size');
+  assert.equal(await evaluate(`getComputedStyle(document.querySelector('.paper-library__resizer'),'::before').content`), 'none');
+  await writeFile(path.join(dataDirectory, 'library-typography.png'), (await wc.capturePage()).toPNG());
   assert.equal(await evaluate(`!!${byLabel(`移动 ${paper.title} 到领域`)}`), false);
   await click(`${paper.title} 的更多操作`);
   assert.equal(await evaluate(`!!${byLabel(`移动 ${paper.title} 到领域`)}`), true);
@@ -77,6 +81,8 @@ export async function workspaceSmoke({ wc, backend, paper, dataDirectory, evalua
   }
 
   // Select adjacent baseline/superscript symbols in the synthetic PDF.
+  const { pdfNavigationSmoke } = await import('./pdf-navigation-smoke.mjs');
+  await pdfNavigationSmoke({ wc, dataDirectory, evaluate, until });
   await until(`[...document.querySelectorAll('.page[data-page-number="1"] .textLayer span')].some(s=>s.textContent==='E = mc')`, 'formula text');
   const formula = await evaluate(`(() => {
     const spans = [...document.querySelectorAll('.page[data-page-number="1"] .textLayer span')];
@@ -146,6 +152,7 @@ export async function workspaceSmoke({ wc, backend, paper, dataDirectory, evalua
   assert.equal(maps[0].source, markdown);
   await openPaper();
   await until(`!!document.querySelector('.pdfViewer .page canvas')?.width`, 'restored PDF rendered');
+  assert.equal(await evaluate(`[...document.querySelectorAll('.pdf-outline button')].some(b=>b.textContent==='★ 第 3 页')`), true);
   await until(`document.querySelector('.pdf-viewer__toolbar')?.textContent.includes('3 /')`, 'reading position restored');
   const restoredOffset = await evaluate(`(() => {
     const container = document.querySelector('.pdf-viewer__pages').getBoundingClientRect();

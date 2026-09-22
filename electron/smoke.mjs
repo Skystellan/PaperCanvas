@@ -21,6 +21,13 @@ function pdfFixture() {
     objects.push(`<< /Length ${content.length} >>\nstream\n${content}\nendstream`);
   }
   objects[1] = `<< /Type /Pages /Kids [${kids.join(' ')}] /Count ${kids.length} >>`;
+  const outlineId = objects.length + 1;
+  objects[0] = `<< /Type /Catalog /Pages 2 0 R /Outlines ${outlineId} 0 R >>`;
+  objects.push(
+    `<< /Type /Outlines /First ${outlineId + 1} 0 R /Last ${outlineId + 2} 0 R /Count 2 >>`,
+    `<< /Title (Introduction) /Parent ${outlineId} 0 R /Next ${outlineId + 2} 0 R /Dest [${kids[0]} /Fit] >>`,
+    `<< /Title (Results) /Parent ${outlineId} 0 R /Prev ${outlineId + 1} 0 R /Dest [${kids[2]} /Fit] >>`,
+  );
   let pdf = '%PDF-1.7\n';
   const offsets = [0];
   objects.forEach((object, i) => { offsets.push(pdf.length); pdf += `${i + 1} 0 obj\n${object}\nendobj\n`; });

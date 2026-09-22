@@ -1,6 +1,6 @@
 [package]
 name = "paper-canvas"
-version = "0.1.0"
+version = "0.2.0"
 license = "MIT"
 description = "A local-first paper whiteboard"
 edition = "2021"

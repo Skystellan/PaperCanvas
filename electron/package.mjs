@@ -10,8 +10,9 @@ try {
   const manifest = JSON.parse(await readFile(path.join(root, 'package.json'), 'utf8'));
   await writeFile(path.join(stage, 'package.json'), JSON.stringify({
     name: manifest.name, version: manifest.version, main: 'electron/main.mjs',
-    description: 'PaperCanvas desktop', author: 'PaperCanvas',
+    description: 'PaperCanvas desktop', author: 'PaperCanvas', license: manifest.license,
   }));
+  await cp(path.join(root, 'LICENSE'), path.join(stage, 'LICENSE'));
   await cp(path.join(root, 'dist'), path.join(stage, 'dist'), { recursive: true });
   await cp(path.join(root, 'electron'), path.join(stage, 'electron'), {
     recursive: true, filter: (source) => !source.endsWith('.test.mjs') && !source.endsWith('smoke.mjs'),
