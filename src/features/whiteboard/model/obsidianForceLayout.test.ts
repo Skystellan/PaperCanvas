@@ -153,7 +153,7 @@ describe("createObsidianForceLayout", () => {
     expect(layout.positions().get("d")).toEqual({ x: 1_260, y: 0 });
   });
 
-  it("allows symmetric crossing connections to settle without twisting their endpoints", () => {
+  it("gently separates crossing connections after the initial layout slows down", () => {
     const layout = createObsidianForceLayout(
       [
         node("a", 0, 0),
@@ -164,7 +164,19 @@ describe("createObsidianForceLayout", () => {
       [edge("a", "b"), edge("c", "d")],
     );
 
-    layout.settle();
+    let previous = layout.positions();
+    let maximumStep = 0;
+    let maximumLateStep = 0;
+    for (let frame = 0; frame < 900 && !layout.isSettled(); frame += 1) {
+      layout.tick();
+      const current = layout.positions();
+      for (const [id, point] of current) {
+        const step = Math.hypot(point.x - previous.get(id)!.x, point.y - previous.get(id)!.y);
+        maximumStep = Math.max(maximumStep, step);
+        if (frame > 300) maximumLateStep = Math.max(maximumLateStep, step);
+      }
+      previous = current;
+    }
     const positions = layout.positions();
 
     expect(
@@ -174,7 +186,27 @@ describe("createObsidianForceLayout", () => {
         positions.get("c")!,
         positions.get("d")!,
       ),
-    ).toBe(true);
+    ).toBe(false);
+    expect(maximumStep).toBeLessThanOrEqual(8.00001);
+    expect(maximumLateStep).toBeLessThanOrEqual(2.40001);
+    expect(layout.isSettled()).toBe(true);
+  });
+
+  it("opens space around a card while allowing its neighboring connection to stay stretched", () => {
+    const layout = createObsidianForceLayout(
+      [node("a", 0), node("blocker", 420), node("b", 840)],
+      [edge("a", "b")],
+    );
+    layout.settle();
+    const positions = layout.positions();
+    const a = positions.get("a")!;
+    const b = positions.get("b")!;
+    const blocker = positions.get("blocker")!;
+    const length = Math.hypot(b.x - a.x, b.y - a.y);
+    const clearance = Math.abs((blocker.x - a.x) * (b.y - a.y) - (blocker.y - a.y) * (b.x - a.x)) / length;
+    expect(clearance).toBeGreaterThan(80);
+    expect(length).toBeGreaterThan(600);
+    expect(layout.isSettled()).toBe(true);
   });
 
   it("keeps a dense local graph finite while it cools", () => {

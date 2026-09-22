@@ -225,25 +225,66 @@ export async function whiteboardEdgeSmoke({ wc, backend, dataDirectory, evaluate
     await backend.call('database_execute', { query: 'UPDATE board_nodes SET x=?,y=110 WHERE id=?', values: [x, id] });
   }
   await reload();
-  await until(`!!document.querySelector('.react-flow__edge-path')`, 'routed connections');
-  await evaluate('new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))');
+  await until(`!!document.querySelector('.react-flow__edge-path')`, 'straight connections');
+  const positions = `[...document.querySelectorAll('.react-flow__node')].map(node => {
+    const matrix = new DOMMatrix(getComputedStyle(node).transform);
+    return { id: node.dataset.id, x: matrix.m41, y: matrix.m42 };
+  })`;
+  const before = await evaluate(positions);
+  await evaluate(`(() => {
+    window.repulsionFrames = [];
+    window.captureRepulsionFrames = true;
+    function capture() {
+      window.repulsionFrames.push(${positions});
+      if (window.captureRepulsionFrames) requestAnimationFrame(capture);
+    }
+    requestAnimationFrame(capture);
+    [...document.querySelectorAll('button')].find(button => button.textContent === '重新整理布局').click();
+  })()`);
+  let finalPositions;
+  let saved;
+  const deadline = Date.now() + 16_000;
+  const matchesSaved = () => JSON.stringify(finalPositions) !== JSON.stringify(before) && finalPositions.every(position => {
+    const record = saved.find(node => node.id === position.id);
+    return record && Math.hypot(record.x - position.x, record.y - position.y) < 0.01;
+  });
+  do {
+    await delay(100);
+    finalPositions = await evaluate(positions);
+    saved = await backend.call('database_select', { query: 'SELECT id,x,y FROM board_nodes', values: [] });
+  } while (Date.now() < deadline && !matchesSaved());
+  assert.ok(matchesSaved(), 'Repulsion finishes and saves its complete layout');
+  const frames = await evaluate('window.captureRepulsionFrames = false; window.repulsionFrames');
+  let maximumStep = 0;
+  let maximumLateStep = 0;
+  for (let i = 1; i < frames.length; i++) {
+    for (const position of frames[i]) {
+      const previous = frames[i - 1].find(node => node.id === position.id);
+      const step = Math.hypot(position.x - previous.x, position.y - previous.y);
+      maximumStep = Math.max(maximumStep, step);
+      if (i > 300) maximumLateStep = Math.max(maximumLateStep, step);
+    }
+  }
+  assert.ok(maximumStep < 8.01, `Bounded initial movement: ${maximumStep}`);
+  assert.ok(maximumLateStep < 2.41, `Gentle late movement: ${maximumLateStep}`);
   const result = await evaluate(`(() => {
     const path = document.querySelector('.react-flow__edge-path');
-    const cards = [...document.querySelectorAll('.react-flow__node')].map(node => {
-      const matrix = new DOMMatrix(getComputedStyle(node).transform);
-      return { x: matrix.m41, y: matrix.m42, width: node.offsetWidth, height: node.offsetHeight };
-    });
+    const blocker = document.querySelector('.react-flow__node[data-id="node-resnet"]');
+    const matrix = new DOMMatrix(getComputedStyle(blocker).transform);
     let insideCard = false;
     for (let i = 0; i <= 500; i++) {
       const point = path.getPointAtLength(path.getTotalLength() * i / 500);
-      insideCard ||= cards.some(card => point.x > card.x + 0.1 && point.x < card.x + card.width - 0.1 &&
-        point.y > card.y + 0.1 && point.y < card.y + card.height - 0.1);
+      insideCard ||= point.x > matrix.m41 && point.x < matrix.m41 + blocker.offsetWidth &&
+        point.y > matrix.m42 && point.y < matrix.m42 + blocker.offsetHeight;
     }
-    return { insideCard, halo: !!document.querySelector('.whiteboard__edge-halo'), path: path.getAttribute('d') };
+    return { insideCard, path: path.getAttribute('d'), length: path.getTotalLength() };
   })()`);
-  assert.equal(result.insideCard, false, 'The rendered connection avoids every card, including the intervening paper');
-  assert.equal(result.halo, true, 'Crossings have a visual separation');
-  assert.match(result.path, /Q/, 'The detour has rounded corners');
-  await writeFile(path.join(dataDirectory, 'whiteboard-edge-routing.png'), (await wc.capturePage()).toPNG());
-  console.log('Whiteboard connections:', JSON.stringify({ avoidsCards: true, rounded: true, halo: true }));
+  assert.equal(result.insideCard, false, 'Repulsion moves the intervening card clear of the straight connection');
+  assert.doesNotMatch(result.path, /[QC]/, 'Connections remain straight throughout relaxation');
+  assert.ok(result.length > 600, 'The connection can remain longer than its original target');
+  await writeFile(path.join(dataDirectory, 'whiteboard-edge-repulsion.png'), (await wc.capturePage()).toPNG());
+  await reload();
+  await until(`document.querySelectorAll('.react-flow__node').length === 3`, 'restored relaxed layout');
+  assert.deepEqual(await evaluate(positions), finalPositions, 'Reload preserves the relaxed positions');
+  console.log('Whiteboard repulsion:', JSON.stringify({ straight: true, avoidsCard: true, maximumStep, maximumLateStep, length: result.length, saved: true, restored: true }));
 }

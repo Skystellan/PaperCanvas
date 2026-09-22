@@ -17,7 +17,6 @@ export type BoardEdgeRelation = "support" | "challenge" | null;
 
 interface PaperEdgeData extends Record<string, unknown>, BoardEdgeAnnotations {
   relation: BoardEdgeRelation;
-  path?: string;
 }
 
 export type PaperFlowEdge = Edge<PaperEdgeData>;

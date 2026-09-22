@@ -11,6 +11,7 @@ import {
 import type { PaperFlowEdge } from "./boardEdge";
 import type { PaperFlowNode } from "./boardNode";
 import { overlapCorrection, type NodeRectangle } from "./nodeCollision";
+import { createEdgeRepulsion } from "./edgeRepulsion";
 
 interface LayoutNode extends SimulationNodeDatum {
   anchorX: number;
@@ -92,6 +93,9 @@ export function createObsidianForceLayout(
   }
   const offsets = new Map([...groups.keys()].map((id) => [id, { x: 0, y: 0 }]));
   const pinnedNodeIds = new Set<string>();
+  const RELAXATION_FRAMES = 360;
+  let relaxationFrame = -1;
+  let quietFrames = 0;
   const simulations = [...groups.entries()]
     .filter(([id]) => !options.activeDomainIds || options.activeDomainIds.has(id))
     .map(([, group]) => {
@@ -105,13 +109,10 @@ export function createObsidianForceLayout(
         y: group.reduce((sum, node) => sum + (node.y ?? 0), 0) / group.length,
       };
       const localLayout = options.movableNodeIds !== undefined;
-      return forceSimulation(group)
-        .force(
-          "link",
-          forceLink<LayoutNode, LayoutLink>(layoutLinks)
-            .id(({ id }) => id)
-            .distance(OBSIDIAN_LINK_DISTANCE),
-        )
+      const linkForce = forceLink<LayoutNode, LayoutLink>(layoutLinks)
+        .id(({ id }) => id).distance(OBSIDIAN_LINK_DISTANCE);
+      const simulation = forceSimulation(group)
+        .force("link", linkForce)
         .force("charge", forceManyBody<LayoutNode>().strength(-300).distanceMin(30))
         .force(
           "collision",
@@ -137,7 +138,29 @@ export function createObsidianForceLayout(
         .velocityDecay(0.4)
         .alphaDecay(1 - Math.pow(0.001, 1 / 300))
         .stop();
+      const resolvedLinks = layoutLinks.map(link => ({
+        source: byId.get(typeof link.source === "string" ? link.source : link.source.id)!,
+        target: byId.get(typeof link.target === "string" ? link.target : link.target.id)!,
+      }));
+      const repulsion = createEdgeRepulsion(group, resolvedLinks);
+      simulation.force("readability", () => {
+        if (relaxationFrame < 0 || pinnedNodeIds.size > 0) return;
+        const ramp = Math.min(1, relaxationFrame / 45, (RELAXATION_FRAMES - relaxationFrame) / 90);
+        repulsion(Math.max(0, ramp));
+      });
+      simulation.force("speed-limit", () => {
+        const limit = (relaxationFrame < 0 ? 8 : 2.4) / 0.6;
+        for (const node of group) {
+          const speed = Math.hypot(node.vx ?? 0, node.vy ?? 0);
+          if (speed > limit) {
+            node.vx! *= limit / speed;
+            node.vy! *= limit / speed;
+          }
+        }
+      });
+      return { simulation, linkForce, group, resolvedLinks };
     });
+  const needsRelaxation = simulations.some(({ group, resolvedLinks }) => group.length > 2 && resolvedLinks.length > 0);
   let regionsMoving = false;
   const separateRegions = () => {
     regionsMoving = false;
@@ -172,18 +195,42 @@ export function createObsidianForceLayout(
       }
     }
     for (const region of regions) {
-      const scale = Math.min(1, 24 / (Math.hypot(region.dx, region.dy) || 1));
+      const limit = relaxationFrame < 0 ? 24 : 2.4;
+      const scale = Math.min(1, limit / (Math.hypot(region.dx, region.dy) || 1));
       region.offset.x += region.dx * scale;
       region.offset.y += region.dy * scale;
     }
   };
   const tick = (iterations = 1) => {
     for (let iteration = 0; iteration < iterations; iteration += 1) {
-      for (const simulation of simulations) simulation.tick();
+      if (needsRelaxation && relaxationFrame < 0 && pinnedNodeIds.size === 0) {
+        const quiet = simulations.every(({ simulation, group }) => simulation.alpha() < 0.06 &&
+          group.every(node => Math.hypot(node.vx ?? 0, node.vy ?? 0) < 0.8));
+        quietFrames = quiet ? quietFrames + 1 : 0;
+        if (quietFrames >= 12) {
+          relaxationFrame = 0;
+          for (const { simulation, linkForce, group } of simulations) {
+            // Accept the settled lengths, then use weak springs so repulsion can
+            // stretch connections without fighting the original 420px target.
+            linkForce.distance(link => {
+              const a = link.source as LayoutNode;
+              const b = link.target as LayoutNode;
+              return Math.hypot(a.x! - b.x!, a.y! - b.y!);
+            }).strength(0.025);
+            for (const node of group) { node.anchorX = node.x!; node.anchorY = node.y!; }
+            simulation.force("x", forceX<LayoutNode>(node => node.anchorX).strength(0.004));
+            simulation.force("y", forceY<LayoutNode>(node => node.anchorY).strength(0.004));
+            simulation.alpha(0.08);
+          }
+        }
+      }
+      for (const { simulation } of simulations) simulation.tick();
       separateRegions();
+      if (relaxationFrame >= 0 && relaxationFrame < RELAXATION_FRAMES) relaxationFrame += 1;
     }
   };
-  const isSettled = () => !regionsMoving && simulations.every((simulation) => simulation.alpha() <= simulation.alphaMin());
+  const isSettled = () => !regionsMoving && (!needsRelaxation || relaxationFrame >= RELAXATION_FRAMES) &&
+    simulations.every(({ simulation }) => simulation.alpha() <= simulation.alphaMin());
   const positions = () =>
     new Map(
       layoutNodes.map((node) => [
@@ -197,7 +244,7 @@ export function createObsidianForceLayout(
 
   return {
     cool: () => {
-      for (const simulation of simulations) simulation.alphaTarget(0);
+      for (const { simulation } of simulations) simulation.alphaTarget(0);
     },
     isSettled,
     pin: (nodeId: string, position: { x: number; y: number }) => {
@@ -221,11 +268,11 @@ export function createObsidianForceLayout(
       node.fy = null;
     },
     reheat: () => {
-      for (const simulation of simulations) simulation.alpha(Math.max(simulation.alpha(), 0.3)).alphaTarget(0.3);
+      for (const { simulation } of simulations) simulation.alpha(Math.max(simulation.alpha(), 0.3)).alphaTarget(0.3);
     },
     settle: () => {
-      for (const simulation of simulations) simulation.alphaTarget(0);
-      for (let frame = 0; frame < 300 && !isSettled(); frame += 1) tick();
+      for (const { simulation } of simulations) simulation.alphaTarget(0);
+      for (let frame = 0; frame < 900 && !isSettled(); frame += 1) tick();
     },
     tick,
   };

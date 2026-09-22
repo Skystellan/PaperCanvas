@@ -39,9 +39,11 @@ as a whole, preserving its internal arrangement and domain membership.
 Cross-domain links remain visible without pulling regions together. Connections
 may cross, and released cards settle before their positions are saved. Existing
 intersecting regions are separated on load, while valid saved positions are kept.
-Connections attach at separate points on card borders and route around other
-cards. Crossing lines have a small visual gap, and selecting a card fades
-unrelated connections to make its relationships easier to trace.
+Connections remain straight. After released cards slow down, gentle repulsion
+gradually separates nearby or crossing connections and opens space around cards.
+Springs accept the settled lengths and can stretch as the layout relaxes; forces
+ramp up and fade out with bounded movement per frame. Dense graphs can retain
+crossings. Selecting a card fades unrelated connections to help trace relationships.
 
 ## Local data and embedded conversations
 

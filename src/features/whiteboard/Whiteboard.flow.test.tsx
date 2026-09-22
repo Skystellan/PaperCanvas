@@ -49,7 +49,7 @@ function setup(extraConnection = false) {
 }
 
 describe("real React Flow deletion", () => {
-  it("keeps routed edges selectable and dims unrelated connections when focusing a paper", async () => {
+  it("keeps straight edges selectable and dims unrelated connections when focusing a paper", async () => {
     setup(true);
     const related = await screen.findByTestId("rf__edge-a-b");
     const unrelated = await screen.findByTestId("rf__edge-c-d");

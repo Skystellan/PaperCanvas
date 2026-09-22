@@ -1003,7 +1003,7 @@ describe("Whiteboard", () => {
 
     const nodeIds = [leftNode.id, rightNode.id, blockerNode.id];
     let previous = nodeIds.map(renderedPosition);
-    for (let frame = 1; frame <= 300 && motion.callback; frame += 1) {
+    for (let frame = 1; frame <= 900 && motion.callback; frame += 1) {
       const callback = motion.callback;
       motion.callback = null;
       act(() => callback?.(frame * 16));
