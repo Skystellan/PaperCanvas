@@ -56,11 +56,25 @@ export async function smoke({ window, backend, chats, dataDirectory, chatSession
   }
   await until('!!window.paperCanvas', 'preload');
   if (process.env.PAPERCANVAS_WHITEBOARD_SMOKE === '1') {
-    const reload = async () => { const ready = once(wc, 'did-finish-load'); wc.reload(); await ready; };
+    const reload = async () => {
+      const ready = once(wc, 'did-finish-load');
+      wc.reload();
+      await ready;
+      // macOS can still deliver cursor movement despite ignoreMouseEvents.
+      // Our sendInputEvent calls supply local coordinates only (screen 0,0).
+      await evaluate(`['mousedown', 'mousemove', 'mouseup'].forEach(type => {
+        window.addEventListener(type, event => {
+          if (event.screenX || event.screenY) event.stopImmediatePropagation();
+        }, true);
+      })`);
+    };
     await until(`!!document.querySelector('.react-flow__node[data-id="node-attention"]')`, 'canvas fixture');
     await backend.call('database_execute', {
       query: 'INSERT INTO board_edges(id,board_id,source_node_id,target_node_id,created_at) VALUES(?,?,?,?,?)',
       values: ['drag-smoke-edge', 'board-default', 'node-attention', 'node-bert', 1],
+    });
+    await backend.call('database_execute', {
+      query: "UPDATE board_nodes SET x=1600,y=110 WHERE id='node-bert'", values: [],
     });
     await reload();
     await until(`!!document.querySelector('.react-flow__edge[data-testid="rf__edge-drag-smoke-edge"]')`, 'connected canvas fixture');

@@ -67,6 +67,75 @@ function segmentsCross(
 }
 
 describe("createObsidianForceLayout", () => {
+  it("smoothly shortens an overstretched link without pulling back the dropped card", () => {
+    const layout = createObsidianForceLayout([node("a", 0), node("b", 420)], [edge("a", "b")]);
+    const drop = { x: -1_200, y: 0 };
+    layout.pin("a", drop);
+    layout.reheat();
+    layout.tick(5); // A quick drag can end before the neighbor catches up.
+    layout.release("a");
+    layout.cool();
+    let previous = layout.positions().get("b")!;
+    for (let frame = 0; frame < 900 && !layout.isSettled(); frame++) {
+      layout.tick();
+      const positions = layout.positions();
+      expect(positions.get("a")).toEqual(drop);
+      const current = positions.get("b")!;
+      expect(Math.hypot(current.x - previous.x, current.y - previous.y)).toBeLessThanOrEqual(8.00001);
+      previous = current;
+    }
+    expect(Math.hypot(previous.x - drop.x, previous.y - drop.y)).toBeLessThan(800);
+    expect(layout.isSettled()).toBe(true);
+  });
+
+  it("does not keep accepting longer connections across repeated drags", () => {
+    let nodes = [node("hub", 0), node("leaf", 1_300), node("neighbor", 0, 450)];
+    const edges = [edge("hub", "leaf"), edge("hub", "neighbor")];
+    for (let cycle = 0; cycle < 4; cycle++) {
+      const layout = createObsidianForceLayout(nodes, edges);
+      const hub = nodes[0].position;
+      const drop = { x: hub.x - 200, y: hub.y };
+      layout.pin("hub", drop);
+      layout.release("hub");
+      layout.settle();
+      const positions = layout.positions();
+      const leaf = positions.get("leaf")!;
+      expect(positions.get("hub")).toEqual(drop);
+      expect(Math.hypot(leaf.x - drop.x, leaf.y - drop.y)).toBeLessThan(800);
+      nodes = nodes.map(node => ({ ...node, position: positions.get(node.id)! }));
+    }
+  });
+
+  it("keeps crowded connections bounded while readability forces separate them", () => {
+    const leaves = Array.from({ length: 12 }, (_, i) =>
+      node(`leaf-${i}`, Math.cos(i * Math.PI / 6) * 1_300, Math.sin(i * Math.PI / 6) * 1_300));
+    const edges = [
+      ...leaves.map(leaf => edge("hub", leaf.id)),
+      edge("leaf-0", "leaf-6"), edge("leaf-2", "leaf-8"), edge("leaf-4", "leaf-10"),
+    ];
+    const layout = createObsidianForceLayout([node("hub", 0), ...leaves], edges);
+    layout.pin("hub", { x: 100, y: 50 });
+    layout.release("hub");
+    let previous = layout.positions();
+    for (let frame = 0; frame < 900 && !layout.isSettled(); frame++) {
+      layout.tick();
+      const current = layout.positions();
+      for (const [id, point] of current) {
+        const before = previous.get(id)!;
+        expect(Math.hypot(point.x - before.x, point.y - before.y)).toBeLessThanOrEqual(frame > 300 ? 2.40001 : 8.00001);
+      }
+      previous = current;
+    }
+    const positions = layout.positions();
+    for (const { source, target } of edges) {
+      const a = positions.get(source)!;
+      const b = positions.get(target)!;
+      expect(Math.hypot(a.x - b.x, a.y - b.y)).toBeLessThan(950);
+    }
+    expect(positions.get("hub")).toEqual({ x: 100, y: 50 });
+    expect(layout.isSettled()).toBe(true);
+  });
+
   it("keeps a hub steady when one of its leaves is dragged", () => {
     const { nodes, edges } = settledStar();
     const hub = nodes.find(node => node.id === "hub")!.position;

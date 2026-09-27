@@ -37,10 +37,12 @@ interface ObsidianForceLayoutOptions {
 
 export const OBSIDIAN_LINK_DISTANCE = 420;
 
-function currentLinkLength(link: LayoutLink) {
+function relaxedLinkLength(link: LayoutLink) {
   const a = link.source as LayoutNode;
   const b = link.target as LayoutNode;
-  return Math.hypot(a.x! - b.x!, a.y! - b.y!);
+  // Allow room for readable connections without making every stretch permanent.
+  // This caps the spring's rest length, not the node positions or pointer travel.
+  return Math.min(Math.hypot(a.x! - b.x!, a.y! - b.y!), OBSIDIAN_LINK_DISTANCE * 1.5);
 }
 
 export function localLayoutNodeIds(
@@ -169,6 +171,22 @@ export function createObsidianForceLayout(
         target: byId.get(typeof link.target === "string" ? link.target : link.target.id)!,
       }));
       const repulsion = createEdgeRepulsion(group, resolvedLinks);
+      simulation.force("overstretch", () => {
+        // Cooling weakens the layout springs, but must not switch off recovery
+        // from excessive stretching while readability forces still move cards.
+        for (const { source, target } of resolvedLinks) {
+          const dx = target.x! - source.x!;
+          const dy = target.y! - source.y!;
+          const distance = Math.hypot(dx, dy);
+          const excess = distance - OBSIDIAN_LINK_DISTANCE * 2;
+          if (excess <= 0) continue;
+          const impulse = excess * 0.025 / distance;
+          source.vx! += dx * impulse;
+          source.vy! += dy * impulse;
+          target.vx! -= dx * impulse;
+          target.vy! -= dy * impulse;
+        }
+      });
       simulation.force("readability", () => {
         if (relaxationFrame < 0 || pinnedNodeIds.size > 0) return;
         const ramp = Math.min(1, relaxationFrame / 45, (RELAXATION_FRAMES - relaxationFrame) / 90);
@@ -240,9 +258,8 @@ export function createObsidianForceLayout(
         if (quietFrames >= 12) {
           relaxationFrame = 0;
           for (const { simulation, linkForce, group } of simulations) {
-            // Accept the settled lengths, then use weak springs so repulsion can
-            // stretch connections without fighting the original 420px target.
-            linkForce.distance(currentLinkLength).strength(0.025);
+            // Preserve reasonable spacing while long connections still contract.
+            linkForce.distance(relaxedLinkLength).strength(0.025);
             for (const node of group) { node.anchorX = node.x!; node.anchorY = node.y!; }
             simulation.force("x", forceX<LayoutNode>(node => node.anchorX).strength(0.004));
             simulation.force("y", forceY<LayoutNode>(node => node.anchorY).strength(0.004));
@@ -281,7 +298,7 @@ export function createObsidianForceLayout(
         for (const { simulation, linkForce, group } of simulations) {
           // A drag edits the existing arrangement, rather than restarting a
           // compact layout around its old center with 420px springs.
-          linkForce.distance(currentLinkLength);
+          linkForce.distance(relaxedLinkLength);
           for (const member of group) { member.anchorX = member.x!; member.anchorY = member.y!; }
           simulation.force("x", forceX<LayoutNode>(member => member.anchorX).strength(0.008));
           simulation.force("y", forceY<LayoutNode>(member => member.anchorY).strength(0.008));
@@ -306,7 +323,7 @@ export function createObsidianForceLayout(
       // Preserve the user's drop point for this cooling cycle. The next drag or
       // explicit re-layout creates a fresh simulation, so this is not a permanent lock.
       releasedNodeIds.add(nodeId);
-      for (const { linkForce } of simulations) linkForce.distance(currentLinkLength);
+      for (const { linkForce } of simulations) linkForce.distance(relaxedLinkLength);
     },
     reheat: () => {
       for (const { simulation } of simulations) simulation.alpha(Math.max(simulation.alpha(), 0.3)).alphaTarget(0.3);

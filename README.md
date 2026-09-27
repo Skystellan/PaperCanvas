@@ -31,7 +31,7 @@ annotations and Markdown-based Markmap mind maps work entirely offline.
 Get the app from [GitHub Releases](https://github.com/Skystellan/PaperCanvas/releases/latest).
 The current binary supports **Apple Silicon Macs (M1 or newer), macOS 13+**.
 
-1. Download `PaperCanvas-0.2.1-macOS-arm64.zip` from the release's **Assets**.
+1. Download `PaperCanvas-0.2.2-macOS-arm64.zip` from the release's **Assets**.
 2. Unzip it and move `PaperCanvas.app` to **Applications**. Quit an older copy before replacing it.
 3. Open PaperCanvas and import your PDFs. Upgrading the app preserves your local library and notes.
 
@@ -78,8 +78,10 @@ may cross, and the layout settles before its positions are saved. Existing
 intersecting regions are separated on load, while valid saved positions are kept.
 Connections remain straight. After the network slows down, gentle repulsion
 gradually separates nearby or crossing connections and opens space around cards.
-Springs accept the settled lengths and can stretch as the layout relaxes; forces
-ramp up and fade out with bounded movement per frame. Dense graphs can retain
+Springs preserve reasonable spacing and can stretch for readability. Excessively
+long connections retain a gentle restoring force while the layout cools, so
+repeated dragging does not keep accepting longer and longer natural lengths.
+Movement stays bounded per frame. Dense graphs can retain
 crossings. All connections remain fully visible while selecting or dragging cards.
 
 ## Local data and embedded conversations

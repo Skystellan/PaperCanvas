@@ -35,7 +35,7 @@ export async function whiteboardDragSmoke({ wc, backend, dataDirectory, evaluate
     for (let step = 1; step <= 20; step++) {
       const pointer = { x: start.x + step * 5, y: start.y + step * 2 };
       wc.sendInputEvent({ type: 'mouseMove', button: 'left', modifiers: ['leftbuttondown'], ...pointer });
-      await delay(20);
+      await evaluate('new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))');
       const actual = await evaluate(`(() => {
         const rect = ${draggedNode}.getBoundingClientRect();
         return { x: rect.left + rect.width / 2, y: rect.top + 24 };
@@ -51,7 +51,8 @@ export async function whiteboardDragSmoke({ wc, backend, dataDirectory, evaluate
     wc.sendInputEvent({ type: 'mouseUp', button: 'left', clickCount: 1, x: start.x + 100, y: start.y + 40 });
   }
 
-  const deadline = Date.now() + 12_000;
+  // Long-link recovery precedes the existing readability phase (up to 900 ticks).
+  const deadline = Date.now() + 20_000;
   let saved;
   let finalPositions;
   while (Date.now() < deadline) {
@@ -79,17 +80,20 @@ export async function whiteboardDragSmoke({ wc, backend, dataDirectory, evaluate
   const released = finalPositions.find(({ id }) => id === 'node-attention');
   const dropDrift = Math.hypot(released.x - dropPosition.x, released.y - dropPosition.y);
   assert.ok(dropDrift < 0.01, `The dropped card stays at the pointer's final position: ${dropDrift}`);
+  const neighbor = finalPositions.find(({ id }) => id === 'node-bert');
+  const linkLength = Math.hypot(released.x - neighbor.x, released.y - neighbor.y);
+  assert.ok(linkLength < 850, `An overstretched link contracts after release: ${linkLength}`);
   for (const position of finalPositions) {
     const record = saved.find(({ id }) => id === position.id);
     assert.ok(record && Math.hypot(record.x - position.x, record.y - position.y) < 0.01,
-      'The cooled positions are durable');
+      `The cooled positions are durable: ${JSON.stringify({ frames: frames.length, position, record })}`);
   }
   await writeFile(path.join(dataDirectory, 'whiteboard-drag.png'), (await wc.capturePage()).toPNG());
   await reload();
   await until(`${nodes}.length === ${finalPositions.length}`, 'saved cards after reload');
   const restored = await evaluate(positions);
   assert.deepEqual(restored, finalPositions, 'Reload preserves positions without moving domain groups');
-  console.log('Whiteboard drag:', JSON.stringify({ frames: frames.length, maximumStep, dropDrift, saved: true, restored: true }));
+  console.log('Whiteboard drag:', JSON.stringify({ frames: frames.length, maximumStep, dropDrift, linkLength, saved: true, restored: true }));
 }
 
 export async function whiteboardDomainSmoke({ wc, backend, dataDirectory, evaluate, until, reload }) {
@@ -288,10 +292,14 @@ export async function whiteboardEdgeSmoke({ wc, backend, dataDirectory, evaluate
   })()`);
   assert.equal(result.insideCard, false, 'Repulsion moves the intervening card clear of the straight connection');
   assert.doesNotMatch(result.path, /[QC]/, 'Connections remain straight throughout relaxation');
-  assert.ok(result.length > 600, 'The connection can remain longer than its original target');
+  const a = finalPositions.find(node => node.id === 'node-attention');
+  const b = finalPositions.find(node => node.id === 'node-bert');
+  const centerDistance = Math.hypot(a.x - b.x, a.y - b.y);
+  assert.ok(centerDistance > 600 && centerDistance < 900,
+    `The connection can stretch for readability without becoming excessive: ${centerDistance}`);
   await writeFile(path.join(dataDirectory, 'whiteboard-edge-repulsion.png'), (await wc.capturePage()).toPNG());
   await reload();
   await until(`document.querySelectorAll('.react-flow__node').length === 3`, 'restored relaxed layout');
   assert.deepEqual(await evaluate(positions), finalPositions, 'Reload preserves the relaxed positions');
-  console.log('Whiteboard repulsion:', JSON.stringify({ straight: true, avoidsCard: true, maximumStep, maximumLateStep, length: result.length, saved: true, restored: true }));
+  console.log('Whiteboard repulsion:', JSON.stringify({ straight: true, avoidsCard: true, maximumStep, maximumLateStep, length: result.length, centerDistance, saved: true, restored: true }));
 }
