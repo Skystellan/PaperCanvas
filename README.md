@@ -31,7 +31,7 @@ annotations and Markdown-based Markmap mind maps work entirely offline.
 Get the app from [GitHub Releases](https://github.com/Skystellan/PaperCanvas/releases/latest).
 The current binary supports **Apple Silicon Macs (M1 or newer), macOS 13+**.
 
-1. Download `PaperCanvas-0.2.2-macOS-arm64.zip` from the release's **Assets**.
+1. Download `PaperCanvas-0.2.3-macOS-arm64.zip` from the release's **Assets**.
 2. Unzip it and move `PaperCanvas.app` to **Applications**. Quit an older copy before replacing it.
 3. Open PaperCanvas and import your PDFs. Upgrading the app preserves your local library and notes.
 
@@ -67,6 +67,9 @@ Intel Mac, Windows, and Linux binaries are not included in this release.
 
 Canvas dragging uses a continuous force layout within each domain. Connected
 hubs have more inertia, so moving a leaf has less effect on the whole network.
+When dragging a hub, its less-connected immediate neighbors gently retain their
+original directions around it. This preserves a star's structure while allowing
+connection lengths to change for spacing and collision avoidance.
 Dragging starts from the existing connection lengths instead of compacting the
 network again. A released card keeps its drop point while its neighbors settle;
 the next drag or explicit re-layout can move it again. Region

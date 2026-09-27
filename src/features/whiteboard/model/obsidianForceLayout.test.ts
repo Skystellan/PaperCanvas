@@ -67,6 +67,53 @@ function segmentsCross(
 }
 
 describe("createObsidianForceLayout", () => {
+  it.each([{ x: 1_200, y: 0 }, { x: 0, y: -1_200 }, { x: -900, y: 600 }])(
+    "preserves a star's neighbor directions after moving its hub by $x,$y",
+    (delta) => {
+      const { nodes, edges } = settledStar();
+      const hub = nodes[0].position;
+      const drop = { x: hub.x + delta.x, y: hub.y + delta.y };
+      const layout = createObsidianForceLayout(nodes, edges);
+      layout.reheat();
+      for (let frame = 1; frame <= 60; frame++) {
+        layout.pin("hub", { x: hub.x + delta.x * frame / 60, y: hub.y + delta.y * frame / 60 });
+        layout.tick();
+      }
+      layout.release("hub");
+      layout.cool();
+      let previous = layout.positions();
+      for (let frame = 0; frame < 900 && !layout.isSettled(); frame++) {
+        layout.tick();
+        const current = layout.positions();
+        for (const [id, position] of current) {
+          const before = previous.get(id)!;
+          expect(Math.hypot(position.x - before.x, position.y - before.y)).toBeLessThanOrEqual(8.00001);
+        }
+        previous = current;
+      }
+      const positions = layout.positions();
+      expect(positions.get("hub")!.x).toBeCloseTo(drop.x, 8);
+      expect(positions.get("hub")!.y).toBeCloseTo(drop.y, 8);
+      for (const leaf of nodes.slice(1)) {
+        const before = { x: leaf.position.x - hub.x, y: leaf.position.y - hub.y };
+        const after = { x: positions.get(leaf.id)!.x - drop.x, y: positions.get(leaf.id)!.y - drop.y };
+        const directionSimilarity = (before.x * after.x + before.y * after.y) /
+          (Math.hypot(before.x, before.y) * Math.hypot(after.x, after.y));
+        expect(directionSimilarity, leaf.id).toBeGreaterThan(0.9);
+        expect(Math.hypot(after.x, after.y)).toBeLessThan(950);
+      }
+      const ring = nodes.slice(1).sort((a, b) =>
+        Math.atan2(a.position.y - hub.y, a.position.x - hub.x) -
+        Math.atan2(b.position.y - hub.y, b.position.x - hub.x));
+      for (let index = 0; index < ring.length; index++) {
+        const a = positions.get(ring[index].id)!;
+        const b = positions.get(ring[(index + 1) % ring.length].id)!;
+        expect((a.x - drop.x) * (b.y - drop.y) - (a.y - drop.y) * (b.x - drop.x)).toBeGreaterThan(0);
+      }
+      expect(layout.isSettled()).toBe(true);
+    },
+  );
+
   it("smoothly shortens an overstretched link without pulling back the dropped card", () => {
     const layout = createObsidianForceLayout([node("a", 0), node("b", 420)], [edge("a", "b")]);
     const drop = { x: -1_200, y: 0 };

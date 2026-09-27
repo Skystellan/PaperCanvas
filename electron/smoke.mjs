@@ -55,7 +55,7 @@ export async function smoke({ window, backend, chats, dataDirectory, chatSession
     throw new Error(`Timed out: ${label}; renderer errors: ${errors.join('; ')}`);
   }
   await until('!!window.paperCanvas', 'preload');
-  if (process.env.PAPERCANVAS_WHITEBOARD_SMOKE === '1') {
+  if (['1', 'star'].includes(process.env.PAPERCANVAS_WHITEBOARD_SMOKE)) {
     const reload = async () => {
       const ready = once(wc, 'did-finish-load');
       wc.reload();
@@ -68,6 +68,11 @@ export async function smoke({ window, backend, chats, dataDirectory, chatSession
         }, true);
       })`);
     };
+    const { whiteboardStarSmoke } = await import('./whiteboard-star-smoke.mjs');
+    if (process.env.PAPERCANVAS_WHITEBOARD_SMOKE === 'star') {
+      await whiteboardStarSmoke({ wc, backend, dataDirectory, evaluate, until, reload });
+      return;
+    }
     await until(`!!document.querySelector('.react-flow__node[data-id="node-attention"]')`, 'canvas fixture');
     await backend.call('database_execute', {
       query: 'INSERT INTO board_edges(id,board_id,source_node_id,target_node_id,created_at) VALUES(?,?,?,?,?)',
@@ -82,6 +87,7 @@ export async function smoke({ window, backend, chats, dataDirectory, chatSession
     await whiteboardDragSmoke({ wc, backend, dataDirectory, evaluate, until, reload });
     await whiteboardDomainSmoke({ wc, backend, dataDirectory, evaluate, until, reload });
     await whiteboardEdgeSmoke({ wc, backend, dataDirectory, evaluate, until, reload });
+    await whiteboardStarSmoke({ wc, backend, dataDirectory, evaluate, until, reload });
     return;
   }
   // Missing grants must fail even when the caller is the trusted renderer.

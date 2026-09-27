@@ -170,6 +170,34 @@ export function createObsidianForceLayout(
         source: byId.get(typeof link.source === "string" ? link.source : link.source.id)!,
         target: byId.get(typeof link.target === "string" ? link.target : link.target.id)!,
       }));
+      const neighborDirections = resolvedLinks.flatMap(({ source, target }) => {
+        const [hub, neighbor] = (degrees.get(source.id) ?? 0) > (degrees.get(target.id) ?? 0)
+          ? [source, target] : [target, source];
+        const hubDegree = degrees.get(hub.id)!;
+        const neighborDegree = degrees.get(neighbor.id)!;
+        if (hubDegree < 3 || hubDegree === neighborDegree) return [];
+        return [{ hub, neighbor,
+          angle: Math.atan2(neighbor.y! - hub.y!, neighbor.x! - hub.x!),
+          weight: (hubDegree - neighborDegree) / (hubDegree - 1),
+        }];
+      });
+      simulation.force("neighbor-direction", () => {
+        for (const { hub, neighbor, angle, weight } of neighborDirections) {
+          if (!pinnedNodeIds.has(hub.id) && !releasedNodeIds.has(hub.id)) continue;
+          if (neighbor.fx != null || neighbor.fy != null) continue;
+          const dx = neighbor.x! - hub.x!;
+          const dy = neighbor.y! - hub.y!;
+          const distance = Math.hypot(dx, dy);
+          const difference = angle - Math.atan2(dy, dx);
+          const turn = Math.atan2(Math.sin(difference), Math.cos(difference));
+          // Tangential motion keeps the original side of a dragged hub without
+          // locking radii: springs and collision avoidance can still change spacing.
+          const impulse = turn * Math.min(distance, OBSIDIAN_LINK_DISTANCE * 1.5) * 0.08 * weight;
+          const currentAngle = Math.atan2(dy, dx);
+          neighbor.vx! -= Math.sin(currentAngle) * impulse;
+          neighbor.vy! += Math.cos(currentAngle) * impulse;
+        }
+      });
       const repulsion = createEdgeRepulsion(group, resolvedLinks);
       simulation.force("overstretch", () => {
         // Cooling weakens the layout springs, but must not switch off recovery
