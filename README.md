@@ -31,7 +31,7 @@ annotations and Markdown-based Markmap mind maps work entirely offline.
 Get the app from [GitHub Releases](https://github.com/Skystellan/PaperCanvas/releases/latest).
 The current binary supports **Apple Silicon Macs (M1 or newer), macOS 13+**.
 
-1. Download `PaperCanvas-0.2.0-macOS-arm64.zip` from the release's **Assets**.
+1. Download `PaperCanvas-0.2.1-macOS-arm64.zip` from the release's **Assets**.
 2. Unzip it and move `PaperCanvas.app` to **Applications**. Quit an older copy before replacing it.
 3. Open PaperCanvas and import your PDFs. Upgrading the app preserves your local library and notes.
 
@@ -65,14 +65,18 @@ Intel Mac, Windows, and Linux binaries are not included in this release.
 - Recent discussions remains expanded by default
 - Coordinated navigation/close saving and additive SQLite migrations
 
-Canvas dragging uses a continuous force layout within each domain. Region
+Canvas dragging uses a continuous force layout within each domain. Connected
+hubs have more inertia, so moving a leaf has less effect on the whole network.
+Dragging starts from the existing connection lengths instead of compacting the
+network again. A released card keeps its drop point while its neighbors settle;
+the next drag or explicit re-layout can move it again. Region
 backgrounds follow their member cards, expanding and shrinking as cards move.
 When a region grows into a neighbor, that neighboring group smoothly moves aside
 as a whole, preserving its internal arrangement and domain membership.
 Cross-domain links remain visible without pulling regions together. Connections
-may cross, and released cards settle before their positions are saved. Existing
+may cross, and the layout settles before its positions are saved. Existing
 intersecting regions are separated on load, while valid saved positions are kept.
-Connections remain straight. After released cards slow down, gentle repulsion
+Connections remain straight. After the network slows down, gentle repulsion
 gradually separates nearby or crossing connections and opens space around cards.
 Springs accept the settled lengths and can stretch as the layout relaxes; forces
 ramp up and fade out with bounded movement per frame. Dense graphs can retain

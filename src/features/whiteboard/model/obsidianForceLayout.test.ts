@@ -30,6 +30,19 @@ function edge(source: string, target: string): PaperFlowEdge {
   return { id: `${source}-${target}`, source, target };
 }
 
+function settledStar() {
+  const leaves = Array.from({ length: 8 }, (_, index) => {
+    const angle = index * Math.PI / 4;
+    return node(`leaf-${index}`, Math.cos(angle) * 600, Math.sin(angle) * 600);
+  });
+  const nodes = [node("hub", 0), ...leaves];
+  const edges = leaves.map(leaf => edge("hub", leaf.id));
+  const initial = createObsidianForceLayout(nodes, edges);
+  initial.settle();
+  const positions = initial.positions();
+  return { nodes: nodes.map(node => ({ ...node, position: positions.get(node.id)! })), edges };
+}
+
 function segmentsCross(
   firstStart: { x: number; y: number },
   firstEnd: { x: number; y: number },
@@ -54,6 +67,49 @@ function segmentsCross(
 }
 
 describe("createObsidianForceLayout", () => {
+  it("keeps a hub steady when one of its leaves is dragged", () => {
+    const { nodes, edges } = settledStar();
+    const hub = nodes.find(node => node.id === "hub")!.position;
+    const leaf = nodes.find(node => node.id === "leaf-0")!.position;
+    const layout = createObsidianForceLayout(nodes, edges);
+    layout.reheat();
+    for (let frame = 1; frame <= 60; frame += 1) {
+      layout.pin("leaf-0", { x: leaf.x + frame * 5, y: leaf.y });
+      layout.tick();
+    }
+    const moved = layout.positions().get("hub")!;
+    expect(Math.hypot(moved.x - hub.x, moved.y - hub.y)).toBeLessThan(300 * 0.2);
+    layout.release("leaf-0");
+    layout.cool();
+    layout.settle();
+    const cooled = layout.positions().get("hub")!;
+    expect(Math.hypot(cooled.x - hub.x, cooled.y - hub.y)).toBeLessThan(300 * 0.2);
+  });
+
+  it("keeps a moved hub at the drop point throughout cooling", () => {
+    const { nodes, edges } = settledStar();
+    const hub = nodes.find(node => node.id === "hub")!.position;
+    const drop = { x: hub.x + 600, y: hub.y + 200 };
+    const layout = createObsidianForceLayout(nodes, edges);
+    layout.pin("hub", drop);
+    layout.reheat();
+    layout.tick(30);
+    expect(nodes.filter(node => node.id !== "hub").some(node => {
+      const moved = layout.positions().get(node.id)!;
+      return Math.hypot(moved.x - node.position.x, moved.y - node.position.y) > 30;
+    })).toBe(true);
+    layout.release("hub");
+    layout.cool();
+    layout.settle();
+    const final = layout.positions().get("hub")!;
+    expect(final.x).toBeCloseTo(drop.x, 8);
+    expect(final.y).toBeCloseTo(drop.y, 8);
+    expect(layout.isSettled()).toBe(true);
+    const next = createObsidianForceLayout(nodes.map(node => ({ ...node, position: layout.positions().get(node.id)! })), edges);
+    next.settle();
+    expect(next.positions().get("hub")).not.toEqual(final);
+  });
+
   it("does not attract distant domains through cross-domain links", () => {
     const a = node("a", 0);
     const b = node("b", 1_000);
@@ -98,6 +154,7 @@ describe("createObsidianForceLayout", () => {
     layout.settle();
     expect(layout.isSettled()).toBe(true);
     expect(layout.positions().get("d")!.x - layout.positions().get("c")!.x).toBeCloseTo(420);
+    expect(layout.positions().get("b")).toEqual({ x: 1_000, y: 0 });
   });
 
   it("limits connection edits to two graph hops", () => {
@@ -235,7 +292,7 @@ describe("createObsidianForceLayout", () => {
     }
   });
 
-  it("releases a dragged card back into the cooling simulation", () => {
+  it("keeps a dropped card in place while its neighbors cool", () => {
     const layout = createObsidianForceLayout(
       [node("a", 0), node("b", 420)],
       [edge("a", "b")],
@@ -248,7 +305,7 @@ describe("createObsidianForceLayout", () => {
     layout.cool();
     layout.settle();
 
-    expect(layout.positions().get("a")).not.toEqual({ x: 300, y: 40 });
+    expect(layout.positions().get("a")).toEqual({ x: 300, y: 40 });
     expect(layout.isSettled()).toBe(true);
   });
 

@@ -682,6 +682,8 @@ function WhiteboardCanvas({
         activeSeeds && dragSessionNodeIds.current.size === 0
           ? localLayoutNodeIds(activeSeeds, layoutEdges)
           : undefined;
+      const releasedNodeIds = seeds && dragSessionNodeIds.current.size === 0
+        ? forceLayout.current?.releasedNodeIds : undefined;
       const layout = createObsidianForceLayout(
         layoutNodes,
         layoutEdges,
@@ -689,6 +691,14 @@ function WhiteboardCanvas({
       );
       forceLayout.current = layout;
       forceLayoutNodeIds.current = layoutNodeIds;
+      // A pending connection may finish after pointer-up. Keep that drop point
+      // when rebuilding the cooling simulation for the newly saved connection.
+      for (const nodeId of releasedNodeIds ?? []) {
+        const node = nodesRef.current.find(candidate => candidate.id === nodeId);
+        if (!node) continue;
+        layout.pin(nodeId, node.position);
+        layout.release(nodeId);
+      }
       for (const nodeId of dragSessionNodeIds.current) {
         const node = nodesRef.current.find((candidate) => candidate.id === nodeId);
         if (node) layout.pin(nodeId, node.position);

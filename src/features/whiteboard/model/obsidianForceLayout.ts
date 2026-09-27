@@ -20,6 +20,9 @@ interface LayoutNode extends SimulationNodeDatum {
   domainId: string | null;
   height: number;
   width: number;
+  mass: number;
+  previousVx: number;
+  previousVy: number;
 }
 
 interface LayoutLink extends SimulationLinkDatum<LayoutNode> {
@@ -33,6 +36,12 @@ interface ObsidianForceLayoutOptions {
 }
 
 export const OBSIDIAN_LINK_DISTANCE = 420;
+
+function currentLinkLength(link: LayoutLink) {
+  const a = link.source as LayoutNode;
+  const b = link.target as LayoutNode;
+  return Math.hypot(a.x! - b.x!, a.y! - b.y!);
+}
 
 export function localLayoutNodeIds(
   seedNodeIds: Iterable<string>,
@@ -64,6 +73,11 @@ export function createObsidianForceLayout(
   edges: readonly PaperFlowEdge[],
   options: ObsidianForceLayoutOptions = {},
 ) {
+  const degrees = new Map<string, number>();
+  for (const { source, target } of edges) {
+    degrees.set(source, (degrees.get(source) ?? 0) + 1);
+    degrees.set(target, (degrees.get(target) ?? 0) + 1);
+  }
   const layoutNodes: LayoutNode[] = nodes.map((node) => {
     const width = size(node.measured?.width) || size(node.style?.width);
     const height = size(node.measured?.height) || size(node.style?.height);
@@ -79,6 +93,10 @@ export function createObsidianForceLayout(
       domainId: node.data.paper.domainId,
       width,
       height,
+      // Hubs resist acceleration; directly dragged cards still follow the pointer.
+      mass: Math.max(1, Math.min(8, degrees.get(node.id) ?? 0)),
+      previousVx: 0,
+      previousVy: 0,
       x,
       y,
       ...(fixed ? { fx: x, fy: y } : {}),
@@ -93,6 +111,8 @@ export function createObsidianForceLayout(
   }
   const offsets = new Map([...groups.keys()].map((id) => [id, { x: 0, y: 0 }]));
   const pinnedNodeIds = new Set<string>();
+  const releasedNodeIds = new Set<string>();
+  let draggingLayout = false;
   const RELAXATION_FRAMES = 360;
   let relaxationFrame = -1;
   let quietFrames = 0;
@@ -112,6 +132,12 @@ export function createObsidianForceLayout(
       const linkForce = forceLink<LayoutNode, LayoutLink>(layoutLinks)
         .id(({ id }) => id).distance(OBSIDIAN_LINK_DISTANCE);
       const simulation = forceSimulation(group)
+        .force("momentum", () => {
+          for (const node of group) {
+            node.previousVx = node.vx ?? 0;
+            node.previousVy = node.vy ?? 0;
+          }
+        })
         .force("link", linkForce)
         .force("charge", forceManyBody<LayoutNode>().strength(-300).distanceMin(30))
         .force(
@@ -151,6 +177,8 @@ export function createObsidianForceLayout(
       simulation.force("speed-limit", () => {
         const limit = (relaxationFrame < 0 ? 8 : 2.4) / 0.6;
         for (const node of group) {
+          node.vx = node.previousVx + (node.vx! - node.previousVx) / node.mass;
+          node.vy = node.previousVy + (node.vy! - node.previousVy) / node.mass;
           const speed = Math.hypot(node.vx ?? 0, node.vy ?? 0);
           if (speed > limit) {
             node.vx! *= limit / speed;
@@ -176,18 +204,20 @@ export function createObsidianForceLayout(
         position: { x: left + offset.x, y: top + offset.y },
         size: { width: right - left, height: bottom - top },
       };
-      return { offset, rectangle, pinned: group.some((node) => pinnedNodeIds.has(node.id)), dx: 0, dy: 0 };
+      const priority = group.some(node => pinnedNodeIds.has(node.id)) ? 2
+        : group.some(node => releasedNodeIds.has(node.id)) ? 1 : 0;
+      return { offset, rectangle, priority, dx: 0, dy: 0 };
     });
     // Translate whole regions independently of their internal force simulations.
     for (let first = 0; first < regions.length; first += 1) {
       for (let second = first + 1; second < regions.length; second += 1) {
         const a = regions[first];
         const b = regions[second];
-        if (a.pinned && b.pinned) continue;
+        if (a.priority === 2 && b.priority === 2) continue;
         const correction = overlapCorrection(a.rectangle, b.rectangle, 64);
         if (!correction) continue;
         regionsMoving = true;
-        const aShare = a.pinned ? 0 : b.pinned ? 1 : 0.5;
+        const aShare = a.priority > b.priority ? 0 : a.priority < b.priority ? 1 : 0.5;
         a.dx -= correction.x * aShare * 0.25;
         a.dy -= correction.y * aShare * 0.25;
         b.dx += correction.x * (1 - aShare) * 0.25;
@@ -212,11 +242,7 @@ export function createObsidianForceLayout(
           for (const { simulation, linkForce, group } of simulations) {
             // Accept the settled lengths, then use weak springs so repulsion can
             // stretch connections without fighting the original 420px target.
-            linkForce.distance(link => {
-              const a = link.source as LayoutNode;
-              const b = link.target as LayoutNode;
-              return Math.hypot(a.x! - b.x!, a.y! - b.y!);
-            }).strength(0.025);
+            linkForce.distance(currentLinkLength).strength(0.025);
             for (const node of group) { node.anchorX = node.x!; node.anchorY = node.y!; }
             simulation.force("x", forceX<LayoutNode>(node => node.anchorX).strength(0.004));
             simulation.force("y", forceY<LayoutNode>(node => node.anchorY).strength(0.004));
@@ -250,7 +276,19 @@ export function createObsidianForceLayout(
     pin: (nodeId: string, position: { x: number; y: number }) => {
       const node = byId.get(nodeId);
       if (!node) return;
+      if (!draggingLayout) {
+        draggingLayout = true;
+        for (const { simulation, linkForce, group } of simulations) {
+          // A drag edits the existing arrangement, rather than restarting a
+          // compact layout around its old center with 420px springs.
+          linkForce.distance(currentLinkLength);
+          for (const member of group) { member.anchorX = member.x!; member.anchorY = member.y!; }
+          simulation.force("x", forceX<LayoutNode>(member => member.anchorX).strength(0.008));
+          simulation.force("y", forceY<LayoutNode>(member => member.anchorY).strength(0.008));
+        }
+      }
       pinnedNodeIds.add(nodeId);
+      releasedNodeIds.delete(nodeId);
       const offset = offsets.get(node.domainId)!;
       node.fx = position.x + node.width / 2 - offset.x;
       node.fy = position.y + node.height / 2 - offset.y;
@@ -260,12 +298,15 @@ export function createObsidianForceLayout(
       node.vy = 0;
     },
     positions,
+    releasedNodeIds: releasedNodeIds as ReadonlySet<string>,
     release: (nodeId: string) => {
       const node = byId.get(nodeId);
       if (!node) return;
       pinnedNodeIds.delete(nodeId);
-      node.fx = null;
-      node.fy = null;
+      // Preserve the user's drop point for this cooling cycle. The next drag or
+      // explicit re-layout creates a fresh simulation, so this is not a permanent lock.
+      releasedNodeIds.add(nodeId);
+      for (const { linkForce } of simulations) linkForce.distance(currentLinkLength);
     },
     reheat: () => {
       for (const { simulation } of simulations) simulation.alpha(Math.max(simulation.alpha(), 0.3)).alphaTarget(0.3);

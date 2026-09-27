@@ -1017,7 +1017,7 @@ describe("Whiteboard", () => {
     expectRenderedNodesNotToOverlap(nodeIds);
   });
 
-  it("keeps a dragged card group rigid and releases it into the cooling layout", async () => {
+  it("keeps a dragged card group rigid through release and saving", async () => {
     const user = userEvent.setup();
     const repository = createRepository();
     const nodes: BoardNodeRecord[] = [
@@ -1055,7 +1055,9 @@ describe("Whiteboard", () => {
     await user.click(screen.getByRole("button", { name: "Release all cards" }));
     const releaseFrame = motion.callback;
     act(() => releaseFrame?.(32));
-    expect(nodes.map(({ id }) => renderedPosition(id))).not.toEqual(heldPositions);
+    expect(nodes.map(({ id }) => renderedPosition(id))).toEqual(heldPositions);
+    await act(async () => persistence.writer?.flush());
+    expect(nodes.map(({ id }) => renderedPosition(id))).toEqual(heldPositions);
   });
 
   it("reloads the existing canvas for each new deleted catalog revision", async () => {
@@ -1537,7 +1539,7 @@ describe("Whiteboard", () => {
     expect(renderedPosition(firstNode.id)).toEqual({ x: 300, y: 245 });
   });
 
-  it("continues cooling a released card when a pending connection finishes saving", async () => {
+  it("preserves a drop point when a pending connection finishes saving", async () => {
     const user = userEvent.setup();
     const repository = createRepository();
     const creation = deferred<BoardEdgeRecord>();
@@ -1564,7 +1566,7 @@ describe("Whiteboard", () => {
     await act(async () => creation.resolve(firstEdge));
     await act(async () => persistence.writer?.flush());
 
-    expect(renderedPosition(firstNode.id)).not.toEqual({ x: 300, y: 245 });
+    expect(renderedPosition(firstNode.id)).toEqual({ x: 300, y: 245 });
     expect(repository.saveNodePositions).toHaveBeenLastCalledWith([
       { id: firstNode.id, ...renderedPosition(firstNode.id) },
       { id: secondNode.id, ...renderedPosition(secondNode.id) },
@@ -1721,7 +1723,7 @@ describe("Whiteboard", () => {
     );
     await act(async () => persistence.writer?.flush());
 
-    expect(renderedPosition(firstNode.id)).not.toEqual({ x: 300, y: 245 });
+    expect(renderedPosition(firstNode.id)).toEqual({ x: 300, y: 245 });
     expect(repository.saveNodePositions).toHaveBeenCalledOnce();
     const saved = repository.saveNodePositions.mock.calls[0][0];
     expect(saved).toEqual([

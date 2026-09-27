@@ -10,6 +10,8 @@ export async function whiteboardDragSmoke({ wc, backend, dataDirectory, evaluate
     return { id: node.dataset.id, x: matrix.m41, y: matrix.m42 };
   })`;
   const draggedNode = `document.querySelector('.react-flow__node[data-id="node-attention"]')`;
+  // Coordinates are only valid after React Flow applies its initial fit-view.
+  await evaluate('new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))');
   const start = await evaluate(`(() => {
     const rect = ${draggedNode}.getBoundingClientRect();
     return { x: Math.round(rect.left + rect.width / 2), y: Math.round(rect.top + 24) };
@@ -28,6 +30,7 @@ export async function whiteboardDragSmoke({ wc, backend, dataDirectory, evaluate
   wc.focus();
   wc.sendInputEvent({ type: 'mouseDown', button: 'left', clickCount: 1, ...start });
   let grabOffset;
+  let dropPosition;
   try {
     for (let step = 1; step <= 20; step++) {
       const pointer = { x: start.x + step * 5, y: start.y + step * 2 };
@@ -44,6 +47,7 @@ export async function whiteboardDragSmoke({ wc, backend, dataDirectory, evaluate
     }
   } finally {
     await writeFile(path.join(dataDirectory, 'whiteboard-drag-release.png'), (await wc.capturePage()).toPNG());
+    dropPosition = (await evaluate(positions)).find(({ id }) => id === 'node-attention');
     wc.sendInputEvent({ type: 'mouseUp', button: 'left', clickCount: 1, x: start.x + 100, y: start.y + 40 });
   }
 
@@ -72,6 +76,9 @@ export async function whiteboardDragSmoke({ wc, backend, dataDirectory, evaluate
   assert.ok(frames.length > 20, 'Captured the actual drag and cooling animation');
   assert.ok(maximumStep < 80, `No hard position jumps: maximum frame step ${maximumStep}`);
   assert.notDeepEqual(finalPositions, before, 'Drag changed the layout');
+  const released = finalPositions.find(({ id }) => id === 'node-attention');
+  const dropDrift = Math.hypot(released.x - dropPosition.x, released.y - dropPosition.y);
+  assert.ok(dropDrift < 0.01, `The dropped card stays at the pointer's final position: ${dropDrift}`);
   for (const position of finalPositions) {
     const record = saved.find(({ id }) => id === position.id);
     assert.ok(record && Math.hypot(record.x - position.x, record.y - position.y) < 0.01,
@@ -82,7 +89,7 @@ export async function whiteboardDragSmoke({ wc, backend, dataDirectory, evaluate
   await until(`${nodes}.length === ${finalPositions.length}`, 'saved cards after reload');
   const restored = await evaluate(positions);
   assert.deepEqual(restored, finalPositions, 'Reload preserves positions without moving domain groups');
-  console.log('Whiteboard drag:', JSON.stringify({ frames: frames.length, maximumStep, saved: true, restored: true }));
+  console.log('Whiteboard drag:', JSON.stringify({ frames: frames.length, maximumStep, dropDrift, saved: true, restored: true }));
 }
 
 export async function whiteboardDomainSmoke({ wc, backend, dataDirectory, evaluate, until, reload }) {
