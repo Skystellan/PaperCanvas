@@ -6,7 +6,6 @@ import { Backend } from './backend.mjs';
 import { Chats, CHAT_PARTITION } from './chats.mjs';
 import { APP_URL, assetPath, canWriteChatClipboard, isHttps, isLocalFrame } from './security.mjs';
 import { UpdateChecker } from './updates.mjs';
-import { BrowserLogin, replaceSessionCookies } from './browser-login.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const dataDirectory = process.env.PAPERCANVAS_DATA_DIR || path.join(
@@ -21,8 +20,6 @@ protocol.registerSchemesAsPrivileged([{ scheme: 'paper-canvas', privileges: {
 let mainWindow;
 let backend;
 let chats;
-const browserLogin = new BrowserLogin(dataDirectory);
-let importingLogin = false;
 let allowClose = false;
 let layoutQueue = Promise.resolve();
 const fileGrants = new Set();
@@ -74,19 +71,6 @@ async function invoke(command, args) {
     }
     case 'restore_paper_web_chat': return chats.restore(args.id);
     case 'reload_paper_web_chat': return chats.reload(args.id);
-    case 'start_chatgpt_browser_login': return browserLogin.start();
-    case 'close_chatgpt_browser_login': return browserLogin.close();
-    case 'import_chatgpt_browser_login': {
-      if (importingLogin) throw new Error('正在导入登录会话，请稍候。');
-      importingLogin = true;
-      try {
-        const cookies = await browserLogin.sessionCookies();
-        await replaceSessionCookies(session.fromPartition(CHAT_PARTITION).cookies, cookies);
-        // Refresh every cached conversation; the session is shared across papers.
-        await chats.restoreAfterLogin();
-      } finally { importingLogin = false; }
-      return;
-    }
     case 'open_paper_web_chat_external': {
       const chat = await backend.call('get_paper_web_chat', { id: args.id });
       const url = chat.url || 'https://chatgpt.com/';
@@ -173,7 +157,7 @@ else {
   mainWindow.on('close', (event) => {
     if (!allowClose) { event.preventDefault(); emit('native-close-requested'); }
   });
-  mainWindow.on('closed', () => { browserLogin.close(); chats.close(); backend.close(); });
+  mainWindow.on('closed', () => { chats.close(); backend.close(); });
   mainWindow.once('ready-to-show', () => mainWindow.show());
   const updates = new UpdateChecker({
     version: app.getVersion(), isPackaged: app.isPackaged, smoke: process.env.PAPERCANVAS_SMOKE === '1',
@@ -206,7 +190,6 @@ else {
   }
   }).catch((error) => {
     console.error(error);
-    browserLogin.close();
     backend?.close();
     app.exit(1);
   });

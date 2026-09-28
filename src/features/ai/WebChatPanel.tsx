@@ -21,9 +21,6 @@ function PaperChats({ paper, initialChatId }: { paper: Paper; initialChatId?: st
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [loginHelpId, setLoginHelpId] = useState("");
-  const [loginBrowser, setLoginBrowser] = useState("");
-  const [loginAction, setLoginAction] = useState<"open" | "import" | "close" | null>(null);
-  const [loginMessage, setLoginMessage] = useState("");
   const [loadStates, setLoadStates] = useState<Record<string, ChatLoadState>>({});
   const [mode, setMode] = useState<"new" | "link" | "rename" | null>(null);
   const [title, setTitle] = useState("");
@@ -162,26 +159,6 @@ function PaperChats({ paper, initialChatId }: { paper: Paper; initialChatId?: st
       .catch((reason: unknown) => { if (mounted.current) setError(String(reason)); });
   }
 
-  async function browserLogin(action: "open" | "import" | "close") {
-    if (loginAction) return;
-    setLoginAction(action);
-    setLoginMessage("");
-    setError("");
-    try {
-      if (action === "open") {
-        const browser = await invoke<string>("start_chatgpt_browser_login");
-        if (mounted.current) setLoginBrowser(browser);
-      } else if (action === "import") {
-        await invoke("import_chatgpt_browser_login");
-        if (mounted.current) setLoginMessage("会话已导入，正在刷新应用内的 ChatGPT。请核对原账号的订阅和历史对话；若仍未登录，请继续使用专用浏览器窗口。");
-      } else {
-        await invoke("close_chatgpt_browser_login");
-        if (mounted.current) setLoginBrowser("");
-      }
-    } catch (reason) { if (mounted.current) setError(String(reason)); }
-    finally { if (mounted.current) setLoginAction(null); }
-  }
-
   function reloadWebChat() {
     if (!current) return;
     setError("");
@@ -275,21 +252,9 @@ function PaperChats({ paper, initialChatId }: { paper: Paper; initialChatId?: st
       <div className="web-chat-actions"><button type="button" onClick={reloadWebChat}>重试加载</button><button type="button" onClick={openInBrowser}>在浏览器继续</button></div>
     </div>}
     {current && loginHelpId === selected && <div className="web-chat-login-help" role="status">
-      <strong>Google 登录需要使用浏览器</strong>
-      <p>Google 不支持在内嵌窗口登录。日常浏览器的登录状态不会自动同步到这里；浏览器已登录时，直接进入对话页是正常现象。</p>
-      {window.paperCanvas && <>
-        <p>免扩展登录（试用）：打开专用 Chrome/Edge 窗口，在 ChatGPT 中选择“使用 Google 账户继续”，登录原账号。确认订阅和历史对话正确后，回到这里导入。</p>
-        <p>首次需重新登录。仅在点击导入时将该窗口的 ChatGPT 会话传给本机应用。导入会刷新应用内所有 ChatGPT 页面，请先保存未发送内容。</p>
-        <div className="web-chat-actions">
-          <button type="button" disabled={loginAction !== null} onClick={() => void browserLogin("open")}>{loginAction === "open" ? "正在打开…" : loginBrowser ? `回到 ${loginBrowser} 登录窗口` : "打开专用登录窗口"}</button>
-          {loginBrowser && <>
-            <button type="button" disabled={loginAction !== null} onClick={() => void browserLogin("import")}>{loginAction === "import" ? "正在导入…" : "我已登录，导入到应用"}</button>
-            <button type="button" disabled={loginAction !== null} onClick={() => void browserLogin("close")}>关闭专用窗口</button>
-          </>}
-        </div>
-        {loginBrowser && <p>请保持专用 {loginBrowser} 窗口打开，直至完成导入。</p>}
-        {loginMessage && <p>{loginMessage}</p>}
-      </>}
+      <strong>使用 ChatGPT 账号密码登录</strong>
+      <p>在下方 ChatGPT 页面选择“登录”，输入原账号邮箱和 OpenAI 密码，并完成页面要求的验证。OpenAI 密码不是 Google 邮箱密码。</p>
+      <p>Google 不支持在内嵌窗口登录。浏览器的登录状态不会同步到这里；浏览器已登录时，直接进入对话页是正常现象。</p>
       <details>
         <summary>在内嵌窗口使用原来的 Google 注册账号</summary>
         <p>先在系统浏览器中用 Google 登录原账号，核对“设置 → 账号”中的完整邮箱、订阅和历史对话。</p>

@@ -168,7 +168,9 @@ describe("paper conversation bindings", () => {
     const callback = vi.mocked(listen).mock.calls.find(([event]) => event === "paper-web-chat-login-required")?.[1];
     expect(callback).toBeDefined();
     act(() => callback!({ event: "paper-web-chat-login-required", id: 1, payload: { id: chat.id } }));
-    expect(screen.getByRole("status")).toHaveTextContent("日常浏览器的登录状态不会自动同步到这里");
+    expect(screen.getByRole("status")).toHaveTextContent("输入原账号邮箱和 OpenAI 密码");
+    expect(screen.getByRole("status")).toHaveTextContent("OpenAI 密码不是 Google 邮箱密码");
+    expect(screen.getByRole("status")).toHaveTextContent("浏览器的登录状态不会同步到这里");
     expect(screen.getByRole("status")).toHaveTextContent("浏览器已登录时，直接进入对话页是正常现象");
     fireEvent.click(screen.getByText("在内嵌窗口使用原来的 Google 注册账号"));
     expect(screen.getByRole("status")).toHaveTextContent("为这个原账号添加 OpenAI 密码");
@@ -189,32 +191,6 @@ describe("paper conversation bindings", () => {
     await act(async () => resolveA([chat]));
     expect(screen.queryByRole("option", { name: "公式推导" })).not.toBeInTheDocument();
     expect(screen.getByText("Paper B")).toBeVisible();
-  });
-
-  it("imports the dedicated browser session only after the user clicks and keeps failures retryable", async () => {
-    const nativeInvoke = vi.fn().mockResolvedValue("Chrome");
-    vi.stubGlobal("paperCanvas", { invoke: nativeInvoke, on: vi.fn(() => vi.fn()) });
-    render(<WebChatPanel paper={paper} />);
-    await openActions();
-    fireEvent.click(screen.getByRole("menuitem", { name: "登录帮助" }));
-    expect(screen.getByText(/首次需重新登录/)).toBeVisible();
-    expect(screen.queryByRole("button", { name: "我已登录，导入到应用" })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "打开专用登录窗口" }));
-    await waitFor(() => expect(screen.getByRole("button", { name: "我已登录，导入到应用" })).toBeEnabled());
-    expect(nativeInvoke.mock.calls).toEqual([["start_chatgpt_browser_login", undefined]]);
-    nativeInvoke.mockRejectedValueOnce("请先完成 Google 登录。");
-    fireEvent.click(screen.getByRole("button", { name: "我已登录，导入到应用" }));
-    await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("请先完成 Google 登录。"));
-    expect(screen.queryByText(/会话已导入，正在刷新/)).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "我已登录，导入到应用" })).toBeEnabled();
-    nativeInvoke.mockResolvedValue(undefined);
-    fireEvent.click(screen.getByRole("button", { name: "我已登录，导入到应用" }));
-    await waitFor(() => expect(screen.getByText(/会话已导入，正在刷新/)).toBeVisible());
-    expect(nativeInvoke).toHaveBeenLastCalledWith("import_chatgpt_browser_login", undefined);
-    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "关闭专用窗口" }));
-    await waitFor(() => expect(nativeInvoke).toHaveBeenLastCalledWith("close_chatgpt_browser_login", undefined));
-    await waitFor(() => expect(screen.queryByRole("button", { name: "我已登录，导入到应用" })).not.toBeInTheDocument());
   });
 
   it("keeps primary controls visible in the header and makes every overflow action reachable", async () => {
@@ -298,7 +274,7 @@ describe("paper conversation bindings", () => {
     expect(invoke).toHaveBeenCalledWith("reload_paper_web_chat", { id: chat.id });
     await openActions();
     await user.click(screen.getByRole("menuitem", { name: "登录帮助" }));
-    expect(screen.getByRole("status")).toHaveTextContent("Google 登录需要使用浏览器");
+    expect(screen.getByRole("status")).toHaveTextContent("使用 ChatGPT 账号密码登录");
     expect(screen.queryByRole("menu")).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "关闭提示" }));
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
