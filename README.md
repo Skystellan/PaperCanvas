@@ -1,12 +1,12 @@
 # PaperCanvas
 
+**[English](README.md)** | [简体中文](README.zh-CN.md)
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Download for Windows](https://img.shields.io/badge/Download-Windows%20x64-0078D4)](https://github.com/Skystellan/PaperCanvas/releases/latest)
 [![Download for macOS](https://img.shields.io/badge/Download-macOS%20Apple%20Silicon-007AFF)](https://github.com/Skystellan/PaperCanvas/releases/latest)
 
 **Drag papers. Connect ideas. Build your own research network.**
-
-**拖动论文，连接思路，构建属于自己的论文网络。**
 
 PaperCanvas turns your paper library into a visual map of your thinking.
 Bring papers onto an infinite canvas, connect their ideas, and shape the network
@@ -16,9 +16,9 @@ as your understanding grows.
 
 [Watch the HD demo](docs/media/paper-network-demo.mp4) · [Static preview](docs/media/paper-network-poster.png)
 
-- **Drop a paper.** Drag it from your library onto the canvas. 从论文库拖入画布。
-- **Connect your ideas.** Link papers and record support, challenges, and evidence. 连起论文之间的关系。
-- **Make the space yours.** Move cards while connections and topic regions follow smoothly. 拖动整理，让研究脉络逐渐清晰。
+- **Drop a paper.** Drag it from your library onto the canvas.
+- **Connect your ideas.** Link papers and record support, challenges, and evidence.
+- **Make the space yours.** Move cards while connections and topic regions follow smoothly.
 
 *Real app demo · sample papers and illustrative connections · 2× playback.*
 
@@ -27,37 +27,36 @@ PDFs and product data stay in app-owned local storage. The macOS and Windows des
 use Chromium through Electron. The reader can open ChatGPT in an embedded browser;
 annotations and Markdown-based Markmap mind maps work entirely offline.
 
-**使用指南：** [下载安装](#download) · [快速上手](#快速上手) ·
-[论文库与画布](#论文库与画布) · [账号密码登录](#chatgpt-账号密码登录) ·
-[复制论文名与讨论](#复制论文名并开始讨论) · [阅读与批注](#阅读高亮与批注) ·
-[笔记](#markdown-笔记) · [思维导图](#思维导图) · [快捷键](#快捷键速查)
+**User guide:** [Download](#download) · [Quick start](#quick-start) ·
+[Library and canvas](#paper-library-and-canvas) · [Account sign-in](#chatgpt-email-and-password-sign-in) ·
+[Copy titles and discuss](#copy-a-paper-title-and-start-a-discussion) · [Reading and annotations](#reading-highlights-and-annotations) ·
+[Notes](#markdown-notes) · [Mind maps](#mind-maps) · [Keyboard shortcuts](#keyboard-shortcuts)
+
+**Project:** [Features](#what-is-included) · [Local data and privacy](#local-data-and-embedded-conversations) ·
+[Development](#development-prerequisites) · [Contributing](#contributing) · [Updates](#releases-and-update-notifications) · [License](#license)
 
 ## Download
 
-Get the app from [GitHub Releases](https://github.com/Skystellan/PaperCanvas/releases/latest).
+The current release is **0.2.6**. Get the app from [GitHub Releases](https://github.com/Skystellan/PaperCanvas/releases/latest).
 
 ### Windows
 
 **Windows 10/11, x64 (Intel or AMD).**
 
-1. Download `PaperCanvas-0.2.5-Windows-x64.zip` from the release's **Assets**.
-2. Extract the entire archive into a writable folder, then open `PaperCanvas.exe`
-   inside `PaperCanvas-win32-x64`. Keep the adjacent resources and DLLs together.
-3. Import PDFs using the file picker or drag them from File Explorer. PDF search
-   uses **Ctrl+F**; Markdown formatting uses **Ctrl+B/I/K**.
+1. Download **`PaperCanvas-0.2.6-Windows-x64-Setup.exe`** from the release's **Assets**. This is the recommended build for application-managed updates.
+2. Quit an older PaperCanvas copy, run the installer, and open PaperCanvas from its shortcut. It installs for the current user and reuses the existing local data directory.
+3. Import PDFs using the file picker or drag them from File Explorer. PDF search uses **Ctrl+F**; Markdown formatting uses **Ctrl+B/I/K**.
+4. For future updates, use **Help → Check for Updates…**. A newer version downloads in the background, with progress on the taskbar; choose **Restart and install** when it is ready. PaperCanvas saves before restarting.
 
-No installer, administrator access, Node.js, Rust, or separate WebView2 install is
-needed to run this build. Application data is stored separately at
-`%APPDATA%\com.papercanvas.desktop` (including the `chromium` sign-in profile).
-Quit the app before replacing the extracted folder to upgrade; your library and
-notes stay in the data directory. This community build is unsigned, so Windows
-may show an unknown-publisher/SmartScreen prompt on first launch.
+**Portable alternative:** download `PaperCanvas-0.2.6-Windows-x64.zip`, extract the entire archive into a writable folder, and open `PaperCanvas.exe` inside `PaperCanvas-win32-x64`. Keep the adjacent resources and DLLs together. This ZIP build still uses manual upgrades: quit the app and replace the program folder, or install the Setup version once to enable future in-app installation.
+
+No Node.js, Rust, or separate WebView2 install is needed. Data is stored separately at `%APPDATA%\com.papercanvas.desktop`, including the `chromium` sign-in profile. The installer and portable app use the same data directory under the same Windows user account; keep only the copy you intend to use. This community build is unsigned, so Windows may show an unknown-publisher/SmartScreen prompt on first launch.
 
 ### macOS
 
 **Apple Silicon Macs (M1 or newer), macOS 13+.**
 
-1. Download `PaperCanvas-0.2.5-macOS-arm64.zip` from the release's **Assets**.
+1. Download `PaperCanvas-0.2.6-macOS-arm64.zip` from the release's **Assets**.
 2. Unzip it and move `PaperCanvas.app` to **Applications**. Quit an older copy before replacing it.
 3. Open PaperCanvas and import your PDFs. Upgrading the app preserves your local library and notes.
 
@@ -67,204 +66,222 @@ Privacy & Security → Open Anyway** after attempting to open it. See
 [Apple's opening instructions](https://support.apple.com/en-us/102445).
 Intel Mac, native Windows ARM64, and Linux binaries are not included in this release.
 
-## 快速上手
+### Manual upgrades and data backups
 
-1. 在左侧「论文库」点击 **导入 PDF**，也可以把 PDF 从 Finder / 文件资源管理器拖入论文库。
-2. 将论文库中的论文拖到中间画布，建立一张论文卡片；双击论文库条目或画布卡片进入阅读器。
-3. 阅读时使用右侧的 **Notes / Mind map / AI chat**，分别记录笔记、整理导图和打开 ChatGPT。
-4. 第一次使用 **AI chat**，点击 **＋** 新建讨论，在内嵌网页中使用原 ChatGPT 账号的邮箱和 OpenAI 密码登录。
-5. 点击聊天工具栏的 **⧉（复制论文信息）**，再点击 ChatGPT 输入框，用 **⌘V / Ctrl+V** 粘贴论文名，补上问题并发送。
-6. 回到画布，按一次 **空格键**，依次点击两张论文卡片建立连线；按 **Esc** 退出连线模式。
+Replacing the program does not delete your library. Application files and personal data are stored separately:
 
-PDF 阅读、批注、笔记和导图可以离线使用；ChatGPT 讨论需要网络和你自己的 ChatGPT 账号。
-PaperCanvas 不会自动把正在阅读的 PDF、选中文字或问题发给 ChatGPT。
-
-## 论文库与画布
-
-### 导入、分类与打开论文
-
-- **导入多篇 PDF：** 在「导入 PDF」前选择目标领域，再在文件选择器中选择一个或多个 PDF；也可以从文件管理器拖入。导入的是本地副本，原文件保留。
-- **论文标题：** 当前导入标题取自 PDF 文件名，不会自动查询论文元数据。可在导入前把文件改为正式论文名，方便之后搜索与复制；若列表里只是编号，向 ChatGPT 提问时请自行补全标题。
-- **领域分类：** 点击「新建领域」输入名称并保存。论文右侧 **⋯ → 移动到领域** 可以调整分类；未分类的论文在「未分区」中。
-- **搜索与阅读：** 用「搜索论文」筛选列表。单击条目定位已有的画布卡片，双击条目直接阅读；阅读不要求先把论文拖入画布。
-- **调整宽度：** 拖动论文库右侧分隔线；双击该分隔线恢复默认宽度。
-
-### 用空格键给论文连线
-
-1. 先从论文库拖入至少两篇论文，在画布空白处单击，使焦点离开搜索框、按钮或文本编辑区。
-2. **按一次空格键**，看到「连线模式：请选择第一个节点」后，松开空格即可；也可以点击画布工具栏的 **连线**。
-3. 单击第一张卡片，再单击第二张卡片，建立两篇论文之间的连线。
-4. 连好一条后仍处于连线模式，可以继续选择下一对论文。再次按空格会清除当前起点、重新选择第一张卡片。
-5. 按 **Esc** 或再次点击 **连线** 按钮退出。退出后才能恢复拖动卡片、双击打开论文。
-
-空格是进入连线模式的快捷键，不需要一直按住，也不用按住空格拖动画布。在搜索框、笔记和其他文本输入区输入空格时，仍按普通文字输入处理。
-连线模式下还可以用 **Tab** 把焦点移到卡片，再用 **Enter** 依次选择两个端点。
-
-### 整理画布、解释关系与删除
-
-- 拖动画布空白处可平移视图；滚轮 / 触控板滚动也用于平移，触控板捏合用于缩放。拖动卡片会带动相关节点和领域背景调整位置。
-- 顶部 **All / 领域名 / 未分区** 用来切换显示范围；**重新整理布局** 会重新安排当前范围内的论文。
-- 单击一条连线，选择 **Support（支持）/ Challenge（质疑）/ 未分类**。在「解释」中记录关系，在「证据」中填写摘录、来源或页码，点击 **保存解释与证据**。切换选择会保留草稿，进入阅读器前也会保存。
-- 选中画布卡片后，按 **Delete / Backspace** 或点击 **从白板移除选中卡片**，只移除卡片及其连线；论文和 PDF 仍在论文库，可以再次拖入。
-- 选中连线后，按 **Delete / Backspace** 或点击 **删除选中连线**，只删除关系。
-- 论文库中的 **⋯ → 删除 → 确认删除** 会删除论文库记录、受管 PDF 副本及关联内容，原始导入文件不受影响；已有 `.md` 笔记文件会保留作安全副本。只想整理画布时，应使用「从白板移除」。
-
-## ChatGPT 账号密码登录
-
-PaperCanvas 的 **AI chat** 打开的是 ChatGPT 官网。这里使用的是你的 **ChatGPT / OpenAI 账号密码**，不需要另外注册 PaperCanvas 账号或填写 API Key。
-应用内的登录状态独立保存；系统浏览器已经登录，不代表应用内也登录了。
-
-### 已有 OpenAI 密码
-
-1. 双击打开一篇论文，选择右侧 **AI chat**；没有讨论时，点击顶部 **＋**。
-2. 在内嵌 ChatGPT 页面点击 **Log in / 登录**，输入原账号的完整邮箱，选择密码登录并输入 **OpenAI 密码**。
-3. 按页面要求完成邮箱验证或多因素认证。登录后仍可能要求验证码，这本身不代表在注册新账号。
-4. 核对 ChatGPT 中的账号、订阅和历史对话，确认与平时使用的账号一致。
-
-登录会话保存在本机的应用数据目录中，通常重新打开应用无需再次登录；会话过期或账号安全策略变化时，需要重新验证。
-忘记已设置的 OpenAI 密码，可以在官网登录页面选择 **Forgot password? / 忘记密码**，按邮件完成重置。
-密码设置和重置影响同一个 OpenAI 账号。参见 [OpenAI 官方密码说明](https://help.openai.com/en/articles/4936828-resetting-or-changing-your-chatgpt-password)。
-
-### 原来一直用 Google 登录，没有 OpenAI 密码
-
-**Google 密码和 OpenAI 密码是两回事。** 先在已有账号内添加 OpenAI 密码，再尝试应用内的账号密码登录：
-
-1. 在正常使用的系统浏览器打开 [ChatGPT](https://chatgpt.com/)，用 **Continue with Google / 使用 Google 账户继续** 登录原来的 Google 账号。
-2. 检查原有 Plus/Pro 订阅和历史对话，在 **Settings → Account / 设置 → 账号** 中确认完整邮箱。
-3. 如果该账号提供 **Add password / 添加密码**，在这里完成设置。已经有密码则直接使用；这一步不需要创建新账号，也不需要更改邮箱。
-4. 回到 PaperCanvas，在内嵌网页选择 **登录**，使用上一步核对的邮箱和新设的 **OpenAI 密码**，再完成要求的验证。
-5. 再次确认订阅和历史对话。若显示错误账号，先在内嵌 ChatGPT 中退出，再按正确账号重试。
-
-社交登录账号添加密码的步骤见 [OpenAI 官方账号说明](https://help.openai.com/en/articles/4936827-how-to-change-your-email-address)。
-如果没有「添加密码」入口，或仍提示 **Wrong authentication method**，请继续在系统浏览器用原登录方式访问，或联系 OpenAI 支持；不要把 Google 密码当作 OpenAI 密码，也不要重新注册来尝试“关联”订阅。
-未设置 OpenAI 密码的 Google 登录账号，直接使用「忘记密码」并不能代替在原账号内添加密码。
-
-### 登录问题排查
-
-| 现象 | 处理方式 |
+| Platform | Local data directory |
 | --- | --- |
-| 浏览器一打开就已经在聊天页，但应用内仍未登录 | 两边的会话独立。在应用内完成账号密码登录；「在浏览器中打开」只打开网页。 |
-| 点击内嵌网页的 Google 登录后出现提示 | 使用上面的账号密码流程；「登录帮助」中也有原 Google 账号添加密码的说明。 |
-| 邮箱输入后只看到验证码，或出现姓名、生日等注册资料表单 | 核对是否进入「登录」以及账号邮箱是否正确；仅输入 Gmail 地址不等于完成了 Google 授权。若界面提供密码登录选项，使用已设置的 OpenAI 密码；出现注册流程时先返回核对。 |
-| Plus/Pro 和历史对话不见了 | 先检查完整邮箱、登录方式和当前工作区；这不能单独证明新建了账号。不要急于重新订阅，先对照正常浏览器中的原账号。 |
-| 空白、加载缓慢或网站验证未完成 | 在聊天的 **⋯** 菜单中选择 **重新加载网页**，或在浏览器中继续。重新加载保留应用内的登录数据。 |
+| Windows | `%APPDATA%\com.papercanvas.desktop` |
+| macOS | `~/Library/Application Support/com.papercanvas.desktop` |
 
-仍无法登录时，参见 [OpenAI 官方登录排查](https://help.openai.com/en/articles/7426629-why-cant-i-log-in-to-chatgpt)。
-PaperCanvas 不合并 ChatGPT 账号，不同步外部浏览器 Cookie；「关联已有对话」也只保存链接。
+The directory contains the database, imported PDFs, Markdown notes, and the `chromium` profile for embedded sign-in. ChatGPT conversation content remains on ChatGPT; PaperCanvas stores the conversation links. Keeping the profile does not guarantee that ChatGPT will never request sign-in again.
 
-## 复制论文名并开始讨论
+1. Quit PaperCanvas normally and let it finish saving. If saving fails, resolve the error before upgrading.
+2. For a backup, copy the **entire data directory** to a safe location while the app is closed. Do not back up only the executable or database.
+3. Replace the program or run the new installer, then launch the new version using the same operating-system user account. Do not delete the data directory or choose an uninstall option that removes personal data.
+4. Open a familiar paper and check its notes. You can remove the old program copy once the new version works; keep your backup separately.
 
-### 从当前论文发起讨论
+To find the data directory, paste the Windows path into File Explorer's address bar, or use **Finder → Go → Go to Folder…** on Mac. These are upgrade instructions; installing an older version over a newer database is not a supported rollback procedure.
 
-1. 打开论文，切换到 **AI chat**，完成上面的账号密码登录。
-2. 点击工具栏的 **＋（新对话）**，为这篇论文建立一条讨论记录。
-3. 点击 **⧉（复制论文信息）**。它只把**当前论文标题**放入剪贴板，成功时没有额外弹窗；不会复制 PDF、摘要、作者或全文。
-4. 点击 ChatGPT 的消息输入框，按 **⌘V（macOS）/ Ctrl+V（Windows）**，或使用输入框的粘贴菜单。
-5. 检查粘贴的论文名，补充你的问题，手动发送。例如：
+## Quick start
 
-   > 我正在阅读《在这里粘贴论文名》。请先确认你能获得的论文信息，帮我梳理研究问题、方法和主要结论；不确定的内容请说明。
+1. Click **导入 PDF (Import PDF)** in the left-hand **论文库 (Paper Library)**, or drag PDFs into the library from Finder or File Explorer.
+2. Drag a paper from the library onto the central canvas to create a card. Double-click a library entry or canvas card to open the reader.
+3. Use **Notes / Mind map / AI chat** on the right to take notes, organize a mind map, or open ChatGPT.
+4. The first time you use **AI chat**, click **＋** to create a discussion, then sign in on the embedded website with your existing ChatGPT account's email and OpenAI password.
+5. Click **⧉ (复制论文信息 / Copy paper information)** in the chat toolbar, click the ChatGPT message box, and press **⌘V / Ctrl+V** to paste the paper title. Add your question and send it yourself.
+6. Return to the canvas, press **Space once**, and click two paper cards in sequence to connect them. Press **Esc** to exit connection mode.
 
-**只粘贴标题并不等于 ChatGPT 已经拿到 PDF。** 要分析特定公式、图表或原文，请自行复制相关段落、粘贴截图，或通过 ChatGPT 页面提供的附件入口上传 PDF；能否上传及大小限制由 ChatGPT 决定。
-PaperCanvas 不会替你发送这些内容，也不会自动点击发送按钮。
+PDF reading, annotations, notes, and mind maps work offline. ChatGPT discussions require an internet connection and your own ChatGPT account.
+PaperCanvas does not automatically send the open PDF, selected text, or questions to ChatGPT.
 
-第一条消息产生正式对话后，应用自动保存该对话链接，并按 ChatGPT 网页标题更新讨论名称。
-同一篇论文可以有多条讨论：用顶部下拉框切换，用 PaperCanvas 的 **＋** 为新主题创建独立记录。
+## Paper library and canvas
 
-### 继续已有讨论
+### Import, organize, and open papers
 
-1. 如果讨论在浏览器中已有，复制地址栏里的原始对话地址，例如 `https://chatgpt.com/c/…`，不要使用 `/share/…` 分享链接。
-2. 在 PaperCanvas 的聊天工具栏点击 **⋯ → 关联已有对话**。
-3. 填写「讨论名称」和「ChatGPT 对话链接」，点击 **保存并打开**。应用内登录的账号必须有权访问该对话。
+- **Import multiple PDFs:** Select a destination domain before clicking **导入 PDF (Import PDF)**, then select one or more PDFs in the file picker. You can also drag files in from your file manager. Importing creates a local copy and leaves the original file intact.
+- **Paper titles:** Imported titles currently come from PDF filenames; the app does not look up paper metadata. Rename files to their full paper titles before importing to make searching and copying easier. If an entry only shows an identifier, provide the full title yourself when asking ChatGPT about it.
+- **Domains:** Click **新建领域 (New domain)**, enter a name, and save. Use a paper's **⋯ → 移动到领域 (Move to domain)** menu to change its category. Uncategorized papers appear under **未分区 (Unassigned)**.
+- **Search and read:** Filter the list with **搜索论文 (Search papers)**. Single-click an entry to locate its existing canvas card; double-click to read it directly. You do not need to add a paper to the canvas before reading it.
+- **Library width:** Drag the divider at the library's right edge, or double-click it to restore the default width.
 
-| 聊天工具栏操作 | 用途 |
+### Connect papers with Space
+
+1. Drag at least two papers from the library onto the canvas. Click an empty area of the canvas to move focus away from search fields, buttons, or text editors.
+2. **Press Space once.** When **连线模式：请选择第一个节点 (Connection mode: select the first node)** appears, release the key. You can also click **连线 (Connect)** in the canvas toolbar.
+3. Click the first card, then the second card, to connect the papers.
+4. Connection mode stays active after each connection, so you can keep selecting pairs of papers. Pressing Space again clears the current starting point and lets you select the first card again.
+5. Press **Esc**, or click **连线 (Connect)** again, to exit. You can then drag cards and double-click them to read papers again.
+
+Space enters connection mode; you do not need to hold it down, and you do not hold Space to pan the canvas. In search fields, notes, and other text inputs, Space still inserts a normal space.
+In connection mode, you can also use **Tab** to focus cards and **Enter** to select each endpoint.
+
+### Arrange the canvas, describe relationships, and delete items
+
+- Drag an empty part of the canvas to pan. Mouse-wheel or trackpad scrolling also pans; a trackpad pinch zooms. Moving a card adjusts related nodes and domain backgrounds.
+- Use **All / a domain name / 未分区 (Unassigned)** at the top to choose what is visible. **重新整理布局 (Rearrange layout)** arranges the papers in the current view again.
+- Click a connection and choose **Support / Challenge / 未分类 (Unclassified)**. Describe the relationship under **解释 (Explanation)** and add quotations, sources, or page numbers under **证据 (Evidence)**, then click **保存解释与证据 (Save explanation and evidence)**. Drafts are preserved when you change the selection and saved before you enter the reader.
+- Select a canvas card and press **Delete / Backspace**, or click **从白板移除选中卡片 (Remove selected card from whiteboard)**. This removes only the card and its connections. The paper and PDF remain in the library, ready to be dragged onto the canvas again.
+- Select a connection and press **Delete / Backspace**, or click **删除选中连线 (Delete selected connection)**, to remove only that relationship.
+- In the library, **⋯ → 删除 → 确认删除 (Delete → Confirm deletion)** deletes the library record, managed PDF copy, and associated content. It leaves the original imported file intact and keeps existing `.md` notes as a safety copy. To tidy the canvas without deleting a paper, use the remove-from-whiteboard action.
+
+## ChatGPT email and password sign-in
+
+**AI chat** opens the official ChatGPT website. Use your **ChatGPT / OpenAI account email and password**; you do not need a separate PaperCanvas account or an API key.
+The app saves its own sign-in session. Being signed in to your system browser does not sign you in to the app.
+
+### If you already have an OpenAI password
+
+1. Double-click a paper, select **AI chat** on the right, and click **＋** at the top if there is no discussion yet.
+2. Click **Log in** on the embedded ChatGPT page. Enter your existing account's full email address, choose password sign-in, and enter your **OpenAI password**.
+3. Complete any email verification or multifactor authentication requested by the website. A verification-code prompt can appear during sign-in; it does not by itself mean you are creating a new account.
+4. Check your account, subscription, and conversation history in ChatGPT to confirm that you are using your usual account.
+
+The session is stored in the app's local data directory, so reopening the app usually does not require signing in again. An expired session or changes to account security policies may require verification again.
+If you forget an OpenAI password you previously set, choose **Forgot password?** on the official sign-in page and follow the reset email.
+Setting or resetting the password affects that same OpenAI account. See [OpenAI's password instructions](https://help.openai.com/en/articles/4936828-resetting-or-changing-your-chatgpt-password).
+
+### If you have always signed in with Google and have no OpenAI password
+
+**Your Google password and your OpenAI password are separate.** Add an OpenAI password within your existing account before trying email and password sign-in in the app:
+
+1. Open [ChatGPT](https://chatgpt.com/) in your usual system browser and use **Continue with Google** to sign in with your original Google account.
+2. Check your existing Plus/Pro subscription and conversation history. Confirm the full email address under **Settings → Account**.
+3. **If your account offers Add password**, set a password there. If it already has a password, use that password. You do not need to create a new account or change your email address.
+4. Return to PaperCanvas, choose **Log in** on the embedded website, and use the email address you just checked and your newly set **OpenAI password**. Complete any requested verification.
+5. Check your subscription and history again. If the wrong account appears, sign out within the embedded ChatGPT page and retry with the correct account.
+
+See [OpenAI's account instructions](https://help.openai.com/en/articles/4936827-how-to-change-your-email-address) for adding a password to an account that uses social sign-in.
+If **Add password** is unavailable, or you still see **Wrong authentication method**, continue using your original sign-in method in the system browser or contact OpenAI support. Do not enter your Google password as an OpenAI password or register another account to try to “link” your subscription.
+For a Google sign-in account without an OpenAI password, **Forgot password?** does not replace adding a password within the original account.
+
+### Troubleshooting sign-in
+
+| Symptom | What to do |
 | --- | --- |
-| 顶部下拉框 | 切换当前论文的不同讨论。 |
-| **＋** | 新建独立讨论。仅在 ChatGPT 网页内换话题，不会替换已绑定的链接。 |
-| **⧉** | 复制当前论文标题，随后需要手动粘贴。 |
-| **⋯ → 重命名** | 修改当前讨论的本地名称；之后网页标题变化仍可能同步更新它。 |
-| **⋯ → 回到绑定对话** | 网页中走到其他页面后，返回这条记录保存的原对话。 |
-| **⋯ → 在浏览器中打开** | 用系统浏览器打开已绑定对话；尚未绑定时打开 ChatGPT 首页。 |
-| **⋯ → 登录帮助 / 重新加载网页** | 查看密码登录指引，或重试加载网页。 |
+| The browser opens directly to a chat, but the app is still signed out. | The sessions are separate. Complete email and password sign-in inside the app; **在浏览器中打开 (Open in browser)** only opens a web page. |
+| Clicking Google sign-in in the embedded page shows a notice. | Follow the email and password workflow above. **登录帮助 (Sign-in help)** also explains how to add a password to an existing Google-based account. |
+| After entering an email, you only see a verification code, or a registration form asking for a name or date of birth. | Check that you chose **Log in** and entered the correct email. Entering a Gmail address alone does not complete Google authorization. If password sign-in is offered, use your OpenAI password. If a registration flow appears, go back and check the account first. |
+| Your Plus/Pro subscription and history are missing. | Check the full email address, sign-in method, and active workspace. Missing history alone does not prove that a new account was created. Compare with your original account in your usual browser before subscribing again. |
+| The page is blank, loads slowly, or has not finished website verification. | Choose **⋯ → 重新加载网页 (Reload page)** in the chat toolbar, or continue in the browser. Reloading preserves the app's sign-in data. |
 
-再次打开论文时会恢复上次打开的讨论；首页 **Recent discussions** 可以直接打开相应论文中的指定讨论。
-本地保存的是讨论名称与链接，消息内容仍在 ChatGPT 中，无法离线查看。ChatGPT Projects 是可选项，PaperCanvas 自己按论文管理讨论链接。
+For further help, see [OpenAI's sign-in troubleshooting](https://help.openai.com/en/articles/7426629-why-cant-i-log-in-to-chatgpt).
+PaperCanvas does not merge ChatGPT accounts or synchronize external-browser cookies. Linking an existing conversation only saves its URL.
 
-## 阅读、高亮与批注
+## Copy a paper title and start a discussion
 
-- **翻页与缩放：** 在 PDF 区连续滚动，或用顶部 **← / →** 翻页；用 **− / ＋**、触控板捏合或 **⌘ / Ctrl + 滚轮** 调整缩放。再次打开论文会恢复阅读位置和缩放。
-- **搜索全文：** 点击放大镜，或在 PDF 阅读区按 **⌘F / Ctrl+F**。输入关键词后，用 **Enter / Shift+Enter** 查找下一个 / 上一个结果，按 **Esc** 关闭搜索。搜索覆盖尚未显示的页面；扫描件需要已有文字层，当前没有 OCR。
-- **章节与书签：** PDF 右侧的短线是目录入口，悬停或聚焦后显示标题，也可以点击目录按钮固定展开。点击章节跳转；**收藏本页** 添加书签，再点一次移除。没有内置目录时仍可使用页码导航。
-- **保存批注：** 拖选 PDF 文字，弹出 **Annotation** 面板后可填写评论，点击 **Save annotation**。评论可留空，只保存高亮；在批注输入框中也可按 **⌘Enter / Ctrl+Enter** 保存，按 **Esc** 关闭面板。
-- **回看高亮：** 在 **Notes** 页签展开 **Highlights**，点击条目回到原文位置；搜索按钮可按摘录、评论或页码筛选。每条高亮也有删除按钮。
-- **摘录到笔记：** 在选中文字的面板或已有高亮条目中点击 **Add to notes**，将摘录与来源链接加入当前论文笔记；点击笔记中的来源链接可回到 PDF 对应位置。
-- **侧栏布局：** 拖动 PDF 与右侧栏之间的分隔线调整宽度，用顶部 **Hide panel / Show panel** 收起或展开侧栏。
+### Start a discussion about the current paper
 
-## Markdown 笔记
+1. Open a paper, switch to **AI chat**, and complete the email and password sign-in described above.
+2. Click **＋ (新对话 / New conversation)** in the toolbar to create a discussion record for this paper.
+3. Click **⧉ (复制论文信息 / Copy paper information)**. This copies **only the current paper's title** to the clipboard, with no extra success dialog. It does not copy the PDF, abstract, authors, or full text.
+4. Click the ChatGPT message box and press **⌘V (macOS) / Ctrl+V (Windows)**, or use the box's paste menu.
+5. Check the pasted title, add your question, and send the message yourself. For example:
 
-1. 打开论文的 **Notes** 页签，直接输入笔记。内容自动保存，切换论文、返回画布或退出时会等待待保存内容完成。
-2. 默认 **Live preview**：单击某个段落可编辑其 Markdown 源码，移开光标后恢复排版。一整段列表、表格或代码块会一起进入编辑状态。
-3. 选中文字后，用工具栏或 **⌘B / Ctrl+B** 加粗、**⌘I / Ctrl+I** 斜体、**⌘K / Ctrl+K** 插入链接；在列表末尾按 **Enter** 继续列表。
-4. 通过笔记的 **View** 菜单切换 **Live preview / Source / Read**；可渲染标题、引用、代码块、表格和任务列表。
-5. 在笔记操作菜单 **More → Show .md** 中定位绑定的 Markdown 文件；可使用外部编辑器，或把文件所在的 `papers` 目录作为 Obsidian 库打开。
+   > I am reading “paste the paper title here.” Please first confirm what information about the paper you can access, then help me understand its research question, method, and main findings. State clearly when you are uncertain.
 
-每篇论文绑定一个 `papers/<paper-id>.md` 文件，紧邻受管 PDF；绑定依赖论文 ID，标题变化不会改变绑定。
-旧版本数据库中的笔记会在首次打开时迁移到该文件，原数据库记录保留作备份。
+**Pasting a title does not give ChatGPT access to the PDF.** To discuss a specific equation, figure, or passage, copy the relevant text, paste a screenshot, or upload the PDF through the attachment control on the ChatGPT website. Upload availability and size limits are determined by ChatGPT.
+PaperCanvas does not send this content for you or click the send button automatically.
 
-外部编辑后，使用 **More → Reload** 读取最新文件；这可能放弃当前未保存草稿，按确认提示操作。
-如果保存时提示文件已被外部修改，先复制当前草稿，再 Reload 后合并，避免同时在两个编辑器里写入。
-应用在保存前检查外部改动，不会持续监视文件；不包含 Obsidian 插件、双链语法或数学公式渲染。
+Once your first message creates a conversation, the app automatically saves its URL and updates the discussion name from the ChatGPT page title.
+Each paper can have multiple discussions: switch between them with the top dropdown, and use PaperCanvas's **＋** to create a separate record for a new topic.
 
-## 思维导图
+### Continue an existing discussion
 
-1. 在 **AI chat** 中请 ChatGPT 输出 Markdown 大纲，或自己编写。可使用提示：
+1. If the conversation already exists in your browser, copy its original address, such as `https://chatgpt.com/c/…`. Do not use a `/share/…` link.
+2. In PaperCanvas's chat toolbar, click **⋯ → 关联已有对话 (Link existing conversation)**.
+3. Fill in **讨论名称 (Discussion name)** and **ChatGPT 对话链接 (ChatGPT conversation URL)**, then click **保存并打开 (Save and open)**. The account signed in inside the app must have access to that conversation.
 
-   > 请把我们讨论的论文整理为 Markdown 大纲：一级标题为论文名，二级标题包含研究问题、方法、实验、结论与局限；细节使用列表，不要输出 Mermaid。
+| Chat toolbar action | Purpose |
+| --- | --- |
+| Top dropdown | Switch between discussions for the current paper. |
+| **＋** | Create a separate discussion. Changing topics only within the ChatGPT website does not replace the already linked URL. |
+| **⧉** | Copy the current paper title; you must then paste it manually. |
+| **⋯ → 重命名 (Rename)** | Change the discussion's local name. Later page-title changes may still update it. |
+| **⋯ → 回到绑定对话 (Return to linked conversation)** | Return to the record's original conversation after navigating to other pages. |
+| **⋯ → 在浏览器中打开 (Open in browser)** | Open the linked conversation in the system browser, or the ChatGPT home page if no conversation is linked yet. |
+| **⋯ → 登录帮助 / 重新加载网页 (Sign-in help / Reload page)** | Read password sign-in instructions or retry loading the website. |
 
-2. 复制大纲，切换到当前论文的 **Mind map** 页签，粘贴到 **Markdown source**。
-3. 点击 **Render preview** 渲染。成功后编辑区收起，用 **Edit source** 再次展开；修改源码后需要再次渲染，预览才会更新。
-4. 点击节点圆点折叠分支，拖动导图平移，用 **− / ＋** 缩放、**Fit** 适配视图。
-5. 点击 **Save source** 主动保存源码；离开或关闭时也会保存未完成草稿。源码和导图均留在本机。
+Reopening a paper restores its last-opened discussion. **Recent discussions** on the home screen opens the corresponding paper and selected discussion directly.
+Only discussion names and URLs are stored locally. Messages remain in ChatGPT and are unavailable offline. ChatGPT Projects are optional; PaperCanvas organizes discussion links by paper itself.
 
-可直接试用下面的格式：
+## Reading, highlights, and annotations
+
+- **Pages and zoom:** Scroll continuously in the PDF, or use **← / →** at the top to change pages. Zoom with **− / ＋**, a trackpad pinch, or **⌘ / Ctrl + mouse wheel**. Reopening a paper restores its reading position and zoom.
+- **Full-text search:** Click the magnifying glass, or press **⌘F / Ctrl+F** in the PDF area. Enter a query, use **Enter / Shift+Enter** for the next or previous match, and press **Esc** to close search. Search includes pages not yet displayed. Scanned PDFs need an existing text layer; OCR is not currently included.
+- **Contents and bookmarks:** The short lines on the PDF's right edge are table-of-contents entries. Hover over or focus them to reveal headings, or click the contents button to keep the panel open. Click a heading to jump to it. **收藏本页 (Bookmark this page)** adds a bookmark; click again to remove it. Page navigation still works when the PDF has no built-in outline.
+- **Save annotations:** Select PDF text to open the **Annotation** panel, optionally add a comment, and click **Save annotation**. Leave the comment empty to save only a highlight. In the comment field, **⌘Enter / Ctrl+Enter** also saves; **Esc** closes the panel.
+- **Review highlights:** Expand **Highlights** in the **Notes** tab and click an entry to return to its source location. Use the search button to filter by quotation, comment, or page number. Each highlight also has a delete button.
+- **Quote in notes:** Click **Add to notes** in the text-selection panel or an existing highlight to add the quotation and a source link to the current paper's notes. Clicking that source link returns to the corresponding PDF location.
+- **Sidebar layout:** Drag the divider between the PDF and sidebar to resize it. Use **Hide panel / Show panel** at the top to collapse or expand the sidebar.
+
+## Markdown notes
+
+1. Open a paper's **Notes** tab and start typing. Notes save automatically; switching papers, returning to the canvas, or quitting waits for pending saves to finish.
+2. **Live preview** is the default. Click a paragraph to edit its Markdown source; move the cursor away to restore the formatted view. A complete list, table, or code block enters editing mode together.
+3. Select text and use the toolbar, or press **⌘B / Ctrl+B** for bold, **⌘I / Ctrl+I** for italic, and **⌘K / Ctrl+K** for a link. Press **Enter** at the end of a list to continue it.
+4. Use the notes' **View** menu to switch between **Live preview / Source / Read**. Headings, blockquotes, code blocks, tables, and task lists are supported.
+5. Choose **More → Show .md** in the notes menu to locate the linked Markdown file. Edit it with an external editor, or open its `papers` directory as an Obsidian vault.
+
+Each paper is linked to a `papers/<paper-id>.md` file beside its managed PDF. The link uses the paper ID, so changing the title does not change the association.
+Notes stored in an older version's database migrate to this file the first time they are opened. The original database record remains as a backup.
+
+After editing externally, use **More → Reload** to read the latest file. This may discard your current unsaved draft; follow the confirmation prompt.
+If saving reports that the file was changed externally, copy your current draft first, then reload and merge the changes. Avoid writing in two editors at once.
+The app checks for external changes before saving but does not continuously watch the file. It does not include an Obsidian plugin, wikilink syntax, or math rendering.
+
+## Mind maps
+
+1. Ask ChatGPT in **AI chat** for a Markdown outline, or write one yourself. For example:
+
+   > Organize the paper we discussed into a Markdown outline. Use the paper title as the level-one heading, with level-two headings for the research question, method, experiments, conclusions, and limitations. Use lists for details. Do not output Mermaid.
+
+2. Copy the outline, switch to the paper's **Mind map** tab, and paste it into **Markdown source**.
+3. Click **Render preview**. After a successful render, the editor collapses; click **Edit source** to expand it again. After editing the source, render again to update the preview.
+4. Click node dots to collapse branches, drag the map to pan, use **− / ＋** to zoom, and click **Fit** to fit the map to the view.
+5. Click **Save source** to save explicitly. Unfinished drafts are also saved when you leave or close the app. Both the source and the mind map stay on your computer.
+
+Try this outline:
 
 ```markdown
-# 论文名称
-## 研究问题
-- 要解决的问题
-- 已有方法的不足
-## 方法
-- 核心思路
-- 关键假设
-## 实验与结论
-- 主要证据
-- 局限与后续问题
+# Paper title
+## Research question
+- Problem to solve
+- Limitations of existing approaches
+## Method
+- Core idea
+- Key assumptions
+## Experiments and conclusions
+- Main evidence
+- Limitations and open questions
 ```
 
-带有 `markdown`、`md` 或 `markmap` 标记的代码围栏也能粘贴；当前使用 **Markmap** 渲染 Markdown，不会自动向 AI 请求生成导图。
-旧版树结构会转为 Markdown；已有 Mermaid 文本会保留供复制、修改，需要改写成 Markdown 大纲再渲染。
-导图渲染不需要 AI 账号，也不从粘贴内容中加载外部脚本、图片或字体。
+You can also paste a code fence labeled `markdown`, `md`, or `markmap`. The app uses **Markmap** to render Markdown; it does not automatically ask AI to generate a mind map.
+Legacy tree data is converted to Markdown. Existing Mermaid text is preserved for copying and editing, but must be rewritten as a Markdown outline before rendering.
+Rendering requires no AI account and does not load external scripts, images, or fonts from pasted content.
 
-## 快捷键速查
+## Keyboard shortcuts
 
-`⌘` 表示 macOS 的 Command 键，`Ctrl` 用于 Windows。快捷键取决于当前焦点所在区域。
+`⌘` is the Command key on macOS; `Ctrl` is used on Windows. Shortcuts depend on which area has focus.
 
-| 场景 | macOS | Windows | 效果 |
+| Context | macOS | Windows | Action |
 | --- | --- | --- | --- |
-| 画布，焦点不在输入框或按钮上 | 空格 | 空格 | 进入连线模式，随后依次点两张卡片；再次按下会重选起点。 |
-| 画布连线模式 | Esc | Esc | 退出连线模式，恢复拖动和双击阅读。 |
-| 连线模式中的卡片 | Tab、Enter | Tab、Enter | Tab 移动焦点，Enter 选择端点。 |
-| 选中的画布卡片 / 连线 | Delete / Backspace | Delete / Backspace | 从画布移除卡片或删除连线，保留论文库里的论文。 |
-| PDF 阅读区 | ⌘F | Ctrl+F | 打开 PDF 全文搜索。 |
-| PDF 搜索框 | Enter / Shift+Enter | Enter / Shift+Enter | 下一个 / 上一个匹配。 |
-| PDF 搜索框、批注面板 | Esc | Esc | 关闭当前搜索或批注面板。 |
-| PDF 上的滚轮操作 | ⌘ + 滚轮 | Ctrl + 滚轮 | 缩放 PDF；也可以直接使用触控板捏合。 |
-| 批注输入框 | ⌘Enter | Ctrl+Enter | 保存高亮与可选评论。 |
-| Markdown 笔记编辑区 | ⌘B / ⌘I / ⌘K | Ctrl+B / Ctrl+I / Ctrl+K | 加粗 / 斜体 / 插入链接。 |
-| ChatGPT 输入框 | ⌘V | Ctrl+V | 粘贴刚刚通过 ⧉ 复制的论文标题或其他剪贴板内容。 |
-| 已聚焦的论文库宽度分隔线 | ← / →、Home / End | ← / →、Home / End | 调整宽度，或设为最小 / 最大宽度。 |
+| Canvas, outside text inputs and buttons | Space | Space | Enter connection mode, then click two cards in sequence. Press again to reset the starting point. |
+| Canvas connection mode | Esc | Esc | Exit connection mode and restore dragging and double-click reading. |
+| Cards in connection mode | Tab, Enter | Tab, Enter | Move focus with Tab; select endpoints with Enter. |
+| Selected canvas card or connection | Delete / Backspace | Delete / Backspace | Remove the card or connection from the canvas; keep the paper in the library. |
+| PDF reading area | ⌘F | Ctrl+F | Open full-text PDF search. |
+| PDF search field | Enter / Shift+Enter | Enter / Shift+Enter | Go to the next or previous match. |
+| PDF search field or annotation panel | Esc | Esc | Close the current search or annotation panel. |
+| Mouse wheel over the PDF | ⌘ + mouse wheel | Ctrl + mouse wheel | Zoom the PDF; trackpad pinch also works. |
+| Annotation comment field | ⌘Enter | Ctrl+Enter | Save a highlight and optional comment. |
+| Markdown notes editor | ⌘B / ⌘I / ⌘K | Ctrl+B / Ctrl+I / Ctrl+K | Bold / italic / insert link. |
+| ChatGPT message box | ⌘V | Ctrl+V | Paste the paper title copied with ⧉, or other clipboard content. |
+| Focused library-width divider | ← / →, Home / End | ← / →, Home / End | Adjust the width, or set it to the minimum or maximum. |
 
-如果按空格没有进入连线模式，先退出输入框，在画布空白处单击再试；如果卡片突然不能拖动，检查是否仍在连线模式，按 Esc 退出。
-在 ChatGPT 网页内，其他编辑与发送快捷键由 ChatGPT 自己处理。
+If Space does not enter connection mode, leave the text input, click an empty part of the canvas, and try again. If cards stop being draggable, check whether connection mode is still active and press Esc to exit.
+Other editing and sending shortcuts within the ChatGPT page are handled by ChatGPT itself.
 
 ## What is included
 
@@ -381,7 +398,7 @@ Silicon, or `release/PaperCanvas-win32-x64/` on Windows x64. Windows builds
 include `paper-canvas-backend.exe` and an ICO application icon. Quit the running copy before installing it in a fixed location such as
 `~/Applications/PaperCanvas.app`. Moving the application does not move its
 paper database or persistent ChatGPT profile. Packaging uses the optimized Rust
-release backend. The published community build is ad-hoc signed; Developer ID
+release backend. The published macOS community build is ad-hoc signed; Developer ID
 signing and notarization are needed for a verified publisher and smoother first launch.
 
 The **Desktop builds** GitHub Actions workflow runs on macOS and Windows,
@@ -392,30 +409,25 @@ tag and `docs/releases/<tag>.md` notes after the workflow succeeds.
 
 ## Releases and update notifications
 
-Packaged Electron builds check the public
-[latest GitHub release](https://github.com/Skystellan/PaperCanvas/releases/latest)
-once after startup. A newer stable version prompts **View release** or **Later**;
-**Help → Check for Updates…** also reports when the app is up to date or a check
-fails. Checks time out after 10 seconds, with no automatic retries. Startup
-failures stay quiet, and development and smoke runs do not check automatically.
-The request uploads no app data, installed version, or login credentials. The
-app only opens the fixed GitHub release page; it never downloads or installs an
-update itself. Choosing **Later** dismisses the prompt until the next launch or
-manual check. An app left running does not poll for new releases.
+**macOS 0.2.6 and later:** choose **Help → Check for Updates…**, then **Install Update** in the native update window. Sparkle downloads the new version, verifies the signed feed and archive, and offers **Install and Relaunch**. PaperCanvas uses its normal close/save flow before replacement. Your papers, notes, and embedded sign-in profile stay in their separate data directory. You do not need to open GitHub, unzip files, or drag another app into Applications for subsequent updates.
 
-To notify installed copies, publish a public, non-draft, non-prerelease GitHub
-Release in `Skystellan/PaperCanvas` and mark it **Latest**. Use a stable semantic
-version tag such as `v1.2.3` (or `1.2.3`) matching the packaged app version, and
-increase its numeric major/minor/patch version for each update. Build metadata
-does not affect comparison; prerelease tags are not supported. Upload the
-installable app assets and include release notes and installation instructions
-before publishing. A commit, pushed tag, or uploaded file alone is insufficient;
-the checker uses GitHub's
-[latest release API](https://docs.github.com/en/rest/releases/releases#get-the-latest-release).
+Keep PaperCanvas in a writable installation folder such as `~/Applications`. A protected installation folder may require macOS authorization. On a download or signature error, the updater reports the failure and leaves the installed app in place. The community build uses ad-hoc application signing and a separate Ed25519 update key; it is not Apple-notarized. First-launch macOS checks still apply.
 
-Older versions without this checker cannot receive retroactive alerts. Their
-users must manually install a build containing it before future releases can
-trigger in-app notifications. The legacy Tauri build has no such checker.
+**Upgrade once from 0.2.5 or earlier:** quit the old app, download and install 0.2.6 or later manually, replacing the old copy. Older versions only link to GitHub and cannot gain an installer without this one-time upgrade.
+
+**Windows Setup installation, 0.2.6 and later:** **Help → Check for Updates…** downloads a newer stable installer and checks its SHA512 checksum. Progress appears on the taskbar. Choose **Restart and install** to save, install, and reopen, or **Later** to continue working; check again when ready to install. Installation errors leave save-on-close protection enabled. The portable ZIP still opens **View release** and requires manual replacement. To switch from ZIP, quit it and install the Setup version once; your local data is reused. The legacy Tauri build has no native updater.
+
+Packaged Electron builds check the public latest-release API once after startup. **Later** dismisses the offer; the app does not continuously poll. This startup check has a 10-second timeout and fails quietly. Development and smoke runs do not check automatically. Update requests contain no papers, notes, or login credentials; the native updaters contact GitHub to retrieve update metadata and archives. Download time depends on the network.
+
+For maintainers, publish a public, non-draft, non-prerelease release marked **Latest**, with a stable `vX.Y.Z` tag matching the packaged version. Upload the macOS and portable Windows ZIPs, the Windows **Setup.exe**, its **.blockmap**, **latest.yml**, checksums, and the signed macOS **appcast.xml** before publishing. Keep the Windows metadata and installer from the same build together. The macOS feed points to this latest release asset, so omitting it breaks native update checks.
+
+The macOS package includes the pinned official [Sparkle](https://sparkle-project.org/) framework. The public update key is committed in `electron/macos/sparkle.mjs`; the matching private key stays in the maintainer's login Keychain under the `PaperCanvas` Sparkle account. To prepare a release, download the successful CI build archives into `release/`, then run on that Mac:
+
+```sh
+node electron/macos/appcast.mjs
+```
+
+This signs the macOS ZIP and feed using the Keychain, verifies the archive signature against the embedded public key, and writes `release/appcast.xml`. Upload that feed alongside the exact ZIP that was signed. Do not modify the ZIP or XML after signing. Back up the signing key securely; replacing it without a supported key migration would break trust for existing installations. Neither private keys nor local Keychain exports belong in Git.
 
 ## Chromium desktop and embedded login
 
@@ -434,17 +446,17 @@ build remains available through `npm run tauri -- dev`; quit the other version
 before comparing them.
 
 For the supported email/password workflow, including existing Google accounts, see
-[ChatGPT 账号密码登录](#chatgpt-账号密码登录). External-browser sign-in is separate
+[ChatGPT email and password sign-in](#chatgpt-email-and-password-sign-in). External-browser sign-in is separate
 from the embedded session; the app does not import browser cookies.
 
-If the embedded page stays blank, **重新加载网页** reloads the current page
+If the embedded page stays blank, **重新加载网页 (Reload page)** reloads the current page
 (ignoring HTTP cache in Chromium) while keeping its login/session storage.
 Chromium now displays website-verification, network-failure and slow-load
 notices. Reopening a cached view restores its load status instead of reporting
 an unqualified “opening” message. Website verification titles such as
-“请稍候…” do not overwrite conversation names.
+“请稍候… (Please wait…)” do not overwrite conversation names.
 
-In either version, **在浏览器中打开** opens the selected discussion in the default
+In either version, **在浏览器中打开 (Open in browser)** opens the selected discussion in the default
 browser, using that browser's existing session. This is the smallest workaround
 when WKWebView is slow. Switching engines can help rendering compatibility; it
 does not guarantee faster ChatGPT network responses.

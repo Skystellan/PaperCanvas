@@ -211,3 +211,43 @@ test('the 10-second abort signal covers both the fetch and response body, withou
     }
   }
 });
+
+test('native manual update bypasses GitHub API and deduplicates repeated clicks', async () => {
+  const done = Promise.withResolvers();
+  let calls = 0;
+  const { updates, requests, dialogs, opened } = setup();
+  updates.nativeUpdate = () => { calls += 1; return done.promise; };
+  const first = updates.check({ manual: true });
+  const second = updates.check({ manual: true });
+  assert.equal(first, second);
+  assert.equal(calls, 1);
+  done.resolve();
+  await first;
+  assert.deepEqual(requests, []);
+  assert.deepEqual(dialogs, []);
+  assert.deepEqual(opened, []);
+});
+
+test('startup offers native download, honors Later and never opens the browser', async () => {
+  for (const choice of [0, 1]) {
+    let calls = 0;
+    const { updates, dialogs, opened } = setup({ choice });
+    updates.nativeUpdate = async () => { calls += 1; };
+    await updates.check();
+    assert.deepEqual(dialogs[0].buttons, ['Download update', 'Later']);
+    assert.equal(calls, choice === 0 ? 1 : 0);
+    assert.deepEqual(opened, []);
+  }
+});
+
+test('failed native helper launch reports an error and can be retried', async () => {
+  const { updates, dialogs } = setup();
+  updates.nativeUpdate = async () => { throw new Error('Private path'); };
+  await updates.check({ manual: true });
+  assert.equal(dialogs[0].message, 'Could not check for updates.');
+  assert.doesNotMatch(dialogs[0].detail, /Private path/);
+  let retried = false;
+  updates.nativeUpdate = async () => { retried = true; };
+  await updates.check({ manual: true });
+  assert.equal(retried, true);
+});

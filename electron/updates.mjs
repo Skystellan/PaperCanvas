@@ -21,8 +21,8 @@ export function isNewerVersion(latest, current) {
 }
 
 export class UpdateChecker {
-  constructor({ version, isPackaged, smoke = false, showMessageBox, openExternal, fetch = globalThis.fetch }) {
-    Object.assign(this, { version, isPackaged, smoke, showMessageBox, openExternal, fetch });
+  constructor({ version, isPackaged, smoke = false, showMessageBox, openExternal, nativeUpdate, fetch = globalThis.fetch }) {
+    Object.assign(this, { version, isPackaged, smoke, showMessageBox, openExternal, nativeUpdate, fetch });
     this.automaticChecked = false;
     this.manualRequested = false;
     this.pending = null;
@@ -46,6 +46,10 @@ export class UpdateChecker {
 
   async run() {
     try {
+      if (this.manualRequested && this.nativeUpdate) {
+        await this.nativeUpdate();
+        return;
+      }
       // Node's fetch has no browser cookie jar; no app data or version is sent.
       const response = await this.fetch(RELEASE_API_URL, {
         headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'PaperCanvas' },
@@ -61,11 +65,17 @@ export class UpdateChecker {
         const { response: choice } = await this.showMessageBox({
           type: 'info', title: 'PaperCanvas update available',
           message: `PaperCanvas ${release.tag_name} is available.`,
-          detail: `You are using ${this.version}. View the release notes and download the update in your browser.`,
-          buttons: ['View release', 'Later'], defaultId: 1, cancelId: 1,
+          detail: this.nativeUpdate
+            ? `You are using ${this.version}. Download and install the update without opening a browser.`
+            : `You are using ${this.version}. View the release notes and download the update in your browser.`,
+          buttons: [this.nativeUpdate ? 'Download update' : 'View release', 'Later'], defaultId: 1, cancelId: 1,
         });
         // Never pass a URL from the network response to the OS.
-        if (choice === 0) await this.openExternal(RELEASE_URL);
+        if (choice === 0) {
+          this.manualRequested = true;
+          if (this.nativeUpdate) await this.nativeUpdate();
+          else await this.openExternal(RELEASE_URL);
+        }
       } else if (this.manualRequested) {
         await this.showMessageBox({
           type: 'info', title: 'PaperCanvas updates', message: 'PaperCanvas is up to date.',
@@ -76,7 +86,9 @@ export class UpdateChecker {
       if (this.manualRequested) {
         await this.showMessageBox({
           type: 'info', title: 'PaperCanvas updates', message: 'Could not check for updates.',
-          detail: 'Check your connection and try again later. GitHub may be unavailable or have no published stable release.',
+          detail: this.nativeUpdate
+            ? 'The updater could not complete the request. Check your connection and try again, or download the latest version from the project releases page.'
+            : 'Check your connection and try again later. GitHub may be unavailable or have no published stable release.',
           buttons: ['OK'],
         }).catch(() => {}); // The window may have closed while the check was running.
       }

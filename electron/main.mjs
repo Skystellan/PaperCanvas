@@ -1,11 +1,13 @@
 import { app, BrowserWindow, dialog, ipcMain, Menu, net, protocol, session, shell } from 'electron';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import path from 'node:path';
+import { spawn } from 'node:child_process';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { Backend } from './backend.mjs';
 import { Chats, CHAT_PARTITION } from './chats.mjs';
 import { APP_URL, assetPath, canWriteChatClipboard, isHttps, isLocalFrame } from './security.mjs';
 import { UpdateChecker } from './updates.mjs';
+import { createWindowsUpdater } from './windows-updates.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const dataDirectory = process.env.PAPERCANVAS_DATA_DIR || path.join(
@@ -21,6 +23,7 @@ let mainWindow;
 let backend;
 let chats;
 let allowClose = false;
+let installOnClose = null;
 let layoutQueue = Promise.resolve();
 const fileGrants = new Set();
 const commands = new Set([
@@ -81,7 +84,12 @@ async function invoke(command, args) {
     case 'window_destroy':
       allowClose = true;
       // Let the IPC response reach the save-on-close coordinator before destroying its renderer.
-      setImmediate(() => mainWindow.close());
+      setImmediate(() => {
+        const install = installOnClose;
+        installOnClose = null;
+        if (install) install();
+        else mainWindow.close();
+      });
       return;
     default:
       if (!commands.has(command)) throw new Error('Unknown PaperCanvas command.');
@@ -159,12 +167,33 @@ else {
   });
   mainWindow.on('closed', () => { chats.close(); backend.close(); });
   mainWindow.once('ready-to-show', () => mainWindow.show());
+  const showUpdateDialog = (options) => mainWindow.isDestroyed()
+    ? Promise.resolve({ response: 1 }) : dialog.showMessageBox(mainWindow, options);
+  const windowsUpdate = createWindowsUpdater({
+    showMessageBox: showUpdateDialog,
+    setProgress: (progress) => { if (!mainWindow.isDestroyed()) mainWindow.setProgressBar(progress); },
+    requestInstall: (install) => new Promise((resolve, reject) => {
+      installOnClose = () => {
+        try { install(); resolve(); }
+        catch (error) { allowClose = false; reject(error); }
+      };
+      mainWindow.close();
+    }),
+    onInstallError: () => { allowClose = false; installOnClose = null; },
+  });
   const updates = new UpdateChecker({
     version: app.getVersion(), isPackaged: app.isPackaged, smoke: process.env.PAPERCANVAS_SMOKE === '1',
     // Suppress late dialogs after closing; a parent keeps macOS dialogs asynchronous.
-    showMessageBox: (options) => mainWindow.isDestroyed()
-      ? Promise.resolve({ response: 1 }) : dialog.showMessageBox(mainWindow, options),
+    showMessageBox: showUpdateDialog,
     openExternal: (url) => shell.openExternal(url),
+    nativeUpdate: app.isPackaged && process.platform === 'darwin' ? () => new Promise((resolve, reject) => {
+      const child = spawn(path.join(process.resourcesPath, '../Helpers/PaperCanvas Updater.app/Contents/MacOS/PaperCanvas Updater'), [], {
+        detached: true, stdio: 'ignore',
+      });
+      child.once('error', reject);
+      child.once('exit', (code) => code === 0 ? resolve() : reject(new Error('Updater could not start.')));
+      child.unref();
+    }) : windowsUpdate,
   });
   Menu.setApplicationMenu(Menu.buildFromTemplate([
     ...(process.platform === 'darwin' ? [{ role: 'appMenu' }] : []),

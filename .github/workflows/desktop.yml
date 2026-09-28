@@ -38,7 +38,23 @@ jobs:
       - run: npm run chromium:test
       - run: cargo test --manifest-path src-tauri/Cargo.toml --all-targets --locked
       - run: npm run chromium:build
-      - name: Test packaged Windows app
+      - name: Install and test Windows app
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $version = (Get-Content package.json | ConvertFrom-Json).version
+          $installer = (Resolve-Path "release/PaperCanvas-$version-Windows-x64-Setup.exe").Path
+          if (!(Test-Path release/latest.yml)) { throw 'Missing Windows update metadata' }
+          if (Test-Path release/PaperCanvas-win32-x64/resources/app-update.yml) { throw 'Portable ZIP must not include installer update config' }
+          $installDirectory = Join-Path $env:LOCALAPPDATA 'Programs/PaperCanvas-CI'
+          $installed = Start-Process -FilePath $installer -ArgumentList '/S', '/currentuser', "/D=$installDirectory" -Wait -PassThru
+          if ($installed.ExitCode -ne 0) { throw "Installer failed: $($installed.ExitCode)" }
+          if (!(Test-Path "$installDirectory/resources/app-update.yml")) { throw 'Installed updater config missing' }
+          if (!(Test-Path "$installDirectory/Uninstall PaperCanvas.exe")) { throw 'NSIS uninstaller missing' }
+          node electron/run-smoke.mjs "$installDirectory/PaperCanvas.exe"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Test portable Windows app
         if: runner.os == 'Windows'
         run: node electron/run-smoke.mjs release/PaperCanvas-win32-x64/PaperCanvas.exe
       - name: Archive Windows app
@@ -58,9 +74,20 @@ jobs:
           version=$(node -p "require('./package.json').version")
           ditto -c -k --sequesterRsrc --keepParent release/PaperCanvas-darwin-arm64/PaperCanvas.app "release/PaperCanvas-$version-macOS-arm64.zip"
       - uses: actions/upload-artifact@v4
+        if: runner.os == 'macOS'
         with:
           name: PaperCanvas-${{ matrix.platform }}
           path: release/*.zip
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: runner.os == 'Windows'
+        with:
+          name: PaperCanvas-${{ matrix.platform }}
+          path: |
+            release/*.zip
+            release/*-Setup.exe
+            release/*-Setup.exe.blockmap
+            release/latest.yml
           if-no-files-found: error
       - uses: actions/upload-artifact@v4
         if: failure()
