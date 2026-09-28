@@ -275,8 +275,11 @@ describe("createPdfViewerRuntime", () => {
     vi.spyOn(runtimeFakes.viewers[0], "getPageView").mockReturnValue({ div, pdfPage: {} } as never);
     await vi.waitFor(() => expect(runtimeFakes.viewers[0].currentScale).toBe(2));
     expect(container.scrollTop).toBe(0);
-    pageHeight = 2000;
     firstRendered({});
+    await vi.waitFor(() => expect(animationFrames.size).toBe(1));
+    expect(container.scrollTop).toBe(0);
+    pageHeight = 2000;
+    paintAnimationFrame();
     const runtime = await loading;
     expect(container.scrollTop).toBe(2500);
     runtime.destroy();
@@ -304,6 +307,8 @@ describe("createPdfViewerRuntime", () => {
     vi.advanceTimersByTime(200);
     expect(onLocationChange).not.toHaveBeenCalled();
     targetReady({});
+    await vi.waitFor(() => expect(animationFrames.size).toBe(1));
+    paintAnimationFrame();
     const runtime = await loading;
     expect(runtime.currentPage).toBe(1200);
     expect(runtime.currentZoom).toBe(2);

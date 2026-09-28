@@ -318,6 +318,10 @@ export async function createPdfViewerRuntime({
     pdfViewer.currentPageNumber = page;
     locationPage = page;
     if (offset !== undefined && pageView) {
+      // A newly visible lazy page can still have PDF.js's placeholder dimensions
+      // until the browser processes the saved scale and page layout together.
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+      if (destroyed || sequence !== navigationSequence) return;
       const bounds = pageView.div.getBoundingClientRect();
       container.scrollTop += bounds.top - container.getBoundingClientRect().top + bounds.height * offset;
     }
