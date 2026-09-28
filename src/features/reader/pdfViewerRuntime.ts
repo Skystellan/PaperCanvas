@@ -731,7 +731,12 @@ export async function createPdfViewerRuntime({
       throw new Error("The PDF viewer runtime was destroyed while loading.");
     }
     pdfViewer.currentScale = initialLocation?.zoom ?? 1;
-    if (initialLocation) await Promise.race([navigate(initialLocation.pageNumber, initialLocation.offset), runtimeAborted]);
+    if (initialLocation) {
+      // Initial page boxes can still have their 100% dimensions in this task.
+      // Let the saved scale reach layout before measuring the reading offset.
+      await Promise.race([new Promise<void>((resolve) => requestAnimationFrame(() => resolve())), runtimeAborted]);
+      await Promise.race([navigate(initialLocation.pageNumber, initialLocation.offset), runtimeAborted]);
+    }
     locationReady = true;
     onPageChange?.(pdfViewer.currentPageNumber);
     onScaleChange?.(currentZoom());

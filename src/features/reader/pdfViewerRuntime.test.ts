@@ -258,6 +258,23 @@ describe("createPdfViewerRuntime", () => {
     expect(onLocationChange).toHaveBeenCalledTimes(2);
   });
 
+  it("restores the reading offset using the saved zoom's page layout", async () => {
+    const { container, viewer } = createElements();
+    let pageHeight = 1000;
+    const div = document.createElement("div");
+    div.getBoundingClientRect = () => DOMRect.fromRect({ y: pageHeight - container.scrollTop, height: pageHeight });
+    const loading = createPdfViewerRuntime({ container, viewer, document: createDocument(2),
+      initialLocation: { pageNumber: 2, offset: .25, zoom: 2 } });
+    await vi.waitFor(() => expect(runtimeFakes.viewers).toHaveLength(1));
+    vi.spyOn(runtimeFakes.viewers[0], "getPageView").mockReturnValue({ div, pdfPage: {} } as never);
+    await vi.waitFor(() => expect(animationFrames.size).toBeGreaterThan(0));
+    pageHeight = 2000;
+    paintAnimationFrame();
+    const runtime = await loading;
+    expect(container.scrollTop).toBe(2500);
+    runtime.destroy();
+  });
+
   it("restores a late lazy page without waiting for all pages and persists its within-page offset", async () => {
     let firstReady!: (page: object) => void;
     runtimeFakes.nextFirstPagePromise = new Promise((resolve) => { firstReady = resolve; });
@@ -275,6 +292,9 @@ describe("createPdfViewerRuntime", () => {
     const pdfViewer = runtimeFakes.viewers[0];
     const lookup = vi.spyOn(pdfViewer, "getPageView").mockImplementation((index) => index === 1199 ? targetView : undefined);
     firstReady({});
+    await vi.waitFor(() => expect(pdfViewer.currentScale).toBe(2));
+    expect(getPage).not.toHaveBeenCalled();
+    paintAnimationFrame();
     await vi.waitFor(() => expect(getPage).toHaveBeenCalledWith(1200));
     pdfViewer.options.eventBus.dispatch("updateviewarea", { location: { pageNumber: 1 } });
     vi.advanceTimersByTime(200);

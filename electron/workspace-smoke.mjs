@@ -164,14 +164,6 @@ export async function workspaceSmoke({ wc, backend, paper, dataDirectory, evalua
   await until(`!document.querySelector('.paper-reader')`, 'saved and returned');
   const maps = await backend.call('database_select', { query:'SELECT source FROM paper_mermaid_maps WHERE paper_id=?', values:[paper.id] });
   assert.equal(maps[0].source, markdown);
-  await evaluate(`(() => {
-    window.restoreScrollTrace = [];
-    const descriptor = Object.getOwnPropertyDescriptor(Element.prototype, 'scrollTop');
-    Object.defineProperty(Element.prototype, 'scrollTop', { ...descriptor, set(value) {
-      if (this.classList.contains('pdf-viewer__pages')) window.restoreScrollTrace.push({value, before:descriptor.get.call(this), stack:new Error().stack});
-      descriptor.set.call(this,value);
-    }});
-  })()`);
   await openPaper();
   await until(`!!document.querySelector('.pdfViewer .page canvas')?.width`, 'restored PDF rendered');
   assert.equal(await evaluate(`[...document.querySelectorAll('.pdf-outline button')].some(b=>b.textContent==='★ 第 3 页')`), true);
@@ -183,7 +175,7 @@ export async function workspaceSmoke({ wc, backend, paper, dataDirectory, evalua
   })()`;
   console.log('Reader restore:', JSON.stringify({ expected: readingLocation,
     saved: await evaluate(`JSON.parse(localStorage.getItem('paper-reader:v1:${paper.id}')).location`),
-    offset: await evaluate(restoredOffsetScript), trace: await evaluate('window.restoreScrollTrace') }));
+    offset: await evaluate(restoredOffsetScript) }));
   // A rendered page and the saved page label can precede lazy-page navigation.
   await until(`Math.abs(${restoredOffsetScript} - ${readingLocation.offset}) < 0.02`,
     `PDF restores within-page offset ${readingLocation.offset}`);
