@@ -168,12 +168,17 @@ export async function workspaceSmoke({ wc, backend, paper, dataDirectory, evalua
   await until(`!!document.querySelector('.pdfViewer .page canvas')?.width`, 'restored PDF rendered');
   assert.equal(await evaluate(`[...document.querySelectorAll('.pdf-outline button')].some(b=>b.textContent==='★ 第 3 页')`), true);
   await until(`document.querySelector('.pdf-viewer__toolbar')?.textContent.includes('3 /')`, 'reading position restored');
-  const restoredOffset = await evaluate(`(() => {
+  const restoredOffsetScript = `(() => {
     const container = document.querySelector('.pdf-viewer__pages').getBoundingClientRect();
     const page = document.querySelector('.page[data-page-number="3"]').getBoundingClientRect();
     return (container.top - page.top) / page.height;
-  })()`);
-  assert.ok(Math.abs(restoredOffset - readingLocation.offset) < 0.02, 'PDF restores within-page offset');
+  })()`;
+  console.log('Reader restore:', JSON.stringify({ expected: readingLocation,
+    saved: await evaluate(`JSON.parse(localStorage.getItem('paper-reader:v1:${paper.id}')).location`),
+    offset: await evaluate(restoredOffsetScript) }));
+  // A rendered page and the saved page label can precede lazy-page navigation.
+  await until(`Math.abs(${restoredOffsetScript} - ${readingLocation.offset}) < 0.02`,
+    `PDF restores within-page offset ${readingLocation.offset}`);
   assert.equal(await evaluate(zoomPercent), `${Math.round(readingLocation.zoom * 100)}%`);
   await until(`document.querySelector('[role="tab"][aria-selected="true"]')?.textContent === 'Mind map'`, 'reader workspace restored');
   await until(`document.querySelectorAll('.markmap-node').length === ${markmapNodes}`, 'saved Markdown restored');
