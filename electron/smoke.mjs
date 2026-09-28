@@ -170,7 +170,7 @@ export async function smoke({ window, backend, chats, dataDirectory, chatSession
   assert.equal(await guest.executeJavaScript('typeof require'), 'undefined');
   assert.equal(guest.getLastWebPreferences().sandbox, true);
   // Exercise Chromium's clipboard permission and native paste, not a mocked API.
-  const previousClipboard = await Promise.all((await clipboard.read()).map(async item =>
+  const previousClipboard = await Promise.all((await clipboard.read()).filter(item => item.types.length > 0).map(async item =>
     new ClipboardItem(Object.fromEntries(await Promise.all(item.types.map(async type => [type, await item.getType(type)])))),
   ));
   try {

@@ -31,6 +31,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
+          cache-on-failure: true
       - run: npm ci
       - run: npm run lint
       - run: npm run test
@@ -61,3 +62,10 @@ jobs:
           name: PaperCanvas-${{ matrix.platform }}
           path: release/*.zip
           if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: Smoke-diagnostics-${{ matrix.platform }}
+          path: |
+            ${{ runner.temp }}/papercanvas-smoke-*/*.png
+            ${{ runner.temp }}/papercanvas-smoke-*/report.json

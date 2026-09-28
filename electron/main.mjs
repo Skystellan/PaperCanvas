@@ -1,7 +1,7 @@
 import { app, BrowserWindow, dialog, ipcMain, Menu, net, protocol, session, shell } from 'electron';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import path from 'node:path';
-import { mkdir } from 'node:fs/promises';
+import { mkdir, writeFile } from 'node:fs/promises';
 import { Backend } from './backend.mjs';
 import { Chats, CHAT_PARTITION } from './chats.mjs';
 import { APP_URL, assetPath, canWriteChatClipboard, isHttps, isLocalFrame } from './security.mjs';
@@ -183,6 +183,7 @@ else {
       app.exit(0);
     } catch (error) {
       console.error(error);
+      await writeFile(path.join(dataDirectory, 'failure.png'), (await mainWindow.webContents.capturePage()).toPNG());
       backend.close();
       app.exit(1);
     }
