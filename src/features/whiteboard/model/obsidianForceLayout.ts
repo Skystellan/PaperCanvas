@@ -199,20 +199,30 @@ export function createObsidianForceLayout(
         }
       });
       const repulsion = createEdgeRepulsion(group, resolvedLinks);
-      simulation.force("overstretch", () => {
-        // Cooling weakens the layout springs, but must not switch off recovery
-        // from excessive stretching while readability forces still move cards.
+      simulation.force("compactness", () => {
+        // Keep a gentle pull toward the natural length as the main springs cool.
+        // Collision and readability forces can still make room around crowded hubs.
         for (const { source, target } of resolvedLinks) {
           const dx = target.x! - source.x!;
           const dy = target.y! - source.y!;
           const distance = Math.hypot(dx, dy);
-          const excess = distance - OBSIDIAN_LINK_DISTANCE * 2;
+          // A deliberately placed peripheral card may keep some extra length;
+          // tightening it fully would drag its heavier hub toward the drop point.
+          const placedLeaf = (source.fx != null && source.mass < target.mass) ||
+            (target.fx != null && target.mass < source.mass);
+          const preferred = OBSIDIAN_LINK_DISTANCE * (placedLeaf ? 1.5 : 1);
+          const excess = distance - preferred;
           if (excess <= 0) continue;
-          const impulse = excess * 0.025 / distance;
-          source.vx! += dx * impulse;
-          source.vy! += dy * impulse;
-          target.vx! -= dx * impulse;
-          target.vy! -= dy * impulse;
+          // Small excesses yield to clearance; severely stretched links recover faster.
+          const compactStrength = pinnedNodeIds.size > 0 ? 0 : 0.004;
+          const overstretch = Math.max(0, distance - OBSIDIAN_LINK_DISTANCE * 2);
+          const impulse = ((excess - overstretch) * compactStrength + overstretch * 0.025) / distance;
+          // As with d3's links, let peripheral cards do most of the adjusting.
+          const sourceShare = target.mass / (source.mass + target.mass);
+          source.vx! += dx * impulse * sourceShare;
+          source.vy! += dy * impulse * sourceShare;
+          target.vx! -= dx * impulse * (1 - sourceShare);
+          target.vy! -= dy * impulse * (1 - sourceShare);
         }
       });
       simulation.force("readability", () => {

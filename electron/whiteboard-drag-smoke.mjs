@@ -295,8 +295,8 @@ export async function whiteboardEdgeSmoke({ wc, backend, dataDirectory, evaluate
   const a = finalPositions.find(node => node.id === 'node-attention');
   const b = finalPositions.find(node => node.id === 'node-bert');
   const centerDistance = Math.hypot(a.x - b.x, a.y - b.y);
-  assert.ok(centerDistance > 600 && centerDistance < 900,
-    `The connection can stretch for readability without becoming excessive: ${centerDistance}`);
+  assert.ok(centerDistance > 420 && centerDistance < 600,
+    `The connection stays compact while leaving clearance around the card: ${centerDistance}`);
   await writeFile(path.join(dataDirectory, 'whiteboard-edge-repulsion.png'), (await wc.capturePage()).toPNG());
   await reload();
   await until(`document.querySelectorAll('.react-flow__node').length === 3`, 'restored relaxed layout');

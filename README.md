@@ -31,7 +31,7 @@ annotations and Markdown-based Markmap mind maps work entirely offline.
 Get the app from [GitHub Releases](https://github.com/Skystellan/PaperCanvas/releases/latest).
 The current binary supports **Apple Silicon Macs (M1 or newer), macOS 13+**.
 
-1. Download `PaperCanvas-0.2.3-macOS-arm64.zip` from the release's **Assets**.
+1. Download `PaperCanvas-0.2.4-macOS-arm64.zip` from the release's **Assets**.
 2. Unzip it and move `PaperCanvas.app` to **Applications**. Quit an older copy before replacing it.
 3. Open PaperCanvas and import your PDFs. Upgrading the app preserves your local library and notes.
 

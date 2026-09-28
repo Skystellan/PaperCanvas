@@ -69,6 +69,7 @@ export async function whiteboardStarSmoke({ wc, backend, dataDirectory, evaluate
   assert.ok(Math.hypot(hub.x - drop.x, hub.y - drop.y) < 0.01,
     `The hub keeps its drop point: ${JSON.stringify({ hub, drop, start, target })}`);
   let maximumAngleError = 0;
+  const lengths = [];
   for (const leaf of before.filter(node => node.id !== 'star-hub')) {
     const moved = final.find(node => node.id === leaf.id);
     const dx = moved.x - hub.x;
@@ -77,13 +78,18 @@ export async function whiteboardStarSmoke({ wc, backend, dataDirectory, evaluate
     const error = Math.abs(Math.atan2(Math.sin(difference), Math.cos(difference)));
     maximumAngleError = Math.max(maximumAngleError, error * 180 / Math.PI);
     assert.ok(error < Math.PI / 7, `Petal retains its original direction: ${leaf.id}, ${error}`);
-    assert.ok(Math.hypot(dx, dy) < 950, 'Petal connections stay bounded');
+    lengths.push(Math.hypot(dx, dy));
+    assert.ok(lengths.at(-1) < 950, 'Petal connections stay bounded');
   }
+  const meanLength = lengths.reduce((sum, length) => sum + length, 0) / lengths.length;
+  const lengthRatio = Math.max(...lengths) / Math.min(...lengths);
+  assert.ok(meanLength < 500, `The star contracts after the drag: ${meanLength}`);
+  assert.ok(lengthRatio < 1.4, `Petals keep comparable spacing: ${lengthRatio}`);
   await evaluate('document.querySelector(\'button[aria-label="Fit View"]\').click()');
   await painted();
   await writeFile(path.join(dataDirectory, 'whiteboard-star-after.png'), (await wc.capturePage()).toPNG());
   await reload();
   await until("document.querySelectorAll('.react-flow__node').length === 9", 'saved star');
   assert.deepEqual(await evaluate(positions), final, 'Reload preserves the star structure');
-  console.log('Whiteboard star:', JSON.stringify({ maximumAngleError, dropDrift: 0, saved: true, restored: true }));
+  console.log('Whiteboard star:', JSON.stringify({ maximumAngleError, meanLength, lengthRatio, dropDrift: 0, saved: true, restored: true }));
 }

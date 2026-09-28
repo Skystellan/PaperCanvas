@@ -67,6 +67,64 @@ function segmentsCross(
 }
 
 describe("createObsidianForceLayout", () => {
+  it.each([false, true])("settles a loose star into a compact, evenly spaced ring (drag: %s)", (drag) => {
+    const leaves = Array.from({ length: 8 }, (_, i) => node(`leaf-${i}`,
+      Math.cos(i * Math.PI / 4) * 700, Math.sin(i * Math.PI / 4) * 700));
+    const layout = createObsidianForceLayout([node("hub", 0), ...leaves], leaves.map(leaf => edge("hub", leaf.id)));
+    if (drag) {
+      layout.pin("hub", { x: 0, y: 0 });
+      layout.release("hub");
+    }
+    layout.settle();
+    const positions = layout.positions();
+    const hub = positions.get("hub")!;
+    const lengths = leaves.map(leaf => {
+      const position = positions.get(leaf.id)!;
+      return Math.hypot(position.x - hub.x, position.y - hub.y);
+    });
+    expect(lengths.reduce((sum, length) => sum + length, 0) / lengths.length).toBeLessThan(460);
+    expect(Math.max(...lengths) / Math.min(...lengths)).toBeLessThan(1.3);
+    for (let i = 0; i < leaves.length; i++) {
+      const a = positions.get(leaves[i].id)!;
+      const b = positions.get(leaves[(i + 1) % leaves.length].id)!;
+      expect(Math.abs(a.x - b.x) >= 304 || Math.abs(a.y - b.y) >= 152).toBe(true);
+    }
+    expect(layout.isSettled()).toBe(true);
+  });
+
+  it.each([false, true])("compacts a multi-hub network without overlapping cards (drag: %s)", (drag) => {
+    const nodes = [node("left", -650), node("right", 650)];
+    const edges = [edge("left", "right")];
+    for (const [hubId, center] of [["left", -650], ["right", 650]] as const) {
+      for (let i = 0; i < 5; i++) {
+        const angle = i * Math.PI * 2 / 5;
+        const id = `${hubId}-${i}`;
+        nodes.push(node(id, center + Math.cos(angle) * 700, Math.sin(angle) * 700));
+        edges.push(edge(hubId, id));
+      }
+    }
+    const layout = createObsidianForceLayout(nodes, edges);
+    if (drag) {
+      layout.pin("left", nodes[0].position);
+      layout.release("left");
+    }
+    layout.settle();
+    const positions = layout.positions();
+    const lengths = edges.map(({ source, target }) => {
+      const a = positions.get(source)!;
+      const b = positions.get(target)!;
+      return Math.hypot(a.x - b.x, a.y - b.y);
+    });
+    expect(lengths.reduce((sum, length) => sum + length, 0) / lengths.length).toBeLessThan(520);
+    for (let i = 0; i < nodes.length; i++) for (let j = i + 1; j < nodes.length; j++) {
+      const a = positions.get(nodes[i].id)!;
+      const b = positions.get(nodes[j].id)!;
+      expect(Math.abs(a.x - b.x) >= 304 || Math.abs(a.y - b.y) >= 152,
+        `${nodes[i].id}, ${nodes[j].id}`).toBe(true);
+    }
+    expect(layout.isSettled()).toBe(true);
+  });
+
   it.each([{ x: 1_200, y: 0 }, { x: 0, y: -1_200 }, { x: -900, y: 600 }])(
     "preserves a star's neighbor directions after moving its hub by $x,$y",
     (delta) => {
@@ -365,7 +423,7 @@ describe("createObsidianForceLayout", () => {
     expect(layout.isSettled()).toBe(true);
   });
 
-  it("opens space around a card while allowing its neighboring connection to stay stretched", () => {
+  it("keeps a connection compact while clearing the card between its endpoints", () => {
     const layout = createObsidianForceLayout(
       [node("a", 0), node("blocker", 420), node("b", 840)],
       [edge("a", "b")],
@@ -378,7 +436,8 @@ describe("createObsidianForceLayout", () => {
     const length = Math.hypot(b.x - a.x, b.y - a.y);
     const clearance = Math.abs((blocker.x - a.x) * (b.y - a.y) - (blocker.y - a.y) * (b.x - a.x)) / length;
     expect(clearance).toBeGreaterThan(80);
-    expect(length).toBeGreaterThan(600);
+    expect(length).toBeGreaterThan(420);
+    expect(length).toBeLessThan(600);
     expect(layout.isSettled()).toBe(true);
   });
 
