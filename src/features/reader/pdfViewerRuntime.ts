@@ -732,9 +732,9 @@ export async function createPdfViewerRuntime({
     }
     pdfViewer.currentScale = initialLocation?.zoom ?? 1;
     if (initialLocation) {
-      // Initial page boxes can still have their 100% dimensions in this task.
-      // Let the saved scale reach layout before measuring the reading offset.
-      await Promise.race([new Promise<void>((resolve) => requestAnimationFrame(() => resolve())), runtimeAborted]);
+      // PDF.js finishes initializing page dimensions while drawing the first page.
+      // Read the scaled layout only after that render, without fetching all pages.
+      await Promise.race([pdfViewer.onePageRendered, runtimeAborted]);
       await Promise.race([navigate(initialLocation.pageNumber, initialLocation.offset), runtimeAborted]);
     }
     locationReady = true;

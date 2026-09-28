@@ -8,6 +8,7 @@ import {
 
 const runtimeFakes = vi.hoisted(() => ({
   nextFirstPagePromise: null as Promise<object> | null,
+  nextOnePageRendered: null as Promise<object> | null,
   nextPagesPromise: null as Promise<object> | null,
   touchManagers: [] as FakeTouchManager[],
   viewers: [] as FakePdfViewer[],
@@ -62,6 +63,7 @@ class FakePdfViewer {
   currentPageNumber = 1;
   directScaleWrites = 0;
   firstPagePromise: Promise<object> | null = null;
+  onePageRendered: Promise<object> | null = null;
   pagesPromise: Promise<object> | null = null;
   pagesCount = 0;
   private scale = 0.75;
@@ -80,7 +82,9 @@ class FakePdfViewer {
     this.pagesPromise = document
       ? runtimeFakes.nextPagesPromise ?? this.firstPagePromise
       : null;
+    this.onePageRendered = document ? runtimeFakes.nextOnePageRendered ?? Promise.resolve({}) : null;
     runtimeFakes.nextFirstPagePromise = null;
+    runtimeFakes.nextOnePageRendered = null;
     runtimeFakes.nextPagesPromise = null;
   });
 
@@ -260,6 +264,8 @@ describe("createPdfViewerRuntime", () => {
 
   it("restores the reading offset using the saved zoom's page layout", async () => {
     const { container, viewer } = createElements();
+    let firstRendered!: (value: object) => void;
+    runtimeFakes.nextOnePageRendered = new Promise((resolve) => { firstRendered = resolve; });
     let pageHeight = 1000;
     const div = document.createElement("div");
     div.getBoundingClientRect = () => DOMRect.fromRect({ y: pageHeight - container.scrollTop, height: pageHeight });
@@ -267,9 +273,10 @@ describe("createPdfViewerRuntime", () => {
       initialLocation: { pageNumber: 2, offset: .25, zoom: 2 } });
     await vi.waitFor(() => expect(runtimeFakes.viewers).toHaveLength(1));
     vi.spyOn(runtimeFakes.viewers[0], "getPageView").mockReturnValue({ div, pdfPage: {} } as never);
-    await vi.waitFor(() => expect(animationFrames.size).toBeGreaterThan(0));
+    await vi.waitFor(() => expect(runtimeFakes.viewers[0].currentScale).toBe(2));
+    expect(container.scrollTop).toBe(0);
     pageHeight = 2000;
-    paintAnimationFrame();
+    firstRendered({});
     const runtime = await loading;
     expect(container.scrollTop).toBe(2500);
     runtime.destroy();
@@ -292,9 +299,6 @@ describe("createPdfViewerRuntime", () => {
     const pdfViewer = runtimeFakes.viewers[0];
     const lookup = vi.spyOn(pdfViewer, "getPageView").mockImplementation((index) => index === 1199 ? targetView : undefined);
     firstReady({});
-    await vi.waitFor(() => expect(pdfViewer.currentScale).toBe(2));
-    expect(getPage).not.toHaveBeenCalled();
-    paintAnimationFrame();
     await vi.waitFor(() => expect(getPage).toHaveBeenCalledWith(1200));
     pdfViewer.options.eventBus.dispatch("updateviewarea", { location: { pageNumber: 1 } });
     vi.advanceTimersByTime(200);
