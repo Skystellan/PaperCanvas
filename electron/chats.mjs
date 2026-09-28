@@ -1,4 +1,4 @@
-import { WebContentsView, session } from 'electron';
+import { BrowserWindow, WebContentsView, session } from 'electron';
 import { chatBounds, isGoogleSignIn, isHttps } from './security.mjs';
 
 export const CHAT_PARTITION = 'persist:paper-chatgpt';
@@ -12,7 +12,7 @@ export function secureRemote(contents, onGoogleSignIn) {
   const canNavigate = (url) => {
     if (!isHttps(url)) return false;
     // Google disallows embedded OAuth. Keep the user at ChatGPT and offer a
-    // browser conversation, not an OAuth URL whose state belongs to this guest.
+    // fresh browser login, not an OAuth URL whose state belongs to this guest.
     if (isGoogleSignIn(url)) { onGoogleSignIn(); return false; }
     return true;
   };
@@ -137,6 +137,14 @@ export class Chats {
     if (!view) return;
     this.setLoadState(id, 'loading');
     view.webContents.reloadIgnoringCache();
+  }
+
+  async restoreAfterLogin() {
+    // Discard stale embedded OAuth popups before they can resume the old login flow.
+    for (const window of BrowserWindow.getAllWindows()) {
+      if (window.webContents.session === this.session) window.destroy();
+    }
+    await Promise.all([...this.views.keys()].map((id) => this.restore(id)));
   }
 
   removePaper(ids) {

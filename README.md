@@ -309,7 +309,7 @@ npm run chromium:build
 
 It uses the existing `com.papercanvas.desktop` data directory. ChatGPT uses its
 own persistent Chromium profile under that directory's `chromium` subdirectory;
-Chrome's cookies are not imported or synchronized. The original Tauri/WKWebView
+Your everyday browser's cookies are not imported or synchronized. The original Tauri/WKWebView
 build remains available through `npm run tauri -- dev`; quit the other version
 before comparing them.
 
@@ -333,8 +333,37 @@ See [OpenAI password settings](https://help.openai.com/en/articles/4936828) and
 
 Google prohibits OAuth sign-in inside embedded browsers, including Chromium
 webviews. The **使用 Google 账户继续** button therefore shows **登录帮助**;
-use an existing OpenAI password or the account's password-setup option for
-embedded login. Entering a Gmail address and an email verification code is not
+the Electron build also offers an experimental extension-free browser login:
+
+1. Choose **打开专用登录窗口**. PaperCanvas launches installed Chrome (macOS) or
+   Edge/Chrome (Windows) with a separate profile under `browser-login` in its data
+   directory. This does not reuse your everyday browser's login; sign in once in
+   this window using **Continue with Google**.
+2. Check that this is the account with your subscription and conversation history.
+3. Leave that window open and click **我已登录，导入到应用** in PaperCanvas.
+   This refreshes all embedded ChatGPT pages, so save any unsent text first.
+4. Verify the account inside the app before closing the dedicated window. If
+   Google rejects this browser or ChatGPT does not accept the imported session,
+   continue in the browser or use the existing-account password option above.
+
+The app communicates with only its dedicated browser over a private pipe (no
+listening port). Only a supported ChatGPT session cookie is imported, on demand;
+Google cookies, passwords, verification codes and anti-bot cookies are not copied.
+Session values stay in the main process and Chromium's cookie stores, never in
+renderer IPC responses, application logs or exported JSON. The dedicated profile
+retains its own login until you sign out there. **关闭专用窗口** closes only that
+window's browser process; quitting PaperCanvas also closes it.
+
+This is a compatibility feature using ChatGPT's web session, not a public OAuth
+handoff API. Protocol/cookie handling is covered by synthetic tests; acceptance
+by Google/ChatGPT and retention of the original subscription/history still require
+manual account validation on each supported OS. A successful import message only
+confirms the local copy, not acceptance by ChatGPT. If the site's session format
+changes, import fails without substituting unrelated cookies. The ordinary
+**在浏览器中打开** action remains separate from this flow.
+
+You can also use an existing OpenAI password or the account's password-setup
+option for embedded login. Entering a Gmail address and an email verification code is not
 the same flow as **Continue with Google** and does not establish that the account
 is the same. If ChatGPT requests sign-up details, or the subscription and history
 are missing, stop and compare the account email and selected workspace with the

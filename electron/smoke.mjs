@@ -4,6 +4,7 @@ import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { clipboard, ClipboardItem } from 'electron';
+import { replaceSessionCookies, selectSessionCookies } from './browser-login.mjs';
 
 // Fresh database and chat profile. PDF defaults to synthetic content; an explicit
 // PAPERCANVAS_SMOKE_PDF path imports a copy for local performance measurements.
@@ -226,13 +227,34 @@ export async function smoke({ window, backend, chats, dataDirectory, chatSession
     await guest.executeJavaScript(script);
     await until(`!!document.querySelector('.web-chat-login-help')`, 'Google login help');
     assert.equal(guest.getURL(), 'https://chatgpt.com/');
-    assert.equal(await evaluate(`document.querySelector('.web-chat-login-help').textContent.includes('不会同步')`), true);
+    assert.equal(await evaluate(`document.querySelector('.web-chat-login-help').textContent.includes('不会自动同步')`), true);
+    assert.equal(await evaluate(`[...document.querySelectorAll('button')].some(b => b.textContent==='打开专用登录窗口')`), true);
     await writeFile(path.join(dataDirectory, 'google-login-help.png'), (await wc.capturePage()).toPNG());
     await evaluate(`[...document.querySelectorAll('button')].find(b => b.textContent==='关闭提示').click()`);
   }
+  // Exercise the real Electron cookie store with a synthetic session only.
+  // The HTTPS handler above serves a local fixture; no account/browser profile is read.
+  assert.equal(await evaluate(`window.paperCanvas.invoke('import_chatgpt_browser_login').then(()=>false,()=>true)`), true);
+  const syntheticToken = {
+    name: '__Secure-next-auth.session-token', value: 'papercanvas-synthetic-session',
+    domain: 'chatgpt.com', path: '/', secure: true, httpOnly: true,
+    expires: Math.floor(Date.now() / 1000) + 3600, sameSite: 'Lax',
+  };
+  await replaceSessionCookies(chatSession.cookies, selectSessionCookies([syntheticToken]));
+  const stored = await chatSession.cookies.get({ url: 'https://chatgpt.com/', name: syntheticToken.name });
+  assert.equal(stored.length, 1);
+  assert.equal(stored[0].value, syntheticToken.value);
+  assert.equal(stored[0].hostOnly, true);
+  assert.equal(stored[0].httpOnly, true);
+  assert.equal(stored[0].secure, true);
+  assert.equal(await guest.executeJavaScript(`document.cookie.includes('papercanvas-synthetic-session')`), false);
+  const importedPage = once(guest, 'did-finish-load');
+  await chats.restoreAfterLogin();
+  await importedPage;
+  assert.equal(guest.getURL(), 'https://chatgpt.com/');
   const { workspaceSmoke } = await import('./workspace-smoke.mjs');
   const workspace = await workspaceSmoke({ wc, backend, paper, dataDirectory, evaluate, until, chats, chat });
-  const report = { workspace, chromium: process.versions.chrome, electron: process.versions.electron, pdf: zoom, chatClipboard: { copy: true, pasteText: true, pasteImage: true }, guestReused: true, remoteHasNoBridge: true, googleLoginHandoff: true, verificationRetryRecovered: true, errors };
+  const report = { workspace, chromium: process.versions.chrome, electron: process.versions.electron, pdf: zoom, chatClipboard: { copy: true, pasteText: true, pasteImage: true }, guestReused: true, remoteHasNoBridge: true, googleLoginHelp: true, syntheticSessionImport: true, verificationRetryRecovered: true, errors };
   await writeFile(path.join(dataDirectory, 'report.json'), JSON.stringify(report, null, 2));
   console.log(JSON.stringify(report));
   assert.deepEqual(errors, [], 'Native workflows should not produce renderer errors');
