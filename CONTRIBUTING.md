@@ -1,13 +1,14 @@
 # Contributing to PaperCanvas
 
 欢迎通过 GitHub Issues 报告问题、讨论功能，或通过 Pull Request 参与维护。
-提交问题时请附上复现步骤、预期和实际行为、macOS 版本，以及相关错误信息。
+提交问题时请附上复现步骤、预期和实际行为、操作系统版本，以及相关错误信息。
 截图和日志请先移除论文内容、账号信息及其他私人数据。
 
 ## 本地开发
 
-当前版本以 macOS 13 及以上为目标。准备 Node.js 22.12+、npm、稳定版 Rust
-和 Xcode Command Line Tools，然后按 README 克隆并运行项目。
+当前版本支持 macOS 13+ 和 Windows 10/11 x64。准备 Node.js 22.12+、npm、稳定版 Rust；
+macOS 安装 Xcode Command Line Tools，Windows 安装 Visual Studio 2022 Build Tools
+（勾选“使用 C++ 的桌面开发”和 Windows SDK），然后按 README 克隆并运行项目。
 使用 `npm ci` 安装锁定的依赖版本。
 
 标注和 Markmap 思维导图完全在本地运行，无需 AI SDK。内嵌 ChatGPT

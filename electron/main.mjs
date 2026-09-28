@@ -128,10 +128,10 @@ else {
     backgroundColor: '#fffdf8', show: false,
     webPreferences: { preload: path.join(root, 'electron/preload.cjs'), nodeIntegration: false, contextIsolation: true, sandbox: true },
   });
-  const resources = app.isPackaged ? process.resourcesPath : root;
+  const backendName = `paper-canvas-backend${process.platform === 'win32' ? '.exe' : ''}`;
   const binary = app.isPackaged
-    ? path.join(resources, 'paper-canvas-backend')
-    : path.join(root, 'src-tauri/target/debug/paper-canvas-backend');
+    ? path.join(process.resourcesPath, backendName)
+    : path.join(root, 'src-tauri/target/debug', backendName);
   backend = new Backend(binary, dataDirectory);
   chats = new Chats(mainWindow, backend, emit);
   ipcMain.handle('paper-canvas:invoke', async (event, command, args = {}) => {
@@ -175,7 +175,7 @@ else {
   ]));
   await mainWindow.loadURL(APP_URL);
   void updates.check();
-  if (!app.isPackaged && process.env.PAPERCANVAS_SMOKE === '1') {
+  if (process.env.PAPERCANVAS_SMOKE === '1') {
     try {
       const { smoke } = await import('./smoke.mjs');
       await smoke({ window: mainWindow, backend, chats, dataDirectory, chatSession });

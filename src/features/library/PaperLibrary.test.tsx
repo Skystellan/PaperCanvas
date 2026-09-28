@@ -774,7 +774,7 @@ describe("PaperLibrary", () => {
     );
 
     expect(
-      await screen.findByText("无法启用 Finder 拖放导入。"),
+      await screen.findByText("无法启用文件拖放导入。"),
     ).toBeInTheDocument();
     expect(screen.queryByText(/Users\/private/)).not.toBeInTheDocument();
   });

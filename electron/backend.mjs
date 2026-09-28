@@ -8,6 +8,7 @@ export class Backend {
     this.sequence = 0;
     this.child = spawn(binary, ['--data-dir', dataDirectory], {
       stdio: ['pipe', 'pipe', 'pipe'],
+      windowsHide: true,
     });
     this.lines = createInterface({ input: this.child.stdout });
     this.lines.on('line', (line) => {

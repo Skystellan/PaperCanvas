@@ -19,9 +19,10 @@ export async function pdfNavigationSmoke({ wc, dataDirectory, evaluate, until })
   await click('固定 PDF 目录');
   await evaluate(`document.activeElement?.blur()`);
   wc.focus();
-  wc.sendInputEvent({ type: 'keyDown', keyCode: 'f', modifiers: ['meta'] });
-  wc.sendInputEvent({ type: 'keyUp', keyCode: 'f', modifiers: ['meta'] });
-  await until(`document.activeElement === document.querySelector('.pdf-findbar input')`, 'native Cmd+F');
+  const modifiers = [process.platform === 'darwin' ? 'meta' : 'control'];
+  wc.sendInputEvent({ type: 'keyDown', keyCode: 'f', modifiers });
+  wc.sendInputEvent({ type: 'keyUp', keyCode: 'f', modifiers });
+  await until(`document.activeElement === document.querySelector('.pdf-findbar input')`, 'native Cmd/Ctrl+F');
   await query('page 13');
   await until(`document.querySelector('.pdf-findbar__count').textContent === '1 / 1' && document.querySelector('.pdf-viewer__toolbar').textContent.includes('13 /')`, 'search across unrendered pages');
   await until(`!!document.querySelector('.textLayer .highlight.selected')`, 'visible search highlight');

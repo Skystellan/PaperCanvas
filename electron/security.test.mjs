@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import path from 'node:path';
 import { APP_URL, assetPath, canWriteChatClipboard, chatBounds, isGoogleSignIn, isHttps, isLocalFrame } from './security.mjs';
 
 test('ChatGPT can copy without granting remote clipboard reads or other permissions', () => {
@@ -32,7 +33,8 @@ test('only the reader main frame can invoke local commands', () => {
 });
 
 test('asset paths and remote navigation do not escape their scopes', () => {
-  assert.equal(assetPath('paper-canvas://app/assets/main.js', '/bundle/dist'), '/bundle/dist/assets/main.js');
+  const root = path.resolve('bundle', '应用 dist');
+  assert.equal(assetPath('paper-canvas://app/assets/main.js', root), path.join(root, 'assets', 'main.js'));
   for (const url of ['paper-canvas://other/index.html', 'paper-canvas://app/%2e%2e%2fsecret', 'file:///secret']) {
     assert.throws(() => assetPath(url, '/bundle/dist'));
   }

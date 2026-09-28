@@ -1,6 +1,7 @@
 # PaperCanvas
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Download for Windows](https://img.shields.io/badge/Download-Windows%20x64-0078D4)](https://github.com/Skystellan/PaperCanvas/releases/latest)
 [![Download for macOS](https://img.shields.io/badge/Download-macOS%20Apple%20Silicon-007AFF)](https://github.com/Skystellan/PaperCanvas/releases/latest)
 
 **Drag papers. Connect ideas. Build your own research network.**
@@ -22,16 +23,36 @@ as your understanding grows.
 *Real app demo · sample papers and illustrative connections · 2× playback.*
 
 Read, highlight, annotate, and discuss papers in the same local-first workspace.
-PDFs and product data stay in app-owned local storage. The current macOS desktop
-uses Chromium through Electron. The reader can open ChatGPT in an embedded browser;
+PDFs and product data stay in app-owned local storage. The macOS and Windows desktops
+use Chromium through Electron. The reader can open ChatGPT in an embedded browser;
 annotations and Markdown-based Markmap mind maps work entirely offline.
 
 ## Download
 
 Get the app from [GitHub Releases](https://github.com/Skystellan/PaperCanvas/releases/latest).
-The current binary supports **Apple Silicon Macs (M1 or newer), macOS 13+**.
 
-1. Download `PaperCanvas-0.2.4-macOS-arm64.zip` from the release's **Assets**.
+### Windows
+
+**Windows 10/11, x64 (Intel or AMD).**
+
+1. Download `PaperCanvas-0.2.5-Windows-x64.zip` from the release's **Assets**.
+2. Extract the entire archive into a writable folder, then open `PaperCanvas.exe`
+   inside `PaperCanvas-win32-x64`. Keep the adjacent resources and DLLs together.
+3. Import PDFs using the file picker or drag them from File Explorer. PDF search
+   uses **Ctrl+F**; Markdown formatting uses **Ctrl+B/I/K**.
+
+No installer, administrator access, Node.js, Rust, or separate WebView2 install is
+needed to run this build. Application data is stored separately at
+`%APPDATA%\com.papercanvas.desktop` (including the `chromium` sign-in profile).
+Quit the app before replacing the extracted folder to upgrade; your library and
+notes stay in the data directory. This community build is unsigned, so Windows
+may show an unknown-publisher/SmartScreen prompt on first launch.
+
+### macOS
+
+**Apple Silicon Macs (M1 or newer), macOS 13+.**
+
+1. Download `PaperCanvas-0.2.5-macOS-arm64.zip` from the release's **Assets**.
 2. Unzip it and move `PaperCanvas.app` to **Applications**. Quit an older copy before replacing it.
 3. Open PaperCanvas and import your PDFs. Upgrading the app preserves your local library and notes.
 
@@ -39,11 +60,11 @@ This community build is ad-hoc signed, without an Apple Developer ID or notariza
 If macOS blocks the first launch and you trust this download, use **System Settings →
 Privacy & Security → Open Anyway** after attempting to open it. See
 [Apple's opening instructions](https://support.apple.com/en-us/102445).
-Intel Mac, Windows, and Linux binaries are not included in this release.
+Intel Mac, native Windows ARM64, and Linux binaries are not included in this release.
 
 ## What is included
 
-- Resizable Paper Library with search, multi-PDF import, Finder drag-and-drop,
+- Resizable Paper Library with search, multi-PDF import, file-manager drag-and-drop,
   domains, and compact per-paper action menus
 - Double-click a library paper to read it; single-click to locate its canvas card
 - Infinite whiteboard with domain views, force layout, and explicit connections
@@ -191,7 +212,8 @@ are optional; the app itself groups conversation links by paper.
 
 - Node.js 22.12 or newer and npm
 - Stable Rust and the Tauri 2 prerequisites for development builds
-- macOS 13 or newer for the current desktop bundle
+- macOS 13+ with Xcode Command Line Tools, or Windows 10/11 x64 with
+  Visual Studio 2022 Build Tools (Desktop development with C++) and the Windows SDK
 
 A Codex installation or SDK login is not required. Embedded ChatGPT uses its own
 website sign-in only when the user opens a discussion.
@@ -227,7 +249,7 @@ cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --locked -- -D w
 cargo test --manifest-path src-tauri/Cargo.toml --all-targets --locked
 ```
 
-Create the current macOS desktop bundle with:
+Create a desktop bundle for the current platform with:
 
 ```sh
 npm run chromium:build
@@ -235,11 +257,18 @@ npm run chromium:build
 
 The bundle is generated under
 `release/PaperCanvas-darwin-arm64/PaperCanvas.app` on Apple
-Silicon. Quit the running copy before installing it in a fixed location such as
+Silicon, or `release/PaperCanvas-win32-x64/` on Windows x64. Windows builds
+include `paper-canvas-backend.exe` and an ICO application icon. Quit the running copy before installing it in a fixed location such as
 `~/Applications/PaperCanvas.app`. Moving the application does not move its
 paper database or persistent ChatGPT profile. Packaging uses the optimized Rust
 release backend. The published community build is ad-hoc signed; Developer ID
 signing and notarization are needed for a verified publisher and smoother first launch.
+
+The **Desktop builds** GitHub Actions workflow runs on macOS and Windows,
+checks the frontend and Rust backend, runs a native Electron smoke test, and
+uploads versioned ZIP artifacts. It can also be started manually. Download both
+platform artifacts and attach them to a GitHub Release with the matching version
+tag and `docs/releases/<tag>.md` notes after the workflow succeeds.
 
 ## Releases and update notifications
 

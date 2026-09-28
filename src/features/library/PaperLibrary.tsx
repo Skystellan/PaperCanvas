@@ -771,7 +771,7 @@ export function PaperLibrary({
       })
       .catch(() => {
         if (!disposed) {
-          setOperationError("无法启用 Finder 拖放导入。");
+          setOperationError("无法启用文件拖放导入。");
         }
       });
 

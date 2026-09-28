@@ -1,0 +1,63 @@
+name: Desktop builds
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  desktop:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            platform: Windows-x64
+          - os: macos-14
+            platform: macOS-arm64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run test
+      - run: npm run chromium:test
+      - run: cargo test --manifest-path src-tauri/Cargo.toml --all-targets --locked
+      - run: npm run chromium:build
+      - name: Test packaged Windows app
+        if: runner.os == 'Windows'
+        run: node electron/run-smoke.mjs release/PaperCanvas-win32-x64/PaperCanvas.exe
+      - name: Archive Windows app
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $version = (Get-Content package.json | ConvertFrom-Json).version
+          Compress-Archive -Path release/PaperCanvas-win32-x64 -DestinationPath "release/PaperCanvas-$version-Windows-x64.zip"
+      - name: Sign and test packaged macOS app
+        if: runner.os == 'macOS'
+        run: |
+          codesign --force --deep --sign - release/PaperCanvas-darwin-arm64/PaperCanvas.app
+          node electron/run-smoke.mjs release/PaperCanvas-darwin-arm64/PaperCanvas.app/Contents/MacOS/PaperCanvas
+      - name: Archive macOS app
+        if: runner.os == 'macOS'
+        run: |
+          version=$(node -p "require('./package.json').version")
+          ditto -c -k --sequesterRsrc --keepParent release/PaperCanvas-darwin-arm64/PaperCanvas.app "release/PaperCanvas-$version-macOS-arm64.zip"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PaperCanvas-${{ matrix.platform }}
+          path: release/*.zip
+          if-no-files-found: error

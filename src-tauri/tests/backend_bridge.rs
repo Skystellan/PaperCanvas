@@ -10,7 +10,7 @@ use std::{
 struct Temp(PathBuf);
 impl Temp {
     fn new() -> Self {
-        let p = std::env::temp_dir().join(format!("paper-backend-{}", uuid::Uuid::new_v4()));
+        let p = std::env::temp_dir().join(format!("paper-backend-论文 空格-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir(&p).unwrap();
         Self(p)
     }
@@ -79,7 +79,7 @@ async fn upgrades_existing_sqlx_database_and_keeps_rollback_compatible() {
 #[test]
 fn json_lines_bridge_import_notes_sql_and_safe_files() {
     let temp = Temp::new();
-    let source = temp.0.join("source.pdf");
+    let source = temp.0.join("论文 source.pdf");
     std::fs::write(&source, b"%PDF-1.7\nfixture\n%%EOF").unwrap();
     let mut child = Command::new(env!("CARGO_BIN_EXE_paper-canvas-backend"))
         .args(["--data-dir", temp.0.to_str().unwrap()])
