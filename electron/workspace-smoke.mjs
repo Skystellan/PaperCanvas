@@ -14,7 +14,15 @@ export async function workspaceSmoke({ wc, backend, paper, dataDirectory, evalua
     Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set.call(field, ${JSON.stringify(text)});
     field.dispatchEvent(new Event('input', { bubbles: true }));
   })()`);
-  const reload = async () => { const ready = once(wc, 'did-finish-load'); wc.reload(); await ready; };
+  const reload = async () => {
+    const ready = once(wc, 'did-finish-load'); wc.reload(); await ready;
+    // Keep real cursor movement from interrupting the scripted drag.
+    await evaluate(`['mousedown', 'mousemove', 'mouseup'].forEach(type => {
+      window.addEventListener(type, event => {
+        if (event.screenX || event.screenY) event.stopImmediatePropagation();
+      }, true);
+    })`);
+  };
   const openPaper = () => evaluate(`${byLabel(paper.title)}.dispatchEvent(new MouseEvent('dblclick', {bubbles:true}))`);
 
   const setDiagram = async (source) => {
@@ -86,6 +94,10 @@ export async function workspaceSmoke({ wc, backend, paper, dataDirectory, evalua
   const { pdfNavigationSmoke } = await import('./pdf-navigation-smoke.mjs');
   await pdfNavigationSmoke({ wc, dataDirectory, evaluate, until });
   await until(`[...document.querySelectorAll('.page[data-page-number="1"] .textLayer span')].some(s=>s.textContent==='E = mc')`, 'formula text');
+  // Select visible text after navigation/scroll events have settled.
+  await evaluate(`[...document.querySelectorAll('.page[data-page-number="1"] .textLayer span')]
+    .find(s=>s.textContent==='E = mc').scrollIntoView({block:'center',inline:'center',behavior:'instant'});
+    new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))`);
   const formula = await evaluate(`(() => {
     const spans = [...document.querySelectorAll('.page[data-page-number="1"] .textLayer span')];
     const base = spans.find(s=>s.textContent==='E = mc');

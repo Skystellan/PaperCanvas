@@ -58,9 +58,11 @@ describe("paper conversation bindings", () => {
     const layout = layoutHarness();
     const view = render(<WebChatPanel paper={paper} />);
     await waitFor(() => expect(screen.getByRole("combobox")).toHaveValue(chat.id));
-    await layout.flush();
-    await layout.flush();
-    expect(layout.frames.size).toBe(0);
+    await waitFor(async () => {
+      await layout.flush();
+      expect(layoutPaperWebChat).toHaveBeenCalledTimes(1);
+      expect(layout.frames.size).toBe(0);
+    });
     const reads = layout.measure.mock.calls.length;
     await layout.flush();
     expect(layout.measure).toHaveBeenCalledTimes(reads);
