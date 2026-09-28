@@ -28,6 +28,7 @@ export async function whiteboardDragSmoke({ wc, backend, dataDirectory, evaluate
   })()`);
 
   wc.focus();
+  await until('document.hasFocus()', 'canvas focused for native input');
   wc.sendInputEvent({ type: 'mouseDown', button: 'left', clickCount: 1, ...start });
   let grabOffset;
   let dropPosition;
@@ -35,6 +36,13 @@ export async function whiteboardDragSmoke({ wc, backend, dataDirectory, evaluate
     for (let step = 1; step <= 20; step++) {
       const pointer = { x: start.x + step * 5, y: start.y + step * 2 };
       wc.sendInputEvent({ type: 'mouseMove', button: 'left', modifiers: ['leftbuttondown'], ...pointer });
+      // Native input can arrive after animation frames on hosted desktops.
+      await until(`${draggedNode}.classList.contains('dragging')`, 'native drag started');
+      if (grabOffset) await until(`(() => {
+        const rect = ${draggedNode}.getBoundingClientRect();
+        return Math.hypot(rect.left + rect.width / 2 - ${pointer.x + grabOffset.x},
+          rect.top + 24 - ${pointer.y + grabOffset.y}) < 3;
+      })()`, 'native drag position updated');
       await evaluate('new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))');
       const actual = await evaluate(`(() => {
         const rect = ${draggedNode}.getBoundingClientRect();
