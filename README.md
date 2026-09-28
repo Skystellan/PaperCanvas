@@ -320,18 +320,31 @@ automatically saves the URL of a new paper discussion after its first message.
 
 If the account was created with Google and has no OpenAI password, open the
 already signed-in ChatGPT account in a regular browser and find
-**Settings → Security and login → Password → Add** (some versions place it
-under **Account**). Complete identity verification and password setup there,
-then use the same email and new password inside PaperCanvas. This adds a
-credential to the existing account. Password changes affect the shared OpenAI
+**Settings → Account → Add password** (some versions place it under
+**Security and login**). First verify that this is the account with your existing
+subscription and conversation history, and use the exact email shown in its
+account settings. If password setup is available, complete it there, then use
+that email and password inside PaperCanvas. This adds a credential to the
+existing account. If the option is unavailable, continue using that account in
+the system browser. Password changes affect the shared OpenAI
 account and may require signing in again to other sessions, including Codex.
 See [OpenAI password settings](https://help.openai.com/en/articles/4936828) and
 [social-login account password setup](https://help.openai.com/en/articles/4936827).
 
 Google prohibits OAuth sign-in inside embedded browsers, including Chromium
 webviews. The **使用 Google 账户继续** button therefore shows **登录帮助**;
-use the email/password path for embedded login. The external-browser button
-remains available, but signing in there does not sign the embedded view in.
+use an existing OpenAI password or the account's password-setup option for
+embedded login. Entering a Gmail address and an email verification code is not
+the same flow as **Continue with Google** and does not establish that the account
+is the same. If ChatGPT requests sign-up details, or the subscription and history
+are missing, stop and compare the account email and selected workspace with the
+original browser session.
+
+The external-browser button opens the saved conversation, or ChatGPT's home page
+for an unbound discussion. An already signed-in browser will go straight to
+ChatGPT; this is expected, and it does not sign the embedded view in.
+**关联已有对话** only saves a conversation URL to the paper. It does not link
+accounts, merge histories, or transfer browser login sessions.
 See [Google's embedded-webview policy](https://developers.googleblog.com/upcoming-security-changes-to-googles-oauth-20-authorization-endpoint-in-embedded-webviews/).
 
 If the embedded page stays blank, **重新加载网页** reloads the current page

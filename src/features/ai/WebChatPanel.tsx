@@ -239,7 +239,10 @@ function PaperChats({ paper, initialChatId }: { paper: Paper; initialChatId?: st
       }}
       onSubmit={(event) => { event.preventDefault(); void save(); }}>
       <label>讨论名称<input autoFocus aria-label="讨论名称" maxLength={100} required value={title} onChange={(event) => setTitle(event.target.value)} /></label>
-      {mode === "link" && <label>ChatGPT 对话链接<input aria-label="ChatGPT 对话链接" type="url" required placeholder="https://chatgpt.com/c/…" value={url} onChange={(event) => setUrl(event.target.value)} /></label>}
+      {mode === "link" && <>
+        <label>ChatGPT 对话链接<input aria-label="ChatGPT 对话链接" type="url" required placeholder="https://chatgpt.com/c/…" value={url} onChange={(event) => setUrl(event.target.value)} /></label>
+        <p>这里只保存对话链接，不会关联 ChatGPT 账号或同步浏览器登录状态。</p>
+      </>}
       <div className="web-chat-actions"><button type="submit" disabled={saving || !title.trim()}>{saving ? "保存中…" : "保存并打开"}</button><button type="button" disabled={saving} onClick={() => { setMode(null); menuButton.current?.focus(); }}>取消</button></div>
     </form>}
     {current && <p className="web-chat-sr-only">{current.url ? "已绑定 · 打开论文时恢复此对话" : "发出首条消息后自动保存对话链接"}</p>}
@@ -250,8 +253,15 @@ function PaperChats({ paper, initialChatId }: { paper: Paper; initialChatId?: st
     </div>}
     {current && loginHelpId === selected && <div className="web-chat-login-help" role="status">
       <strong>Google 登录需要使用浏览器</strong>
-      <p>Google 不支持在内嵌窗口登录。请在浏览器中登录并继续此对话；浏览器的登录状态不会同步到这里。</p>
-      <p>已有对话会打开保存的链接。新建对话后，可复制地址栏链接，用“关联已有对话”保存到这篇论文。</p>
+      <p>Google 不支持在内嵌窗口登录。浏览器的登录状态不会同步到这里；浏览器已登录时，直接进入对话页是正常现象。</p>
+      <details>
+        <summary>在内嵌窗口使用原来的 Google 注册账号</summary>
+        <p>先在系统浏览器中用 Google 登录原账号，核对“设置 → 账号”中的完整邮箱、订阅和历史对话。</p>
+        <p>如果账号设置提供“添加密码”，为这个原账号添加 OpenAI 密码，再在内嵌窗口选择“登录”，使用该邮箱和新密码。若已设置密码，直接使用即可；没有该选项时，请继续在系统浏览器使用原账号。</p>
+        <p>邮箱验证码不等同于 Google 授权。若出现姓名、生日等注册步骤，或订阅和历史对话不见了，请先返回核对账号与工作区。</p>
+        <p><a href="https://help.openai.com/en/articles/4936828-resetting-or-changing-your-chatgpt-password" target="_blank" rel="noreferrer">OpenAI 官方密码设置说明</a></p>
+      </details>
+      <p>“关联已有对话”只保存对话链接，不会关联账号或同步登录。新对话的链接可从浏览器地址栏复制。</p>
       <div className="web-chat-actions">
         <button type="button" onClick={openInBrowser}>打开浏览器继续</button>
         <button type="button" onClick={() => { edit("link"); setLoginHelpId(""); }}>关联浏览器对话</button>

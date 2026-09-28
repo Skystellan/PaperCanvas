@@ -133,6 +133,7 @@ describe("paper conversation bindings", () => {
     await openActions();
     fireEvent.click(screen.getByRole("menuitem", { name: "关联已有对话" }));
     expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    expect(screen.getByText("这里只保存对话链接，不会关联 ChatGPT 账号或同步浏览器登录状态。")).toBeVisible();
     fireEvent.change(screen.getByLabelText("ChatGPT 对话链接"), { target: { value: chat.url } });
     fireEvent.click(screen.getByRole("button", { name: "保存并打开" }));
     await waitFor(() => expect(invoke).toHaveBeenCalledWith("save_paper_web_chat", expect.objectContaining({ paperId: paper.id, url: chat.url })));
@@ -168,6 +169,11 @@ describe("paper conversation bindings", () => {
     expect(callback).toBeDefined();
     act(() => callback!({ event: "paper-web-chat-login-required", id: 1, payload: { id: chat.id } }));
     expect(screen.getByRole("status")).toHaveTextContent("浏览器的登录状态不会同步到这里");
+    expect(screen.getByRole("status")).toHaveTextContent("浏览器已登录时，直接进入对话页是正常现象");
+    fireEvent.click(screen.getByText("在内嵌窗口使用原来的 Google 注册账号"));
+    expect(screen.getByRole("status")).toHaveTextContent("为这个原账号添加 OpenAI 密码");
+    expect(screen.getByRole("status")).toHaveTextContent("订阅和历史对话不见了，请先返回核对账号与工作区");
+    expect(screen.getByRole("link", { name: "OpenAI 官方密码设置说明" })).toHaveAttribute("href", "https://help.openai.com/en/articles/4936828-resetting-or-changing-your-chatgpt-password");
     fireEvent.click(screen.getByRole("button", { name: "打开浏览器继续" }));
     await waitFor(() => expect(invoke).toHaveBeenCalledWith("open_paper_web_chat_external", { id: chat.id }));
     fireEvent.click(screen.getByRole("button", { name: "关联浏览器对话" }));
