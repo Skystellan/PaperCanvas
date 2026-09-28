@@ -41,9 +41,16 @@ export async function smoke({ window, backend, chats, dataDirectory, chatSession
   // Real mouse/trackpad input must not mix with the scripted input schedule.
   window.setIgnoreMouseEvents(true);
   const wc = window.webContents;
-  const evaluate = (script) => wc.executeJavaScript(script).catch((error) => {
-    throw new Error(`${script.slice(0, 90)}: ${error.message}`);
-  });
+  const evaluate = async (script) => {
+    try {
+      const result = await wc.executeJavaScript(script);
+      // React commits synthetic input asynchronously; the next action must see it.
+      await wc.executeJavaScript('new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))');
+      return result;
+    } catch (error) {
+      throw new Error(`${script.slice(0, 90)}: ${error.message}`);
+    }
+  };
   const errors = [];
   wc.on('console-message', (event) => { if (event.level === 'error') errors.push(event.message); });
   async function until(script, label) {
