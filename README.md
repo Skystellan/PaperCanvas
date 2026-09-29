@@ -12,6 +12,11 @@ PaperCanvas turns your paper library into a visual map of your thinking.
 Bring papers onto an infinite canvas, connect their ideas, and shape the network
 as your understanding grows.
 
+**Keep paper discussions with the papers they belong to.** Read a PDF and ask ChatGPT
+beside it, without keeping a separate browser chat window or tab open for every paper.
+PaperCanvas manages multiple named discussions per paper, lets you switch between them,
+and restores the last discussion when you reopen the paper.
+
 ![PaperCanvas demo: organize a paper network, discuss a paper in the embedded chat, and turn a Markdown outline into an interactive mind map. Includes English and Chinese captions.](docs/media/paper-network-demo.gif)
 
 [Watch the HD demo](docs/media/paper-network-demo.mp4) · [Static preview](docs/media/paper-network-poster.png)
@@ -302,8 +307,9 @@ Other editing and sending shortcuts within the ChatGPT page are handled by ChatG
   formatting shortcuts, and one `.md` file bound to each paper
 - Paste a Markdown outline from a conversation or write it manually, then render and
   save a local mind map; no AI SDK, runtime, or account is required for this
-- Resizable embedded ChatGPT discussion rail with named conversations per paper,
-  existing conversation links, and restoration of the last-opened discussion
+- Built-in ChatGPT conversation management in a resizable reader sidebar: organize
+  multiple named discussions per paper, switch between them, link existing conversations,
+  and resume the last discussion without hunting through browser tabs
 - Recent discussions remains expanded by default
 - Coordinated navigation/close saving and additive SQLite migrations
 
