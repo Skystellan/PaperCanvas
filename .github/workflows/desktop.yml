@@ -107,7 +107,8 @@ jobs:
       image: ubuntu:20.04
       # Allow Chromium's user namespaces inside this CI container. Electron's
       # own sandbox remains enabled and is asserted by the desktop smoke test.
-      options: --security-opt seccomp=unconfined --security-opt apparmor=unconfined
+      # PDF canvas rendering needs more than Docker's default 64 MB shared memory.
+      options: --shm-size=1g --security-opt seccomp=unconfined --security-opt apparmor=unconfined
     defaults:
       run:
         shell: bash
