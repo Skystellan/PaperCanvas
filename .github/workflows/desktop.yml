@@ -52,7 +52,7 @@ jobs:
         run: |
           sudo apt-get install -y ./release/*-Linux-*.deb
           test -x /usr/bin/paper-canvas
-          test -r /opt/PaperCanvas/resources/app/package.json
+          test -r /opt/PaperCanvas/resources/app.asar
           desktop-file-validate /usr/share/applications/paper-canvas.desktop
           xvfb-run -a dbus-run-session -- node electron/run-smoke.mjs /usr/bin/paper-canvas
       - name: Test Linux AppImage
@@ -145,7 +145,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y xvfb dbus-x11 desktop-file-utils ./release/*-Linux-*.deb
           test -x /usr/bin/paper-canvas
-          test -r /opt/PaperCanvas/resources/app/package.json
+          test -r /opt/PaperCanvas/resources/app.asar
           desktop-file-validate /usr/share/applications/paper-canvas.desktop
           test -f /etc/apparmor.d/paper-canvas
           xvfb-run -a dbus-run-session -- node electron/run-smoke.mjs /usr/bin/paper-canvas
