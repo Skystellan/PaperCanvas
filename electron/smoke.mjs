@@ -3,7 +3,7 @@ import { once } from 'node:events';
 import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
-import { clipboard, ClipboardItem } from 'electron';
+import { app, clipboard, ClipboardItem } from 'electron';
 
 // Fresh database and chat profile. PDF defaults to synthetic content; an explicit
 // PAPERCANVAS_SMOKE_PDF path imports a copy for local performance measurements.
@@ -38,6 +38,7 @@ function pdfFixture() {
 
 export async function smoke({ window, backend, chats, dataDirectory, chatSession }) {
   assert.match(dataDirectory, /papercanvas-smoke-/);
+  assert.equal(app.commandLine.hasSwitch('no-sandbox'), false, 'The packaged launcher must preserve Chromium sandboxing');
   // Real mouse/trackpad input must not mix with the scripted input schedule.
   window.setIgnoreMouseEvents(true);
   const wc = window.webContents;

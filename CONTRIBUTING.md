@@ -11,6 +11,11 @@ macOS 安装 Xcode Command Line Tools，Windows 安装 Visual Studio 2022 Build 
 （勾选“使用 C++ 的桌面开发”和 Windows SDK），然后按 README 克隆并运行项目。
 使用 `npm ci` 安装锁定的依赖版本。
 
+Linux 首批支持目标为 Ubuntu 22.04 / 24.04 x64，按 README 安装 Linux 构建依赖后，
+同样使用 `npm run chromium:dev` 和 `npm run chromium:build`。发布包在 Ubuntu 22.04
+构建，生成 `.deb` 和 AppImage，并在 Ubuntu 24.04 验证 `.deb`。Linux CI 使用 Xvfb
+运行 X11 冒烟测试；涉及 Wayland、中文输入法或真实 ChatGPT 登录的改动仍需实机验证。
+
 标注和 Markmap 思维导图完全在本地运行，无需 AI SDK。内嵌 ChatGPT
 需要在应用内单独登录；测试使用临时资料目录和本地网页，避免访问真实对话。
 

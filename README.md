@@ -12,6 +12,8 @@
 Download directly with the buttons above: **Windows 10/11 x64 installer** or **macOS 13+ Apple Silicon ZIP**.
 [Installation guide](#download) · [All downloads and release notes](https://github.com/Skystellan/PaperCanvas/releases/latest)
 
+**Linux x64:** see [Ubuntu packages and installation](#linux-ubuntu-x64).
+
 **A dozen ChatGPT tabs open for your papers? I built an open-source app that keeps papers and discussions together.**
 
 PaperCanvas turns your paper library into a visual map of your thinking.
@@ -34,7 +36,7 @@ and restores the last discussion when you reopen the paper.
 *Recorded in the real app with public research PDFs and the actual embedded ChatGPT website, at 2× speed. The mind map uses Markdown copied from the live reply. The paper connections are illustrative; no personal library or signed-in account is recorded.*
 
 Read, highlight, annotate, and discuss papers in the same local-first workspace.
-PDFs and product data stay in app-owned local storage. The macOS and Windows desktops
+PDFs and product data stay in app-owned local storage. The macOS, Windows and Linux desktops
 use Chromium through Electron. The reader can open ChatGPT in an embedded browser;
 annotations and Markdown-based Markmap mind maps work entirely offline.
 
@@ -54,6 +56,7 @@ The current release is **0.2.7**. Choose your platform below to download directl
 | --- | --- | --- |
 | Windows 10/11, Intel or AMD x64 | **[Download Windows installer (.exe)](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.7/PaperCanvas-0.2.7-Windows-x64-Setup.exe)** | Double-click to install; supports future in-app updates. |
 | macOS 13+, Apple Silicon (M1 or newer) | **[Download for Mac (.zip)](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.7/PaperCanvas-0.2.7-macOS-arm64.zip)** | Unzip, then move PaperCanvas.app to Applications. |
+| Linux x64, Ubuntu 22.04 / 24.04 | [Builds and installation](#linux-ubuntu-x64) | Install the `.deb`; AppImage is also provided. |
 
 [Release notes and other files](https://github.com/Skystellan/PaperCanvas/releases/latest). You do not need the source archives or updater metadata to install the app.
 
@@ -82,7 +85,32 @@ This community build is ad-hoc signed, without an Apple Developer ID or notariza
 If macOS blocks the first launch and you trust this download, use **System Settings →
 Privacy & Security → Open Anyway** after attempting to open it. See
 [Apple's opening instructions](https://support.apple.com/en-us/102445).
-Intel Mac, native Windows ARM64, and Linux binaries are not included in this release.
+Intel Mac, native Windows ARM64, and Linux binaries are not included in the published 0.2.7 release.
+
+### Linux (Ubuntu x64)
+
+The initial Linux target is **Ubuntu 22.04 and 24.04, x64 (Intel or AMD), with a desktop environment**. Packages are built on Ubuntu 22.04; CI also installs and tests the same `.deb` on Ubuntu 24.04. Other distributions and ARM64 are outside the initial validation scope.
+
+Until Linux packages are attached to a release, open a successful [Desktop builds](https://github.com/Skystellan/PaperCanvas/actions/workflows/desktop.yml) run and download the **PaperCanvas-Linux-x64** artifact (GitHub sign-in required). Unzip it to find the `.deb` and `.AppImage`. Node.js and Rust are only needed to build from source.
+
+**Recommended on Ubuntu:** in the download directory, install the `.deb`, then open **PaperCanvas** from the application menu or run `paper-canvas`:
+
+```sh
+sudo apt install ./PaperCanvas-0.2.7-Linux-amd64.deb
+```
+
+The installer configures the desktop icon and the application-specific AppArmor profile on Ubuntu 24.04. Run the app as your normal desktop user.
+
+**AppImage:** on compatible Linux desktops, make it executable and run it:
+
+```sh
+chmod +x PaperCanvas-0.2.7-Linux-x64.AppImage
+./PaperCanvas-0.2.7-Linux-x64.AppImage
+```
+
+The AppImage uses FUSE 2 (`sudo apt install libfuse2` on Ubuntu 22.04). `APPIMAGE_EXTRACT_AND_RUN=1 ./PaperCanvas-0.2.7-Linux-x64.AppImage` can run without a FUSE mount. If the system blocks Chromium's user-namespace sandbox, use the `.deb` on Ubuntu; do not add `--no-sandbox` for the embedded chat. AppImage does not install an application-menu shortcut.
+
+Linux updates use **Help → Check for Updates… → View release**. Quit the app, then install the newer `.deb` or replace the AppImage. Both formats share the data directory listed below; upgrades retain the library and sign-in profile. Linux uses the same **Ctrl** shortcuts as Windows.
 
 ### Manual upgrades and data backups
 
@@ -92,6 +120,7 @@ Replacing the program does not delete your library. Application files and person
 | --- | --- |
 | Windows | `%APPDATA%\com.papercanvas.desktop` |
 | macOS | `~/Library/Application Support/com.papercanvas.desktop` |
+| Linux | `$XDG_CONFIG_HOME/com.papercanvas.desktop`, or `~/.config/com.papercanvas.desktop` by default |
 
 The directory contains the database, imported PDFs, Markdown notes, and the `chromium` profile for embedded sign-in. ChatGPT conversation content remains on ChatGPT; PaperCanvas stores the conversation links. Keeping the profile does not guarantee that ChatGPT will never request sign-in again.
 
@@ -194,7 +223,7 @@ PaperCanvas does not merge ChatGPT accounts or synchronize external-browser cook
 1. Open a paper, switch to **AI chat**, and complete the email and password sign-in described above.
 2. Click **＋ (新对话 / New conversation)** in the toolbar to create a discussion record for this paper.
 3. Click **⧉ (复制论文信息 / Copy paper information)**. This copies **only the current paper's title** to the clipboard, with no extra success dialog. It does not copy the PDF, abstract, authors, or full text.
-4. Click the ChatGPT message box and press **⌘V (macOS) / Ctrl+V (Windows)**, or use the box's paste menu.
+4. Click the ChatGPT message box and press **⌘V (macOS) / Ctrl+V (Windows/Linux)**, or use the box's paste menu.
 5. Check the pasted title, add your question, and send the message yourself. For example:
 
    > I am reading “paste the paper title here.” Please first confirm what information about the paper you can access, then help me understand its research question, method, and main findings. State clearly when you are uncertain.
@@ -281,9 +310,9 @@ Rendering requires no AI account and does not load external scripts, images, or 
 
 ## Keyboard shortcuts
 
-`⌘` is the Command key on macOS; `Ctrl` is used on Windows. Shortcuts depend on which area has focus.
+`⌘` is the Command key on macOS; `Ctrl` is used on Windows and Linux. Shortcuts depend on which area has focus.
 
-| Context | macOS | Windows | Action |
+| Context | macOS | Windows / Linux | Action |
 | --- | --- | --- | --- |
 | Canvas, outside text inputs and buttons | Space | Space | Enter connection mode, then click two cards in sequence. Press again to reset the starting point. |
 | Canvas connection mode | Esc | Esc | Exit connection mode and restore dragging and double-click reading. |
@@ -370,6 +399,15 @@ crossings. All connections remain fully visible while selecting or dragging card
 - Stable Rust and the Tauri 2 prerequisites for development builds
 - macOS 13+ with Xcode Command Line Tools, or Windows 10/11 x64 with
   Visual Studio 2022 Build Tools (Desktop development with C++) and the Windows SDK
+- Linux: Ubuntu 22.04 / 24.04 x64 with a desktop environment and these build dependencies:
+
+```sh
+sudo apt update
+sudo apt install build-essential pkg-config libwebkit2gtk-4.1-dev \
+  libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+```
+
+The Rust crate still includes the original Tauri shell, so its GTK/WebKit development dependencies are needed when compiling the backend. The Electron UI itself uses Chromium. See the [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/#linux).
 
 A Codex installation or SDK login is not required. Embedded ChatGPT uses its own
 website sign-in only when the user opens a discussion.
@@ -420,9 +458,14 @@ paper database or persistent ChatGPT profile. Packaging uses the optimized Rust
 release backend. The published macOS community build is ad-hoc signed; Developer ID
 signing and notarization are needed for a verified publisher and smoother first launch.
 
-The **Desktop builds** GitHub Actions workflow runs on macOS and Windows,
+Linux x64 builds generate `release/PaperCanvas-linux-x64/`,
+`release/PaperCanvas-<version>-Linux-amd64.deb` and
+`release/PaperCanvas-<version>-Linux-x64.AppImage`. Build on Ubuntu 22.04 for the oldest supported glibc baseline.
+
+The **Desktop builds** GitHub Actions workflow runs on macOS, Windows and Ubuntu 22.04,
 checks the frontend and Rust backend, runs a native Electron smoke test, and
-uploads versioned ZIP artifacts. It can also be started manually. Download both
+uploads versioned artifacts. Linux uses Xvfb and an isolated D-Bus session to test the installed `.deb` and AppImage; another job tests the `.deb` on Ubuntu 24.04. These automated runs cover X11, PDF interactions and local chat fixtures; real ChatGPT sign-in, Wayland and Chinese IME input still need desktop validation.
+It can also be started manually. Download the
 platform artifacts and attach them to a GitHub Release with the matching version
 tag and `docs/releases/<tag>.md` notes after the workflow succeeds.
 
@@ -438,7 +481,7 @@ Keep PaperCanvas in a writable installation folder such as `~/Applications`. A p
 
 Packaged Electron builds check the public latest-release API once after startup. **Later** dismisses the offer; the app does not continuously poll. This startup check has a 10-second timeout and fails quietly. Development and smoke runs do not check automatically. Update requests contain no papers, notes, or login credentials; the native updaters contact GitHub to retrieve update metadata and archives. Download time depends on the network.
 
-For maintainers, publish a public, non-draft, non-prerelease release marked **Latest**, with a stable `vX.Y.Z` tag matching the packaged version. Upload the macOS and portable Windows ZIPs, the Windows **Setup.exe**, its **.blockmap**, **latest.yml**, checksums, and the signed macOS **appcast.xml** before publishing. Keep the Windows metadata and installer from the same build together. The macOS feed points to this latest release asset, so omitting it breaks native update checks.
+For maintainers, publish a public, non-draft, non-prerelease release marked **Latest**, with a stable `vX.Y.Z` tag matching the packaged version. Upload the macOS and portable Windows ZIPs, the Windows **Setup.exe**, its **.blockmap**, **latest.yml**, the Linux `.deb` and `.AppImage`, checksums, and the signed macOS **appcast.xml** before publishing. Keep the Windows metadata and installer from the same build together. The macOS feed points to this latest release asset, so omitting it breaks native update checks.
 
 The macOS package includes the pinned official [Sparkle](https://sparkle-project.org/) framework. The public update key is committed in `electron/macos/sparkle.mjs`; the matching private key stays in the maintainer's login Keychain under the `PaperCanvas` Sparkle account. To prepare a release, download the successful CI build archives into `release/`, then run on that Mac:
 

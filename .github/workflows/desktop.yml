@@ -19,10 +19,19 @@ jobs:
             platform: Windows-x64
           - os: macos-14
             platform: macOS-arm64
+          - os: ubuntu-22.04
+            platform: Linux-x64
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+      - name: Install Linux build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config libwebkit2gtk-4.1-dev \
+            libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev \
+            libfuse2 libnss3 libasound2 xvfb dbus-x11 desktop-file-utils
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -38,6 +47,17 @@ jobs:
       - run: npm run chromium:test
       - run: cargo test --manifest-path src-tauri/Cargo.toml --all-targets --locked
       - run: npm run chromium:build
+      - name: Install and test Ubuntu app
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get install -y ./release/*-Linux-*.deb
+          desktop-file-validate /usr/share/applications/paper-canvas.desktop
+          xvfb-run -a dbus-run-session -- node electron/run-smoke.mjs /usr/bin/paper-canvas
+      - name: Test Linux AppImage
+        if: runner.os == 'Linux'
+        run: |
+          chmod +x release/*.AppImage
+          APPIMAGE_EXTRACT_AND_RUN=1 xvfb-run -a dbus-run-session -- node electron/run-smoke.mjs "$PWD"/release/*.AppImage
       - name: Install and test Windows app
         if: runner.os == 'Windows'
         shell: pwsh
@@ -90,9 +110,45 @@ jobs:
             release/latest.yml
           if-no-files-found: error
       - uses: actions/upload-artifact@v4
+        if: runner.os == 'Linux'
+        with:
+          name: PaperCanvas-${{ matrix.platform }}
+          path: |
+            release/*.deb
+            release/*.AppImage
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: Smoke-diagnostics-${{ matrix.platform }}
+          path: |
+            ${{ runner.temp }}/papercanvas-smoke-*/*.png
+            ${{ runner.temp }}/papercanvas-smoke-*/report.json
+
+  ubuntu-compatibility:
+    needs: desktop
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@v4
+        with:
+          name: PaperCanvas-Linux-x64
+          path: release
+      - name: Install and test the Ubuntu 22.04 build on Ubuntu 24.04
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb dbus-x11 desktop-file-utils ./release/*-Linux-*.deb
+          desktop-file-validate /usr/share/applications/paper-canvas.desktop
+          test -f /etc/apparmor.d/paper-canvas
+          xvfb-run -a dbus-run-session -- node electron/run-smoke.mjs /usr/bin/paper-canvas
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: Smoke-diagnostics-Ubuntu-24.04
           path: |
             ${{ runner.temp }}/papercanvas-smoke-*/*.png
             ${{ runner.temp }}/papercanvas-smoke-*/report.json

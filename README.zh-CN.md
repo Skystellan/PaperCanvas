@@ -12,6 +12,8 @@
 点击上方按钮即可直接下载：**Windows 10/11 x64 安装版** 或 **macOS 13+ Apple Silicon 版**。
 [安装教程](#下载安装) · [所有下载与更新说明](https://github.com/Skystellan/PaperCanvas/releases/latest)
 
+**Linux x64：** 参见 [Ubuntu 安装包与安装说明](#linuxubuntu-x64)。
+
 **读论文开了十几个 ChatGPT 标签页？我做了一个把论文和讨论放在一起的开源工具。**
 
 PaperCanvas 把论文库变成一张可视化的思考地图。
@@ -31,7 +33,7 @@ PaperCanvas 把论文库变成一张可视化的思考地图。
 *演示使用真实公开论文 PDF 和应用内实际打开的 ChatGPT 网页，以 2 倍速播放。思维导图由真实回复中复制的 Markdown 渲染；论文连线仅用于演示，不录制个人论文库或已登录账号。*
 
 在同一个以本地存储为主的工作空间中阅读、高亮、批注和讨论论文。
-PDF 与应用数据保存在应用管理的本地目录中。macOS 和 Windows 桌面版通过 Electron 使用 Chromium；
+PDF 与应用数据保存在应用管理的本地目录中。macOS、Windows 和 Linux 桌面版通过 Electron 使用 Chromium；
 阅读器可在内嵌浏览器中打开 ChatGPT，批注和基于 Markdown 的 Markmap 思维导图则完全离线运行。
 
 **使用指南：** [下载安装](#下载安装) · [快速上手](#快速上手) ·
@@ -50,6 +52,7 @@ PDF 与应用数据保存在应用管理的本地目录中。macOS 和 Windows �
 | --- | --- | --- |
 | Windows 10/11，Intel 或 AMD x64 | **[下载 Windows 安装版（.exe）](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.7/PaperCanvas-0.2.7-Windows-x64-Setup.exe)** | 双击安装，之后支持应用内更新。 |
 | macOS 13+，Apple Silicon（M1 或更新芯片） | **[下载 Mac 版（.zip）](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.7/PaperCanvas-0.2.7-macOS-arm64.zip)** | 解压后将 PaperCanvas.app 移到「应用程序」。 |
+| Linux x64，Ubuntu 22.04 / 24.04 | [构建下载与安装说明](#linuxubuntu-x64) | 推荐安装 `.deb`，同时提供 AppImage。 |
 
 [查看更新说明与其他文件](https://github.com/Skystellan/PaperCanvas/releases/latest)。普通安装无需下载源码包或自动更新用的辅助文件。
 
@@ -77,7 +80,32 @@ PDF 与应用数据保存在应用管理的本地目录中。macOS 和 Windows �
 此社区构建采用临时签名（ad-hoc），没有 Apple Developer ID 签名或公证。
 如果 macOS 阻止首次启动，且你信任此次下载，请先尝试打开应用，再前往
 **系统设置 → 隐私与安全性 → 仍要打开**。参见 [Apple 官方打开说明](https://support.apple.com/en-us/102445)。
-此版本不提供 Intel Mac、原生 Windows ARM64 或 Linux 二进制包。
+已发布的 0.2.7 Release 不提供 Intel Mac、原生 Windows ARM64 或 Linux 二进制包。
+
+### Linux（Ubuntu x64）
+
+首批 Linux 支持目标为 **Ubuntu 22.04 和 24.04，x64（Intel 或 AMD），需要桌面环境**。安装包在 Ubuntu 22.04 构建，CI 也会在 Ubuntu 24.04 安装并测试同一个 `.deb`。其他发行版和 ARM64 暂不在首批验证范围内。
+
+Linux 安装包尚未附加到正式 Release 时，请打开成功的 [Desktop builds](https://github.com/Skystellan/PaperCanvas/actions/workflows/desktop.yml) 工作流，下载 **PaperCanvas-Linux-x64** 产物（需要登录 GitHub），解压后获得 `.deb` 和 `.AppImage`。只有从源码构建才需要 Node.js 和 Rust。
+
+**Ubuntu 推荐安装 `.deb`：** 在下载文件所在目录执行，安装后从应用菜单打开 **PaperCanvas**，也可运行 `paper-canvas`：
+
+```sh
+sudo apt install ./PaperCanvas-0.2.7-Linux-amd64.deb
+```
+
+安装器会配置应用图标，并在 Ubuntu 24.04 配置应用专用的 AppArmor 规则。请使用普通桌面用户运行应用。
+
+**AppImage：** 在兼容的 Linux 桌面环境中，添加执行权限后运行：
+
+```sh
+chmod +x PaperCanvas-0.2.7-Linux-x64.AppImage
+./PaperCanvas-0.2.7-Linux-x64.AppImage
+```
+
+此 AppImage 使用 FUSE 2（Ubuntu 22.04 可执行 `sudo apt install libfuse2`）。也可用 `APPIMAGE_EXTRACT_AND_RUN=1 ./PaperCanvas-0.2.7-Linux-x64.AppImage` 解压运行，避免依赖 FUSE 挂载。如果系统限制 Chromium 的用户命名空间沙箱，Ubuntu 请使用 `.deb`；不要为内嵌聊天添加 `--no-sandbox`。AppImage 不会自动添加应用菜单快捷方式。
+
+Linux 通过 **Help → Check for Updates… → View release** 提示新版。升级前退出应用，再安装新版 `.deb` 或替换 AppImage。两种格式共用下表中的数据目录，升级会保留论文库和登录资料。Linux 与 Windows 使用相同的 **Ctrl** 快捷键。
 
 ### 手动升级与数据备份
 
@@ -87,6 +115,7 @@ PDF 与应用数据保存在应用管理的本地目录中。macOS 和 Windows �
 | --- | --- |
 | Windows | `%APPDATA%\com.papercanvas.desktop` |
 | macOS | `~/Library/Application Support/com.papercanvas.desktop` |
+| Linux | `$XDG_CONFIG_HOME/com.papercanvas.desktop`，默认 `~/.config/com.papercanvas.desktop` |
 
 目录内包含数据库、导入的 PDF、Markdown 笔记，以及用于内嵌登录的 `chromium` 资料目录。ChatGPT 的聊天内容保存在 ChatGPT，PaperCanvas 保存的是讨论链接；保留登录资料不代表 ChatGPT 永远不会要求重新登录。
 
@@ -189,7 +218,7 @@ PaperCanvas 不合并 ChatGPT 账号，不同步外部浏览器 Cookie；「关�
 1. 打开论文，切换到 **AI chat**，完成上面的账号密码登录。
 2. 点击工具栏的 **＋（新对话）**，为这篇论文建立一条讨论记录。
 3. 点击 **⧉（复制论文信息）**。它只把**当前论文标题**放入剪贴板，成功时没有额外弹窗；不会复制 PDF、摘要、作者或全文。
-4. 点击 ChatGPT 的消息输入框，按 **⌘V（macOS）/ Ctrl+V（Windows）**，或使用输入框的粘贴菜单。
+4. 点击 ChatGPT 的消息输入框，按 **⌘V（macOS）/ Ctrl+V（Windows/Linux）**，或使用输入框的粘贴菜单。
 5. 检查粘贴的论文名，补充你的问题，手动发送。例如：
 
    > 我正在阅读《在这里粘贴论文名》。请先确认你能获得的论文信息，帮我梳理研究问题、方法和主要结论；不确定的内容请说明。
@@ -276,9 +305,9 @@ PaperCanvas 不会替你发送这些内容，也不会自动点击发送按钮�
 
 ## 快捷键速查
 
-`⌘` 表示 macOS 的 Command 键，`Ctrl` 用于 Windows。快捷键取决于当前焦点所在区域。
+`⌘` 表示 macOS 的 Command 键，`Ctrl` 用于 Windows 和 Linux。快捷键取决于当前焦点所在区域。
 
-| 场景 | macOS | Windows | 效果 |
+| 场景 | macOS | Windows / Linux | 效果 |
 | --- | --- | --- | --- |
 | 画布，焦点不在输入框或按钮上 | 空格 | 空格 | 进入连线模式，随后依次点两张卡片；再次按下会重选起点。 |
 | 画布连线模式 | Esc | Esc | 退出连线模式，恢复拖动和双击阅读。 |
@@ -343,6 +372,15 @@ PaperCanvas 不会替你发送这些内容，也不会自动点击发送按钮�
 - 稳定版 Rust，以及开发构建所需的 Tauri 2 前置依赖。
 - macOS 13 及以上并安装 Xcode Command Line Tools；或 Windows 10/11 x64，
   安装 Visual Studio 2022 Build Tools（包含“使用 C++ 的桌面开发”与 Windows SDK）。
+- Linux：Ubuntu 22.04 / 24.04 x64 桌面环境，并安装以下构建依赖：
+
+```sh
+sudo apt update
+sudo apt install build-essential pkg-config libwebkit2gtk-4.1-dev \
+  libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+```
+
+Rust crate 仍包含原 Tauri 桌面壳，因此编译后端需要 GTK/WebKit 开发依赖；Electron 界面本身使用 Chromium。参见 [Tauri 前置要求](https://v2.tauri.app/start/prerequisites/#linux)。
 
 无需安装 Codex 或登录 SDK。内嵌 ChatGPT 仅在用户打开讨论时使用其自身的网站登录。
 
@@ -389,9 +427,13 @@ Windows x64 的产物位于 `release/PaperCanvas-win32-x64/`。Windows 构建包
 打包使用经过优化的 Rust release 后端。已发布的 macOS 社区构建采用临时签名；
 要获得可验证的发布者身份并改善首次启动体验，需要 Developer ID 签名和公证。
 
-**Desktop builds** GitHub Actions 工作流在 macOS 和 Windows 上运行，检查前端与 Rust 后端，
-执行原生 Electron 冒烟测试，并上传带版本号的 ZIP 产物。也可手动触发该工作流。
-工作流成功后，下载两个平台的产物，将它们附加到对应版本标签的 GitHub Release，
+Linux x64 构建会生成 `release/PaperCanvas-linux-x64/`、
+`release/PaperCanvas-<version>-Linux-amd64.deb` 和
+`release/PaperCanvas-<version>-Linux-x64.AppImage`。发布构建使用 Ubuntu 22.04，以兼容所支持的最低 glibc 版本。
+
+**Desktop builds** GitHub Actions 工作流在 macOS、Windows 和 Ubuntu 22.04 上运行，检查前端与 Rust 后端，
+执行原生 Electron 冒烟测试，并上传带版本号的产物。Linux 使用 Xvfb 和独立 D-Bus 会话测试安装后的 `.deb` 与 AppImage，再由另一个任务在 Ubuntu 24.04 测试同一个 `.deb`。自动测试覆盖 X11、PDF 交互和本地聊天测试页；真实 ChatGPT 登录、Wayland 和中文输入法仍需桌面环境验证。也可手动触发该工作流。
+工作流成功后，下载各平台的产物，将它们附加到对应版本标签的 GitHub Release，
 并使用 `docs/releases/<tag>.md` 中的发布说明。
 
 ## 发布与更新通知
@@ -406,7 +448,7 @@ Windows x64 的产物位于 `release/PaperCanvas-win32-x64/`。Windows 构建包
 
 打包后的 Electron 应用在启动后检查一次 GitHub 最新稳定版。选择 **Later（稍后）** 会关闭提示，应用不会持续轮询。启动检查的超时为 10 秒，失败时不打扰用户；开发和冒烟测试运行不自动检查。更新请求不会发送论文、笔记或登录凭据；原生更新器会连接 GitHub 获取更新列表和安装包，下载耗时取决于网络。
 
-维护者发布时，请使用与应用版本一致的稳定标签 `vX.Y.Z`，创建公开、非草稿、非预发布并标记为 **Latest（最新版本）** 的 Release。正式发布前上传 macOS 和 Windows 便携版 ZIP、Windows **Setup.exe** 及其 **.blockmap**、**latest.yml**、校验文件，以及已签名的 macOS **appcast.xml**。Windows 安装包与更新列表必须来自同一次构建。macOS 更新器读取最新 Release 中的这个文件，缺少它会导致原生更新检查失败。
+维护者发布时，请使用与应用版本一致的稳定标签 `vX.Y.Z`，创建公开、非草稿、非预发布并标记为 **Latest（最新版本）** 的 Release。正式发布前上传 macOS 和 Windows 便携版 ZIP、Windows **Setup.exe** 及其 **.blockmap**、**latest.yml**、Linux **.deb** 与 **.AppImage**、校验文件，以及已签名的 macOS **appcast.xml**。Windows 安装包与更新列表必须来自同一次构建。macOS 更新器读取最新 Release 中的这个文件，缺少它会导致原生更新检查失败。
 
 macOS 包包含固定版本的官方 [Sparkle](https://sparkle-project.org/) 框架。更新公钥位于 `electron/macos/sparkle.mjs`，对应私钥保存在维护者本机的登录钥匙串中，Sparkle 账号名称为 `PaperCanvas`。准备发布时，将通过 CI 的安装包下载到 `release/`，在保存该密钥的 Mac 上执行：
 

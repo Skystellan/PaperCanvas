@@ -110,6 +110,14 @@ else {
 
   // Do not await readiness at module scope: Electron waits for its ESM entry to finish first.
   void app.whenReady().then(async () => {
+  // AppImage launchers may add this flag when user namespaces are unavailable.
+  // Never open the embedded remote website with Chromium's sandbox disabled.
+  if (process.platform === 'linux' && app.commandLine.hasSwitch('no-sandbox')) {
+    dialog.showErrorBox('PaperCanvas needs Chromium sandboxing',
+      'Use the Ubuntu .deb package on this system. This AppImage cannot start with the Chromium sandbox disabled.');
+    app.exit(1);
+    return;
+  }
   await mkdir(app.getPath('userData'), { recursive: true });
   protocol.handle('paper-canvas', async (request) => {
     try {
@@ -134,6 +142,7 @@ else {
   mainWindow = new BrowserWindow({
     title: 'PaperCanvas', width: 1280, height: 800, minWidth: 800, minHeight: 560,
     backgroundColor: '#fffdf8', show: false,
+    icon: process.platform === 'linux' ? path.join(root, app.isPackaged ? 'icon.png' : 'src-tauri/icons/icon.png') : undefined,
     webPreferences: { preload: path.join(root, 'electron/preload.cjs'), nodeIntegration: false, contextIsolation: true, sandbox: true },
   });
   const backendName = `paper-canvas-backend${process.platform === 'win32' ? '.exe' : ''}`;
