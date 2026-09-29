@@ -1,6 +1,6 @@
 # PaperCanvas
 
-![PaperCanvas — 论文与讨论放在一起，构建属于你的论文网络。](docs/media/papercanvas-social-preview.png)
+![PaperCanvas — 论文与讨论放在一起，构建属于你的论文网络。](docs/media/papercanvas-cover.png)
 
 [English](README.md) | **[简体中文](README.zh-CN.md)**
 
@@ -22,7 +22,7 @@ PaperCanvas 把论文库变成一张可视化的思考地图。
 
 ![PaperCanvas 演示：整理论文网络，在内嵌聊天中讨论论文，再把 Markdown 大纲渲染成可交互的思维导图。含中英文字幕。](docs/media/paper-network-demo.gif)
 
-[观看高清演示](docs/media/paper-network-demo.mp4) · [查看静态预览](docs/media/paper-network-poster.png) · [分享封面](docs/media/papercanvas-social-preview.png)
+[观看高清演示](docs/media/paper-network-demo.mp4) · [查看静态预览](docs/media/paper-network-poster.png) · [查看封面原图](docs/media/papercanvas-cover.png)
 
 - **放入论文。** 从论文库拖动论文到画布。
 - **连接思路。** 连起论文之间的关系，记录支持、质疑和证据。

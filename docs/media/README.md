@@ -4,9 +4,12 @@
 is the higher-quality version. `paper-network-poster.png` is a still alternative.
 Both animated versions include English and Chinese captions and play at 2× speed.
 
-`papercanvas-social-preview.png` is a 1280 × 640 cover, under 1 MB, displayed at
-the top of both READMEs and also prepared for GitHub's **Settings → General →
-Social preview**. It was created with the
+`papercanvas-cover.png` is the maintainer-supplied 1774 × 887 original, copied
+without resizing or recompression. Both READMEs display this full-resolution
+image at the top and link to it below the demo.
+
+`papercanvas-social-preview.png` is the smaller 1280 × 640 version, under 1 MB,
+prepared for GitHub's **Settings → General → Social preview**. The artwork was created with the
 built-in imagegen tool using the real canvas poster and signed-out ChatGPT
 checkpoint as visual inputs; it is promotional artwork, not another recording.
 The generation prompt is saved in `social-preview.prompt.txt`.

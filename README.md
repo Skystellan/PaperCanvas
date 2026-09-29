@@ -1,6 +1,6 @@
 # PaperCanvas
 
-![PaperCanvas — Your papers. Your conversations. Build your own network.](docs/media/papercanvas-social-preview.png)
+![PaperCanvas — Your papers. Your conversations. Build your own network.](docs/media/papercanvas-cover.png)
 
 **[English](README.md)** | [简体中文](README.zh-CN.md)
 
@@ -25,7 +25,7 @@ and restores the last discussion when you reopen the paper.
 
 ![PaperCanvas demo: organize a paper network, discuss a paper in the embedded chat, and turn a Markdown outline into an interactive mind map. Includes English and Chinese captions.](docs/media/paper-network-demo.gif)
 
-[Watch the HD demo](docs/media/paper-network-demo.mp4) · [Static preview](docs/media/paper-network-poster.png) · [Share cover](docs/media/papercanvas-social-preview.png)
+[Watch the HD demo](docs/media/paper-network-demo.mp4) · [Static preview](docs/media/paper-network-poster.png) · [Full-resolution cover](docs/media/papercanvas-cover.png)
 
 - **Drop a paper.** Drag it from your library onto the canvas.
 - **Connect your ideas.** Link papers and record support, challenges, and evidence.
