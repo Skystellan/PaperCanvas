@@ -1,3 +1,5 @@
+Original generation prompt:
+
 Use case: ads-marketing / compositing.
 Create a polished 1280 x 640 landscape GitHub social preview cover for the open-source desktop app PaperCanvas.
 Input 1 is a REAL PaperCanvas paper-network screenshot; input 2 is a REAL PaperCanvas PDF reader with the actual ChatGPT conversation. Use these as supporting screenshot inserts, preserve their authentic UI and visible research paper/chat content rather than inventing a new interface. Crop away the navy recording-caption bar at the top of each source image.
@@ -12,3 +14,19 @@ Secondary Chinese line: "论文与讨论，放在一起"
 Small footer line: "Windows + macOS  ·  Open source"
 A discreet bottom-left line: "github.com/Skystellan/PaperCanvas"
 Do not include any other marketing text, no download-button shapes, no stock logos, no watermark. Keep all content inside a 40px safe margin. Produce the final ready-to-publish flat cover as a 2:1 image.
+
+Revision: add the user's "Build your own network." message.
+Tool: built-in imagegen. Input: the previous social-preview cover.
+
+Use case: text-localization / precise text edit.
+Edit this existing PaperCanvas GitHub social-preview cover, keeping its 2:1 layout and visual identity.
+Change only the left marketing copy. Preserve the PaperCanvas title, ivory background, blue accents, the two application screenshot inserts on the right (including the authentic paper network, PDF and ChatGPT pane), platform footer, and GitHub address.
+Replace the current three-line slogan with these four lines, verbatim:
+"Your papers."
+"Your conversations."
+"Build your own"
+"network."
+Keep the first two lines dark navy. Make the last two lines bright blue, matching the current "One workspace." accent, together reading exactly "Build your own network." Give this four-line slogan balanced spacing below the app name; modestly reduce its font size only if needed to keep the original clean hierarchy. Remove the old "One workspace." text.
+Replace the Chinese subtitle with exactly: "构建属于你的论文网络".
+Keep the subtitle separate below the slogan with good breathing room; slightly move the decorative rule if needed. Keep "Windows + macOS · Open source" and "github.com/Skystellan/PaperCanvas" legible and unchanged.
+No other new copy, no invented UI, no new illustrations. Preserve all unchanged regions as closely as possible. Final export 1280 by 640 pixels, landscape.
