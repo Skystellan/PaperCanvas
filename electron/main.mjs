@@ -179,12 +179,12 @@ else {
   const showUpdateDialog = (options) => mainWindow.isDestroyed()
     ? Promise.resolve({ response: 1 }) : dialog.showMessageBox(mainWindow, options);
   const requestInstall = (install) => new Promise((resolve, reject) => {
-      installOnClose = () => {
-        try { install(); resolve(); }
-        catch (error) { allowClose = false; reject(error); }
-      };
-      mainWindow.close();
-    });
+    installOnClose = () => {
+      try { install(); resolve(); }
+      catch (error) { allowClose = false; reject(error); }
+    };
+    mainWindow.close();
+  });
   const installerUpdate = createNativeUpdater({
     showMessageBox: showUpdateDialog,
     setProgress: (progress) => { if (!mainWindow.isDestroyed()) mainWindow.setProgressBar(progress); },

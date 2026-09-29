@@ -16,7 +16,7 @@ test('Ubuntu installation passes the verified path literally to the system autho
   let relaunched = false;
   updater.app = { relaunch: () => { relaunched = true; } };
   assert.equal(updater.doInstall({ isForceRunAfter: true }), true);
-  assert.deepEqual(commands, [['/usr/bin/pkexec', ['/usr/bin/apt-get', 'install', '--no-remove', '-y', '--', file]]]);
+  assert.deepEqual(commands, [['/usr/bin/pkexec', ['/usr/bin/apt-get', 'install', '--reinstall', '--no-remove', '-y', '--', file]]]);
   assert.equal(relaunched, true);
 });
 

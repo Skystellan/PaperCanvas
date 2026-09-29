@@ -8,7 +8,7 @@ export function createLinuxUpdater(format, { DebUpdater, AppImageUpdater }, run 
   class UbuntuUpdater extends DebUpdater {
     doInstall({ isForceRunAfter }) {
       run('/usr/bin/pkexec', [
-        '/usr/bin/apt-get', 'install', '--no-remove', '-y', '--', this.downloadedUpdateHelper.file,
+        '/usr/bin/apt-get', 'install', '--reinstall', '--no-remove', '-y', '--', this.downloadedUpdateHelper.file,
       ]);
       if (isForceRunAfter) this.app.relaunch();
       return true;
