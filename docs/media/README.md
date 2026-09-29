@@ -4,6 +4,16 @@
 is the higher-quality version. `paper-network-poster.png` is a still alternative.
 Both animated versions include English and Chinese captions and play at 2× speed.
 
+`papercanvas-social-preview.png` is a 1280 × 640 share cover, under 1 MB, prepared
+for GitHub's **Settings → General → Social preview**. It was created with the
+built-in imagegen tool using the real canvas poster and signed-out ChatGPT
+checkpoint as visual inputs; it is promotional artwork, not another recording.
+The generation prompt is saved in `social-preview.prompt.txt`.
+
+The README download buttons use version-specific URLs for the published installers.
+When publishing a new release, update the version and all direct download links in
+both READMEs together, after the corresponding release assets are available.
+
 The recording uses the actual application and its SQLite backend with a fresh
 temporary profile. It shows dropping papers onto the canvas, connecting and
 moving cards, opening a paper discussion, copying/pasting a title and question,

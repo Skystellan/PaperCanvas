@@ -3,10 +3,13 @@
 [English](README.md) | **[简体中文](README.zh-CN.md)**
 
 [![许可证：MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![下载 Windows 版](https://img.shields.io/badge/Download-Windows%20x64-0078D4)](https://github.com/Skystellan/PaperCanvas/releases/latest)
-[![下载 macOS 版](https://img.shields.io/badge/Download-macOS%20Apple%20Silicon-007AFF)](https://github.com/Skystellan/PaperCanvas/releases/latest)
+[![下载 Windows 安装版](https://img.shields.io/badge/下载-Windows%20安装版-0078D4?style=for-the-badge)](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.7/PaperCanvas-0.2.7-Windows-x64-Setup.exe)
+[![下载 macOS 版](https://img.shields.io/badge/下载-macOS%20Apple%20Silicon-007AFF?style=for-the-badge)](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.7/PaperCanvas-0.2.7-macOS-arm64.zip)
 
-**拖动论文，连接思路，构建属于自己的论文网络。**
+点击上方按钮即可直接下载：**Windows 10/11 x64 安装版** 或 **macOS 13+ Apple Silicon 版**。
+[安装教程](#下载安装) · [所有下载与更新说明](https://github.com/Skystellan/PaperCanvas/releases/latest)
+
+**读论文开了十几个 ChatGPT 标签页？我做了一个把论文和讨论放在一起的开源工具。**
 
 PaperCanvas 把论文库变成一张可视化的思考地图。
 将论文放上无限画布，连接彼此的思路，随着理解深入，逐步整理出自己的研究脉络。
@@ -16,7 +19,7 @@ PaperCanvas 把论文库变成一张可视化的思考地图。
 
 ![PaperCanvas 演示：整理论文网络，在内嵌聊天中讨论论文，再把 Markdown 大纲渲染成可交互的思维导图。含中英文字幕。](docs/media/paper-network-demo.gif)
 
-[观看高清演示](docs/media/paper-network-demo.mp4) · [查看静态预览](docs/media/paper-network-poster.png)
+[观看高清演示](docs/media/paper-network-demo.mp4) · [查看静态预览](docs/media/paper-network-poster.png) · [分享封面](docs/media/papercanvas-social-preview.png)
 
 - **放入论文。** 从论文库拖动论文到画布。
 - **连接思路。** 连起论文之间的关系，记录支持、质疑和证据。
@@ -34,22 +37,29 @@ PDF 与应用数据保存在应用管理的本地目录中。macOS 和 Windows �
 [笔记](#markdown-笔记) · [思维导图](#思维导图) · [快捷键](#快捷键速查)
 
 **项目信息：** [功能概览](#功能概览) · [本地数据与隐私](#本地数据与内嵌对话) ·
-[开发环境](#开发环境要求) · [参与贡献](#参与贡献) · [更新通知](#发布与更新通知) · [许可证](#许可证)
+[开发环境](#开发环境要求) · [参与贡献](#参与贡献) · [讨论与建议](https://github.com/Skystellan/PaperCanvas/discussions) · [更新通知](#发布与更新通知) · [许可证](#许可证)
 
 ## 下载安装
 
-当前版本为 **0.2.7**，请从 [GitHub Releases](https://github.com/Skystellan/PaperCanvas/releases/latest) 下载。
+当前版本为 **0.2.7**。按电脑类型点击下方链接，直接下载安装包，无需在 Release 附件里挑文件。
+
+| 你的电脑 | 下载入口 | 下载后怎么做 |
+| --- | --- | --- |
+| Windows 10/11，Intel 或 AMD x64 | **[下载 Windows 安装版（.exe）](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.7/PaperCanvas-0.2.7-Windows-x64-Setup.exe)** | 双击安装，之后支持应用内更新。 |
+| macOS 13+，Apple Silicon（M1 或更新芯片） | **[下载 Mac 版（.zip）](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.7/PaperCanvas-0.2.7-macOS-arm64.zip)** | 解压后将 PaperCanvas.app 移到「应用程序」。 |
+
+[查看更新说明与其他文件](https://github.com/Skystellan/PaperCanvas/releases/latest)。普通安装无需下载源码包或自动更新用的辅助文件。
 
 ### Windows
 
 **支持 Windows 10/11，x64（Intel 或 AMD）。**
 
-1. 在发布页的 **Assets（资源）** 中下载 **`PaperCanvas-0.2.7-Windows-x64-Setup.exe`**，推荐使用此安装版以获得应用内更新。
+1. 点击 **[下载 Windows 安装版](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.7/PaperCanvas-0.2.7-Windows-x64-Setup.exe)**，推荐使用此版本以获得应用内更新。
 2. 先退出旧版 PaperCanvas，再运行安装器，通过快捷方式打开应用。它为当前用户安装，并沿用已有的本地数据目录。
 3. 使用文件选择器导入 PDF，或从文件资源管理器拖入。PDF 搜索快捷键为 **Ctrl+F**，Markdown 格式快捷键为 **Ctrl+B/I/K**。
 4. 以后升级使用 **Help → Check for Updates…（帮助 → 检查更新）**。发现新版后会在后台下载，任务栏显示进度；下载完成后选择 **Restart and install（重启并安装）**，应用会先保存再重启。
 
-**便携版：** 也可以下载 `PaperCanvas-0.2.7-Windows-x64.zip`，完整解压到可写入的文件夹，打开 `PaperCanvas-win32-x64` 中的 `PaperCanvas.exe`，并保留配套资源和 DLL。ZIP 版仍采用手动更新：先退出应用，再替换程序目录；也可以手动安装一次 Setup 版，之后使用应用内更新。
+**便携版：** 也可以下载 [Windows 便携 ZIP 版](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.7/PaperCanvas-0.2.7-Windows-x64.zip)，完整解压到可写入的文件夹，打开 `PaperCanvas-win32-x64` 中的 `PaperCanvas.exe`，并保留配套资源和 DLL。ZIP 版仍采用手动更新：先退出应用，再替换程序目录；也可以手动安装一次 Setup 版，之后使用应用内更新。
 
 无需安装 Node.js、Rust 或单独的 WebView2。数据独立保存在 `%APPDATA%\com.papercanvas.desktop`，包括 `chromium` 登录资料目录。同一个 Windows 用户下，安装版与便携版使用同一份数据；请保留你准备使用的程序副本。此社区构建未经发布者签名，首次运行时可能显示未知发布者或 SmartScreen 提示。
 
@@ -57,7 +67,7 @@ PDF 与应用数据保存在应用管理的本地目录中。macOS 和 Windows �
 
 **支持 Apple Silicon Mac（M1 或更新芯片），macOS 13 及以上。**
 
-1. 在发布页的 **Assets（资源）** 中下载 `PaperCanvas-0.2.7-macOS-arm64.zip`。
+1. 点击 **[下载 Mac 版](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.7/PaperCanvas-0.2.7-macOS-arm64.zip)**。
 2. 解压并将 `PaperCanvas.app` 移到 **应用程序** 文件夹。替换旧版本前请先退出应用。
 3. 打开 PaperCanvas 并导入 PDF。升级应用会保留本地论文库和笔记。
 

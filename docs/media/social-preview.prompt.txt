@@ -1,0 +1,14 @@
+Use case: ads-marketing / compositing.
+Create a polished 1280 x 640 landscape GitHub social preview cover for the open-source desktop app PaperCanvas.
+Input 1 is a REAL PaperCanvas paper-network screenshot; input 2 is a REAL PaperCanvas PDF reader with the actual ChatGPT conversation. Use these as supporting screenshot inserts, preserve their authentic UI and visible research paper/chat content rather than inventing a new interface. Crop away the navy recording-caption bar at the top of each source image.
+Design: premium restrained editorial software cover, warm ivory background, dark ink navy typography, subtle periwinkle and pale blue accents matching the actual app. Clear hierarchy, generous breathing room, sharp edges, quiet shadows, no 3D render, no device mockup, no noisy textures or glossy gradients.
+Layout: generous left text column about 38% width; on the right a balanced collage of the real network view behind and larger real PDF-plus-ChatGPT reader screenshot in front, readable as two actual application screenshots. Preserve both the recognizable Attention Is All You Need paper and the dark ChatGPT pane. No invented features, no success counters, no fake badges.
+Exact cover text:
+"PaperCanvas" in large bold type.
+"Your papers."
+"Your conversations."
+"One workspace."
+Secondary Chinese line: "论文与讨论，放在一起"
+Small footer line: "Windows + macOS  ·  Open source"
+A discreet bottom-left line: "github.com/Skystellan/PaperCanvas"
+Do not include any other marketing text, no download-button shapes, no stock logos, no watermark. Keep all content inside a 40px safe margin. Produce the final ready-to-publish flat cover as a 2:1 image.

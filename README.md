@@ -3,10 +3,13 @@
 **[English](README.md)** | [简体中文](README.zh-CN.md)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Download for Windows](https://img.shields.io/badge/Download-Windows%20x64-0078D4)](https://github.com/Skystellan/PaperCanvas/releases/latest)
-[![Download for macOS](https://img.shields.io/badge/Download-macOS%20Apple%20Silicon-007AFF)](https://github.com/Skystellan/PaperCanvas/releases/latest)
+[![Download Windows installer](https://img.shields.io/badge/Download-Windows%20installer-0078D4?style=for-the-badge)](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.7/PaperCanvas-0.2.7-Windows-x64-Setup.exe)
+[![Download for macOS](https://img.shields.io/badge/Download-macOS%20Apple%20Silicon-007AFF?style=for-the-badge)](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.7/PaperCanvas-0.2.7-macOS-arm64.zip)
 
-**Drag papers. Connect ideas. Build your own research network.**
+Download directly with the buttons above: **Windows 10/11 x64 installer** or **macOS 13+ Apple Silicon ZIP**.
+[Installation guide](#download) · [All downloads and release notes](https://github.com/Skystellan/PaperCanvas/releases/latest)
+
+**A dozen ChatGPT tabs open for your papers? I built an open-source app that keeps papers and discussions together.**
 
 PaperCanvas turns your paper library into a visual map of your thinking.
 Bring papers onto an infinite canvas, connect their ideas, and shape the network
@@ -19,7 +22,7 @@ and restores the last discussion when you reopen the paper.
 
 ![PaperCanvas demo: organize a paper network, discuss a paper in the embedded chat, and turn a Markdown outline into an interactive mind map. Includes English and Chinese captions.](docs/media/paper-network-demo.gif)
 
-[Watch the HD demo](docs/media/paper-network-demo.mp4) · [Static preview](docs/media/paper-network-poster.png)
+[Watch the HD demo](docs/media/paper-network-demo.mp4) · [Static preview](docs/media/paper-network-poster.png) · [Share cover](docs/media/papercanvas-social-preview.png)
 
 - **Drop a paper.** Drag it from your library onto the canvas.
 - **Connect your ideas.** Link papers and record support, challenges, and evidence.
@@ -38,22 +41,29 @@ annotations and Markdown-based Markmap mind maps work entirely offline.
 [Notes](#markdown-notes) · [Mind maps](#mind-maps) · [Keyboard shortcuts](#keyboard-shortcuts)
 
 **Project:** [Features](#what-is-included) · [Local data and privacy](#local-data-and-embedded-conversations) ·
-[Development](#development-prerequisites) · [Contributing](#contributing) · [Updates](#releases-and-update-notifications) · [License](#license)
+[Development](#development-prerequisites) · [Contributing](#contributing) · [Discussions](https://github.com/Skystellan/PaperCanvas/discussions) · [Updates](#releases-and-update-notifications) · [License](#license)
 
 ## Download
 
-The current release is **0.2.7**. Get the app from [GitHub Releases](https://github.com/Skystellan/PaperCanvas/releases/latest).
+The current release is **0.2.7**. Choose your platform below to download directly; there is no need to sort through release assets.
+
+| Your computer | Download | After downloading |
+| --- | --- | --- |
+| Windows 10/11, Intel or AMD x64 | **[Download Windows installer (.exe)](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.7/PaperCanvas-0.2.7-Windows-x64-Setup.exe)** | Double-click to install; supports future in-app updates. |
+| macOS 13+, Apple Silicon (M1 or newer) | **[Download for Mac (.zip)](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.7/PaperCanvas-0.2.7-macOS-arm64.zip)** | Unzip, then move PaperCanvas.app to Applications. |
+
+[Release notes and other files](https://github.com/Skystellan/PaperCanvas/releases/latest). You do not need the source archives or updater metadata to install the app.
 
 ### Windows
 
 **Windows 10/11, x64 (Intel or AMD).**
 
-1. Download **`PaperCanvas-0.2.7-Windows-x64-Setup.exe`** from the release's **Assets**. This is the recommended build for application-managed updates.
+1. Click **[Download Windows installer](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.7/PaperCanvas-0.2.7-Windows-x64-Setup.exe)**. This is the recommended build for application-managed updates.
 2. Quit an older PaperCanvas copy, run the installer, and open PaperCanvas from its shortcut. It installs for the current user and reuses the existing local data directory.
 3. Import PDFs using the file picker or drag them from File Explorer. PDF search uses **Ctrl+F**; Markdown formatting uses **Ctrl+B/I/K**.
 4. For future updates, use **Help → Check for Updates…**. A newer version downloads in the background, with progress on the taskbar; choose **Restart and install** when it is ready. PaperCanvas saves before restarting.
 
-**Portable alternative:** download `PaperCanvas-0.2.7-Windows-x64.zip`, extract the entire archive into a writable folder, and open `PaperCanvas.exe` inside `PaperCanvas-win32-x64`. Keep the adjacent resources and DLLs together. This ZIP build still uses manual upgrades: quit the app and replace the program folder, or install the Setup version once to enable future in-app installation.
+**Portable alternative:** download the [Windows portable ZIP](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.7/PaperCanvas-0.2.7-Windows-x64.zip), extract the entire archive into a writable folder, and open `PaperCanvas.exe` inside `PaperCanvas-win32-x64`. Keep the adjacent resources and DLLs together. This ZIP build still uses manual upgrades: quit the app and replace the program folder, or install the Setup version once to enable future in-app installation.
 
 No Node.js, Rust, or separate WebView2 install is needed. Data is stored separately at `%APPDATA%\com.papercanvas.desktop`, including the `chromium` sign-in profile. The installer and portable app use the same data directory under the same Windows user account; keep only the copy you intend to use. This community build is unsigned, so Windows may show an unknown-publisher/SmartScreen prompt on first launch.
 
@@ -61,7 +71,7 @@ No Node.js, Rust, or separate WebView2 install is needed. Data is stored separat
 
 **Apple Silicon Macs (M1 or newer), macOS 13+.**
 
-1. Download `PaperCanvas-0.2.7-macOS-arm64.zip` from the release's **Assets**.
+1. Click **[Download for Mac](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.7/PaperCanvas-0.2.7-macOS-arm64.zip)**.
 2. Unzip it and move `PaperCanvas.app` to **Applications**. Quit an older copy before replacing it.
 3. Open PaperCanvas and import your PDFs. Upgrading the app preserves your local library and notes.
 
