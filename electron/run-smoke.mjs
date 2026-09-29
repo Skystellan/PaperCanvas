@@ -10,11 +10,11 @@ delete env.ELECTRON_RUN_AS_NODE;
 const packaged = process.argv[2];
 const executable = packaged || (await import('electron')).default;
 const child = spawn(executable, packaged ? [] : ['electron/main.mjs'], { env, stdio: 'inherit' });
-child.on('error', (error) => { console.error(error); process.exitCode = 1; });
 let timedOut = false;
 const timeout = setTimeout(() => {
   timedOut = true;
   console.error('Desktop smoke test timed out after 90 seconds.');
   child.kill();
 }, 90_000);
+child.on('error', (error) => { clearTimeout(timeout); console.error(error); process.exitCode = 1; });
 child.on('exit', (code) => { clearTimeout(timeout); process.exitCode = timedOut ? 1 : code ?? 1; });

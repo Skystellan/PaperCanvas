@@ -1,4 +1,4 @@
-import { readFile } from 'node:fs/promises';
+import { chmod, readFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -7,6 +7,10 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const require = createRequire(import.meta.url);
 
 export async function packageLinux(output) {
+  // Packager preserves mkdtemp's 0700 on these directories. DEB/AppImage installs
+  // them as root, so ordinary desktop users need read/traverse permission.
+  await chmod(output, 0o755);
+  await chmod(path.join(output, 'resources/app'), 0o755);
   const { build, Platform, Arch } = require('electron-builder');
   const manifest = JSON.parse(await readFile(path.join(root, 'package.json'), 'utf8'));
   return build({

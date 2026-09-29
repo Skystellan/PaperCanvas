@@ -104,11 +104,11 @@ The installer configures the desktop icon and the application-specific AppArmor 
 **AppImage:** on compatible Linux desktops, make it executable and run it:
 
 ```sh
-chmod +x PaperCanvas-0.2.7-Linux-x64.AppImage
-./PaperCanvas-0.2.7-Linux-x64.AppImage
+chmod +x PaperCanvas-0.2.7-Linux-x86_64.AppImage
+./PaperCanvas-0.2.7-Linux-x86_64.AppImage
 ```
 
-The AppImage uses FUSE 2 (`sudo apt install libfuse2` on Ubuntu 22.04). `APPIMAGE_EXTRACT_AND_RUN=1 ./PaperCanvas-0.2.7-Linux-x64.AppImage` can run without a FUSE mount. If the system blocks Chromium's user-namespace sandbox, use the `.deb` on Ubuntu; do not add `--no-sandbox` for the embedded chat. AppImage does not install an application-menu shortcut.
+The AppImage uses FUSE 2 (`sudo apt install libfuse2` on Ubuntu 22.04). `APPIMAGE_EXTRACT_AND_RUN=1 ./PaperCanvas-0.2.7-Linux-x86_64.AppImage` can run without a FUSE mount. If the system blocks Chromium's user-namespace sandbox, use the `.deb` on Ubuntu; do not add `--no-sandbox` for the embedded chat. AppImage does not install an application-menu shortcut.
 
 Linux updates use **Help → Check for Updates… → View release**. Quit the app, then install the newer `.deb` or replace the AppImage. Both formats share the data directory listed below; upgrades retain the library and sign-in profile. Linux uses the same **Ctrl** shortcuts as Windows.
 
@@ -460,7 +460,7 @@ signing and notarization are needed for a verified publisher and smoother first 
 
 Linux x64 builds generate `release/PaperCanvas-linux-x64/`,
 `release/PaperCanvas-<version>-Linux-amd64.deb` and
-`release/PaperCanvas-<version>-Linux-x64.AppImage`. Build on Ubuntu 22.04 for the oldest supported glibc baseline.
+`release/PaperCanvas-<version>-Linux-x86_64.AppImage`. Build on Ubuntu 22.04 for the oldest supported glibc baseline.
 
 The **Desktop builds** GitHub Actions workflow runs on macOS, Windows and Ubuntu 22.04,
 checks the frontend and Rust backend, runs a native Electron smoke test, and

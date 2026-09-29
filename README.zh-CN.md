@@ -99,11 +99,11 @@ sudo apt install ./PaperCanvas-0.2.7-Linux-amd64.deb
 **AppImage：** 在兼容的 Linux 桌面环境中，添加执行权限后运行：
 
 ```sh
-chmod +x PaperCanvas-0.2.7-Linux-x64.AppImage
-./PaperCanvas-0.2.7-Linux-x64.AppImage
+chmod +x PaperCanvas-0.2.7-Linux-x86_64.AppImage
+./PaperCanvas-0.2.7-Linux-x86_64.AppImage
 ```
 
-此 AppImage 使用 FUSE 2（Ubuntu 22.04 可执行 `sudo apt install libfuse2`）。也可用 `APPIMAGE_EXTRACT_AND_RUN=1 ./PaperCanvas-0.2.7-Linux-x64.AppImage` 解压运行，避免依赖 FUSE 挂载。如果系统限制 Chromium 的用户命名空间沙箱，Ubuntu 请使用 `.deb`；不要为内嵌聊天添加 `--no-sandbox`。AppImage 不会自动添加应用菜单快捷方式。
+此 AppImage 使用 FUSE 2（Ubuntu 22.04 可执行 `sudo apt install libfuse2`）。也可用 `APPIMAGE_EXTRACT_AND_RUN=1 ./PaperCanvas-0.2.7-Linux-x86_64.AppImage` 解压运行，避免依赖 FUSE 挂载。如果系统限制 Chromium 的用户命名空间沙箱，Ubuntu 请使用 `.deb`；不要为内嵌聊天添加 `--no-sandbox`。AppImage 不会自动添加应用菜单快捷方式。
 
 Linux 通过 **Help → Check for Updates… → View release** 提示新版。升级前退出应用，再安装新版 `.deb` 或替换 AppImage。两种格式共用下表中的数据目录，升级会保留论文库和登录资料。Linux 与 Windows 使用相同的 **Ctrl** 快捷键。
 
@@ -429,7 +429,7 @@ Windows x64 的产物位于 `release/PaperCanvas-win32-x64/`。Windows 构建包
 
 Linux x64 构建会生成 `release/PaperCanvas-linux-x64/`、
 `release/PaperCanvas-<version>-Linux-amd64.deb` 和
-`release/PaperCanvas-<version>-Linux-x64.AppImage`。发布构建使用 Ubuntu 22.04，以兼容所支持的最低 glibc 版本。
+`release/PaperCanvas-<version>-Linux-x86_64.AppImage`。发布构建使用 Ubuntu 22.04，以兼容所支持的最低 glibc 版本。
 
 **Desktop builds** GitHub Actions 工作流在 macOS、Windows 和 Ubuntu 22.04 上运行，检查前端与 Rust 后端，
 执行原生 Electron 冒烟测试，并上传带版本号的产物。Linux 使用 Xvfb 和独立 D-Bus 会话测试安装后的 `.deb` 与 AppImage，再由另一个任务在 Ubuntu 24.04 测试同一个 `.deb`。自动测试覆盖 X11、PDF 交互和本地聊天测试页；真实 ChatGPT 登录、Wayland 和中文输入法仍需桌面环境验证。也可手动触发该工作流。
