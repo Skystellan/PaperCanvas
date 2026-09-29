@@ -354,19 +354,23 @@ describe("PdfViewer", () => {
       await waitFor(() => expect(target).toHaveTextContent("Selectable PDF text"));
       selectedText = target.firstChild!;
     }
-    const markers = await screen.findAllByTestId("pdf-persisted-highlight-legacy-formula");
-    expect(markers).toHaveLength(expected.length);
-    markers.forEach((marker, i) => {
-      expect(parseFloat(marker.style.width)).toBeCloseTo(expected[i].width / 6);
-      expect(parseFloat(marker.style.top)).toBeCloseTo(expected[i].top / 8);
-    });
     // Vitest stubs CSS imports; apply the real stylesheet for this compositing assertion.
     const readerStyles = readFileSync("src/features/reader/reader.css", "utf8");
     const styles = document.createElement("style"); styles.textContent = readerStyles; document.head.append(styles);
-    // Parent opacity composites opaque children once, including overlaps between annotations.
-    expect(getComputedStyle(markers[0].parentElement!).opacity).toBe("0.32");
-    expect(getComputedStyle(markers[0]).backgroundColor).toBe("rgb(242, 202, 55)");
-    styles.remove();
+    try {
+      await waitFor(() => {
+        // The official renderer replaces markers asynchronously; read the current nodes.
+        const markers = screen.getAllByTestId("pdf-persisted-highlight-legacy-formula");
+        expect(markers).toHaveLength(expected.length);
+        markers.forEach((marker, i) => {
+          expect(parseFloat(marker.style.width)).toBeCloseTo(expected[i].width / 6);
+          expect(parseFloat(marker.style.top)).toBeCloseTo(expected[i].top / 8);
+        });
+        // Parent opacity composites opaque children once, including overlaps between annotations.
+        expect(getComputedStyle(markers[0].parentElement!).opacity).toBe("0.32");
+        expect(getComputedStyle(markers[0]).backgroundColor).toBe("rgb(242, 202, 55)");
+      });
+    } finally { styles.remove(); }
     vi.spyOn(window, "getSelection").mockReturnValue({ isCollapsed: false, rangeCount: 1, toString: () => "Formula samples", removeAllRanges: vi.fn(),
       getRangeAt: () => ({ startContainer: selectedText, endContainer: selectedText,
         getBoundingClientRect: () => DOMRect.fromRect({ x: 40, y: 34, width: 407, height: 544 }),
