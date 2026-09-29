@@ -145,6 +145,11 @@ else {
     icon: process.platform === 'linux' ? path.join(root, app.isPackaged ? 'icon.png' : 'src-tauri/icons/icon.png') : undefined,
     webPreferences: { preload: path.join(root, 'electron/preload.cjs'), nodeIntegration: false, contextIsolation: true, sandbox: true },
   });
+  if (process.env.PAPERCANVAS_SMOKE === '1') {
+    mainWindow.webContents.on('render-process-gone', (_event, details) => console.error('Smoke renderer exited:', details));
+    mainWindow.webContents.on('did-fail-load', (_event, code, description) => console.error('Smoke page failed:', code, description));
+    mainWindow.webContents.on('did-finish-load', () => console.log('Smoke page loaded'));
+  }
   const backendName = `paper-canvas-backend${process.platform === 'win32' ? '.exe' : ''}`;
   const binary = app.isPackaged
     ? path.join(process.resourcesPath, backendName)
@@ -212,6 +217,7 @@ else {
     { role: 'windowMenu' },
     { role: 'help', submenu: [{ label: 'Check for Updates…', click: () => { void updates.check({ manual: true }); } }] },
   ]));
+  if (process.env.PAPERCANVAS_SMOKE === '1') console.log('Smoke loading reader');
   await mainWindow.loadURL(APP_URL);
   void updates.check();
   if (process.env.PAPERCANVAS_SMOKE === '1') {

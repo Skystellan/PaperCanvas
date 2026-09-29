@@ -142,9 +142,9 @@ jobs:
       - name: Check oldest supported glibc
         run: node electron/check-linux-abi.mjs release/PaperCanvas-linux-x64
       - name: Test Ubuntu 20.04 DEB and AppImage
-        env:
-          RUNNER_TEMP: /tmp/papercanvas-ci
+        timeout-minutes: 4
         run: |
+          export RUNNER_TEMP=/tmp/papercanvas-ci
           apt-get install -y ./release/*-Linux-*.deb
           test -x /usr/bin/paper-canvas
           test -r /opt/PaperCanvas/resources/app.asar
@@ -153,9 +153,9 @@ jobs:
           chmod +x release/*.AppImage
           runuser -u paper-ci -- env APPIMAGE_EXTRACT_AND_RUN=1 xvfb-run -a dbus-run-session -- node electron/run-smoke.mjs "$PWD"/release/*.AppImage
       - name: Test Ubuntu 20.04 download, install and relaunch
-        env:
-          RUNNER_TEMP: /tmp/papercanvas-ci
+        timeout-minutes: 7
         run: |
+          export RUNNER_TEMP=/tmp/papercanvas-ci
           test -f release/latest-linux.yml
           rule=/etc/polkit-1/localauthority/50-local.d/papercanvas-ci.pkla
           trap 'rm -f "$rule"' EXIT
