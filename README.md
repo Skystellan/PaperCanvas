@@ -90,6 +90,8 @@ Intel Mac, native Windows ARM64, and Linux ARM64 binaries are not included in th
 
 ### Linux (Ubuntu x64)
 
+**Ubuntu 20.04:** compatibility builds are being prepared for 0.2.9; see the [20.04 testing guide](docs/ubuntu-20.04.md). The published 0.2.8 downloads below require Ubuntu 22.04 or later.
+
 The initial Linux target is **Ubuntu 22.04 and 24.04, x64 (Intel or AMD), with a desktop environment**. Packages are built on Ubuntu 22.04; CI also installs and tests the same `.deb` on Ubuntu 24.04. Other distributions and ARM64 are outside the initial validation scope.
 
 Download the **[Ubuntu installer (.deb)](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.8/PaperCanvas-0.2.8-Linux-amd64.deb)** or **[Linux AppImage](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.8/PaperCanvas-0.2.8-Linux-x86_64.AppImage)** directly. Node.js and Rust are only needed to build from source.
@@ -397,18 +399,17 @@ crossings. All connections remain fully visible while selecting or dragging card
 ## Development prerequisites
 
 - Node.js 22.12 or newer and npm
-- Stable Rust and the Tauri 2 prerequisites for development builds
+- Stable Rust (the retained Tauri shell has additional prerequisites)
 - macOS 13+ with Xcode Command Line Tools, or Windows 10/11 x64 with
   Visual Studio 2022 Build Tools (Desktop development with C++) and the Windows SDK
-- Linux: Ubuntu 22.04 / 24.04 x64 with a desktop environment and these build dependencies:
+- Linux: Ubuntu 20.04 / 22.04 / 24.04 x64 with a desktop environment and these build/runtime dependencies:
 
 ```sh
 sudo apt update
-sudo apt install build-essential pkg-config libwebkit2gtk-4.1-dev \
-  libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+sudo apt install build-essential pkg-config libgtk-3-0 libnss3 libasound2 libgbm1
 ```
 
-The Rust crate still includes the original Tauri shell, so its GTK/WebKit development dependencies are needed when compiling the backend. The Electron UI itself uses Chromium. See the [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/#linux).
+The Electron build compiles the Rust backend with `--no-default-features`, so it needs no Tauri/GTK/WebKit development packages. The retained Tauri shell remains available through the default `tauri-shell` Cargo feature; only that shell needs the [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/#linux).
 
 A Codex installation or SDK login is not required. Embedded ChatGPT uses its own
 website sign-in only when the user opens a discussion.
@@ -441,7 +442,7 @@ npm run test:coverage
 npm run build
 cargo fmt --manifest-path src-tauri/Cargo.toml --check
 cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --locked -- -D warnings
-cargo test --manifest-path src-tauri/Cargo.toml --all-targets --locked
+cargo test --manifest-path src-tauri/Cargo.toml --no-default-features --all-targets --locked
 ```
 
 Create a desktop bundle for the current platform with:
@@ -461,11 +462,11 @@ signing and notarization are needed for a verified publisher and smoother first 
 
 Linux x64 builds generate `release/PaperCanvas-linux-x64/`,
 `release/PaperCanvas-<version>-Linux-amd64.deb` and
-`release/PaperCanvas-<version>-Linux-x86_64.AppImage`. Build on Ubuntu 22.04 for the oldest supported glibc baseline.
+`release/PaperCanvas-<version>-Linux-x86_64.AppImage`. Build on Ubuntu 20.04 for the glibc 2.31 baseline. A newer host can silently raise the required glibc version; check the package with `node electron/check-linux-abi.mjs`.
 
-The **Desktop builds** GitHub Actions workflow runs on macOS, Windows and Ubuntu 22.04,
-checks the frontend and Rust backend, runs a native Electron smoke test, and
-uploads versioned artifacts. Linux uses Xvfb and an isolated D-Bus session to test the installed `.deb` and AppImage; another job tests the `.deb` on Ubuntu 24.04. Update smoke tests use a local feed to reject bad checksums, download and reinstall both formats, then verify relaunch and data retention. These automated runs cover X11, PDF interactions and local chat fixtures; real ChatGPT sign-in, Wayland and Chinese IME input still need desktop validation.
+The **Desktop builds** GitHub Actions workflow runs on macOS, Windows and an Ubuntu 20.04 container,
+checks the frontend and Rust backend, runs the Electron app, and
+uploads versioned artifacts. Linux uses Xvfb and an isolated D-Bus session to test the installed `.deb` and AppImage as a non-root user with the Chromium sandbox enabled. The same packages are also tested on Ubuntu 22.04 and 24.04. Update smoke tests use a local feed to reject bad checksums, download and reinstall both formats, then verify relaunch and data retention. These automated runs cover X11, PDF interactions and local chat fixtures; real ChatGPT sign-in, Wayland and Chinese IME input still need desktop validation.
 It can also be started manually. Download the
 platform artifacts and attach them to a GitHub Release with the matching version
 tag and `docs/releases/<tag>.md` notes after the workflow succeeds.

@@ -85,6 +85,8 @@ PDF 与应用数据保存在应用管理的本地目录中。macOS、Windows 和
 
 ### Linux（Ubuntu x64）
 
+**Ubuntu 20.04：** 0.2.9 正在准备兼容测试包，见 [20.04 试用说明](docs/ubuntu-20.04.md)。下方已发布的 0.2.8 下载仍要求 Ubuntu 22.04 或更高版本。
+
 首批 Linux 支持目标为 **Ubuntu 22.04 和 24.04，x64（Intel 或 AMD），需要桌面环境**。安装包在 Ubuntu 22.04 构建，CI 也会在 Ubuntu 24.04 安装并测试同一个 `.deb`。其他发行版和 ARM64 暂不在首批验证范围内。
 
 直接下载 **[Ubuntu 安装版（.deb）](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.8/PaperCanvas-0.2.8-Linux-amd64.deb)** 或 **[Linux AppImage](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.8/PaperCanvas-0.2.8-Linux-x86_64.AppImage)**。只有从源码构建才需要 Node.js 和 Rust。
@@ -370,18 +372,17 @@ PaperCanvas 不会替你发送这些内容，也不会自动点击发送按钮�
 ## 开发环境要求
 
 - Node.js 22.12 或更新版本，以及 npm。
-- 稳定版 Rust，以及开发构建所需的 Tauri 2 前置依赖。
+- 稳定版 Rust（保留的 Tauri 壳有额外前置依赖）。
 - macOS 13 及以上并安装 Xcode Command Line Tools；或 Windows 10/11 x64，
   安装 Visual Studio 2022 Build Tools（包含“使用 C++ 的桌面开发”与 Windows SDK）。
-- Linux：Ubuntu 22.04 / 24.04 x64 桌面环境，并安装以下构建依赖：
+- Linux：Ubuntu 20.04 / 22.04 / 24.04 x64 桌面环境，并安装以下构建及运行依赖：
 
 ```sh
 sudo apt update
-sudo apt install build-essential pkg-config libwebkit2gtk-4.1-dev \
-  libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+sudo apt install build-essential pkg-config libgtk-3-0 libnss3 libasound2 libgbm1
 ```
 
-Rust crate 仍包含原 Tauri 桌面壳，因此编译后端需要 GTK/WebKit 开发依赖；Electron 界面本身使用 Chromium。参见 [Tauri 前置要求](https://v2.tauri.app/start/prerequisites/#linux)。
+Electron 构建通过 `--no-default-features` 编译 Rust 后端，无需 Tauri/GTK/WebKit 开发包。原 Tauri 壳通过默认的 `tauri-shell` Cargo feature 保留，只有构建这个壳时才需要 [Tauri 前置依赖](https://v2.tauri.app/start/prerequisites/#linux)。
 
 无需安装 Codex 或登录 SDK。内嵌 ChatGPT 仅在用户打开讨论时使用其自身的网站登录。
 
@@ -412,7 +413,7 @@ npm run test:coverage
 npm run build
 cargo fmt --manifest-path src-tauri/Cargo.toml --check
 cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --locked -- -D warnings
-cargo test --manifest-path src-tauri/Cargo.toml --all-targets --locked
+cargo test --manifest-path src-tauri/Cargo.toml --no-default-features --all-targets --locked
 ```
 
 为当前平台构建桌面包：
@@ -430,10 +431,10 @@ Windows x64 的产物位于 `release/PaperCanvas-win32-x64/`。Windows 构建包
 
 Linux x64 构建会生成 `release/PaperCanvas-linux-x64/`、
 `release/PaperCanvas-<version>-Linux-amd64.deb` 和
-`release/PaperCanvas-<version>-Linux-x86_64.AppImage`。发布构建使用 Ubuntu 22.04，以兼容所支持的最低 glibc 版本。
+`release/PaperCanvas-<version>-Linux-x86_64.AppImage`。发布构建使用 Ubuntu 20.04，将 glibc 基线保持在 2.31。在更新的系统构建可能抬高最低版本，打包后用 `node electron/check-linux-abi.mjs` 检查。
 
-**Desktop builds** GitHub Actions 工作流在 macOS、Windows 和 Ubuntu 22.04 上运行，检查前端与 Rust 后端，
-执行原生 Electron 冒烟测试，并上传带版本号的产物。Linux 使用 Xvfb 和独立 D-Bus 会话测试安装后的 `.deb` 与 AppImage，再由另一个任务在 Ubuntu 24.04 测试同一个 `.deb`。更新测试使用本地更新源验证错误校验码会阻止安装，再下载并安装两种格式，验证重启和数据保留。自动测试覆盖 X11、PDF 交互和本地聊天测试页；真实 ChatGPT 登录、Wayland 和中文输入法仍需桌面环境验证。也可手动触发该工作流。
+**Desktop builds** GitHub Actions 工作流在 macOS、Windows 和 Ubuntu 20.04 容器中运行，检查前端与 Rust 后端，
+运行 Electron 应用，并上传带版本号的产物。Linux 使用 Xvfb 和独立 D-Bus 会话，以普通用户测试安装后的 `.deb` 与 AppImage，保留 Chromium 沙箱；相同安装包再在 Ubuntu 22.04、24.04 上验证。更新测试使用本地更新源验证错误校验码会阻止安装，再下载并安装两种格式，验证重启和数据保留。自动测试覆盖 X11、PDF 交互和本地聊天测试页；真实 ChatGPT 登录、Wayland 和中文输入法仍需桌面环境验证。也可手动触发该工作流。
 工作流成功后，下载各平台的产物，将它们附加到对应版本标签的 GitHub Release，
 并使用 `docs/releases/<tag>.md` 中的发布说明。
 
