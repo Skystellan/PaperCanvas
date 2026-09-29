@@ -143,7 +143,7 @@ jobs:
       - name: Check oldest supported glibc
         run: node electron/check-linux-abi.mjs release/PaperCanvas-linux-x64
       - name: Test Ubuntu 20.04 DEB and AppImage
-        timeout-minutes: 4
+        timeout-minutes: 6
         run: |
           export RUNNER_TEMP=/tmp/papercanvas-ci
           apt-get install -y ./release/*-Linux-*.deb

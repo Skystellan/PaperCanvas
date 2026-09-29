@@ -90,7 +90,7 @@ Intel Mac, native Windows ARM64, and Linux ARM64 binaries are not included in th
 
 ### Linux (Ubuntu x64)
 
-**Ubuntu 20.04:** compatibility builds are being prepared for 0.2.9; see the [20.04 testing guide](docs/ubuntu-20.04.md). The published 0.2.8 downloads below require Ubuntu 22.04 or later.
+**Ubuntu 20.04:** 0.2.9 compatibility test packages are available; see the [20.04 testing guide](docs/ubuntu-20.04.md). The published 0.2.8 downloads below require Ubuntu 22.04 or later.
 
 The initial Linux target is **Ubuntu 22.04 and 24.04, x64 (Intel or AMD), with a desktop environment**. Packages are built on Ubuntu 22.04; CI also installs and tests the same `.deb` on Ubuntu 24.04. Other distributions and ARM64 are outside the initial validation scope.
 

@@ -6,7 +6,7 @@
 
 ## 获取和安装
 
-本分支的构建完成后，从 [Desktop builds](https://github.com/Skystellan/PaperCanvas/actions/workflows/desktop.yml) 中选择 `codex/ubuntu20-compatibility` 的成功运行，下载 `PaperCanvas-Linux-x64` artifact 并解压。GitHub 下载 CI artifact 需要登录。
+从 [0.2.9 测试构建](https://github.com/Skystellan/PaperCanvas/actions/runs/36536510663) 下载 `PaperCanvas-Linux-x64` artifact 并解压，源码提交为 `227b297`。GitHub 下载 CI artifact 需要登录；这是兼容试用包，尚未发布为正式 Release。
 
 推荐安装 DEB：
 
@@ -27,6 +27,15 @@ AppImage 使用 FUSE 2；若没有 FUSE，可使用 `APPIMAGE_EXTRACT_AND_RUN=1 
 ## 验证范围
 
 CI 在 Ubuntu 20.04 容器中以普通用户测试完整 Electron 应用，包括 PDF、笔记、剪贴板、内嵌聊天隔离，以及两种格式的下载校验、安装和重新启动。相同安装包继续在 Ubuntu 22.04、24.04 验证。发布检查遍历包内 ELF 文件，阻止 GLIBC 要求高于 2.31 的二进制进入产物。
+
+本次构建的后端最高要求 `GLIBC_2.30`，Electron 主程序最高要求 `GLIBC_2.25`，包内 7 个 ELF 文件全部通过 2.31 基线检查。20.04 的 DEB 和 AppImage 均已通过桌面测试，以及拒绝损坏下载、安装、重启和数据保留测试。
+
+| 环境 | 验证结果 |
+| --- | --- |
+| Ubuntu 20.04 容器 | DEB、AppImage 桌面功能及更新通过 |
+| Ubuntu 22.04 托管机器 | 同包 DEB、AppImage 桌面功能及 DEB 更新通过 |
+| Ubuntu 24.04 托管机器 | 同包 DEB 桌面功能及更新通过 |
+| Windows x64 / macOS arm64 | 构建与桌面回归通过 |
 
 容器验证覆盖 20.04 用户空间，但共享托管机器的内核。ROS1 用户的实体机显卡、桌面输入法和真实 ChatGPT 登录仍应试用确认。当前 Electron 的官方支持政策未覆盖 Ubuntu 20.04，这里提供项目自行验证的兼容性。
 
