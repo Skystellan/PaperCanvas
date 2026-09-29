@@ -106,7 +106,7 @@ chmod +x PaperCanvas-0.2.8-Linux-x86_64.AppImage
 
 此 AppImage 使用 FUSE 2（Ubuntu 22.04 可执行 `sudo apt install libfuse2`）。也可用 `APPIMAGE_EXTRACT_AND_RUN=1 ./PaperCanvas-0.2.8-Linux-x86_64.AppImage` 解压运行，避免依赖 FUSE 挂载。如果系统限制 Chromium 的用户命名空间沙箱，Ubuntu 请使用 `.deb`；不要为内嵌聊天添加 `--no-sandbox`。AppImage 不会自动添加应用菜单快捷方式。
 
-Linux 通过 **Help → Check for Updates… → View release** 提示新版。升级前退出应用，再安装新版 `.deb` 或替换 AppImage。两种格式共用下表中的数据目录，升级会保留论文库和登录资料。Linux 与 Windows 使用相同的 **Ctrl** 快捷键。
+Linux 0.2.8 起支持应用内更新：**Help → Check for Updates…（帮助 → 检查更新）** 下载并校验新版，选择 **Restart and install（重启并安装）** 后先保存再安装重启。Ubuntu `.deb` 会弹出系统授权窗口；AppImage 请放在可写入的文件夹中，它会自行更新，无需管理员权限。两种格式共用下表中的数据目录，升级会保留论文库和登录资料。Linux 与 Windows 使用相同的 **Ctrl** 快捷键。
 
 ### 手动升级与数据备份
 
@@ -433,7 +433,7 @@ Linux x64 构建会生成 `release/PaperCanvas-linux-x64/`、
 `release/PaperCanvas-<version>-Linux-x86_64.AppImage`。发布构建使用 Ubuntu 22.04，以兼容所支持的最低 glibc 版本。
 
 **Desktop builds** GitHub Actions 工作流在 macOS、Windows 和 Ubuntu 22.04 上运行，检查前端与 Rust 后端，
-执行原生 Electron 冒烟测试，并上传带版本号的产物。Linux 使用 Xvfb 和独立 D-Bus 会话测试安装后的 `.deb` 与 AppImage，再由另一个任务在 Ubuntu 24.04 测试同一个 `.deb`。自动测试覆盖 X11、PDF 交互和本地聊天测试页；真实 ChatGPT 登录、Wayland 和中文输入法仍需桌面环境验证。也可手动触发该工作流。
+执行原生 Electron 冒烟测试，并上传带版本号的产物。Linux 使用 Xvfb 和独立 D-Bus 会话测试安装后的 `.deb` 与 AppImage，再由另一个任务在 Ubuntu 24.04 测试同一个 `.deb`。更新测试使用本地更新源验证错误校验码会阻止安装，再下载并安装两种格式，验证重启和数据保留。自动测试覆盖 X11、PDF 交互和本地聊天测试页；真实 ChatGPT 登录、Wayland 和中文输入法仍需桌面环境验证。也可手动触发该工作流。
 工作流成功后，下载各平台的产物，将它们附加到对应版本标签的 GitHub Release，
 并使用 `docs/releases/<tag>.md` 中的发布说明。
 
@@ -445,11 +445,13 @@ Linux x64 构建会生成 `release/PaperCanvas-linux-x64/`、
 
 **从 0.2.5 或更早版本升级：** 需要先退出旧版，手动下载并安装一次 0.2.6 或以后版本，替换旧副本。旧版只有 GitHub 跳转功能，必须经过这一次升级才能获得自动安装能力。
 
+**Linux 0.2.8 及以后版本：** `.deb` 和 AppImage 均支持从 **Help → Check for Updates…** 下载并安装新版，下载完成后校验 SHA512。选择 **Restart and install（重启并安装）** 会先保存；选择 **Later（稍后）** 可继续工作。Ubuntu 通过系统授权窗口调用 apt 安装 `.deb`，取消授权或安装失败会保留当前应用。AppImage 需要对文件及其所在目录有写入权限。
+
 **Windows 0.2.6 及以后版本的 Setup 安装版：** 使用 **Help → Check for Updates…** 下载新的稳定版安装器，并校验 SHA512。任务栏显示进度，完成后选择 **Restart and install（重启并安装）**，即可保存、安装并重新打开；选择 **Later（稍后）** 则继续工作，准备好后再次检查更新。安装失败时会恢复关闭前保存保护。ZIP 便携版仍使用 **View release（查看发布）**，需要手动替换。要从 ZIP 迁移，先退出便携版，再手动安装一次 Setup 版，已有数据会继续使用。旧版 Tauri 应用没有原生更新器。
 
 打包后的 Electron 应用在启动后检查一次 GitHub 最新稳定版。选择 **Later（稍后）** 会关闭提示，应用不会持续轮询。启动检查的超时为 10 秒，失败时不打扰用户；开发和冒烟测试运行不自动检查。更新请求不会发送论文、笔记或登录凭据；原生更新器会连接 GitHub 获取更新列表和安装包，下载耗时取决于网络。
 
-维护者发布时，请使用与应用版本一致的稳定标签 `vX.Y.Z`，创建公开、非草稿、非预发布并标记为 **Latest（最新版本）** 的 Release。正式发布前上传 macOS 和 Windows 便携版 ZIP、Windows **Setup.exe** 及其 **.blockmap**、**latest.yml**、Linux **.deb** 与 **.AppImage**、校验文件，以及已签名的 macOS **appcast.xml**。Windows 安装包与更新列表必须来自同一次构建。macOS 更新器读取最新 Release 中的这个文件，缺少它会导致原生更新检查失败。
+维护者发布时，请使用与应用版本一致的稳定标签 `vX.Y.Z`，创建公开、非草稿、非预发布并标记为 **Latest（最新版本）** 的 Release。正式发布前上传 macOS 和 Windows 便携版 ZIP、Windows **Setup.exe** 及其 **.blockmap**、**latest.yml**、Linux **.deb**、**.AppImage** 及 **latest-linux.yml**、校验文件，以及已签名的 macOS **appcast.xml**。各平台安装包与对应更新列表必须来自同一次构建。macOS 更新器读取最新 Release 中的这个文件，缺少它会导致原生更新检查失败。
 
 macOS 包包含固定版本的官方 [Sparkle](https://sparkle-project.org/) 框架。更新公钥位于 `electron/macos/sparkle.mjs`，对应私钥保存在维护者本机的登录钥匙串中，Sparkle 账号名称为 `PaperCanvas`。准备发布时，将通过 CI 的安装包下载到 `release/`，在保存该密钥的 Mac 上执行：
 

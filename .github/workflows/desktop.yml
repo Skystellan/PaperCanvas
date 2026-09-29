@@ -60,6 +60,17 @@ jobs:
         run: |
           chmod +x release/*.AppImage
           APPIMAGE_EXTRACT_AND_RUN=1 xvfb-run -a dbus-run-session -- node electron/run-smoke.mjs "$PWD"/release/*.AppImage
+      - name: Test Linux download, install and relaunch
+        if: runner.os == 'Linux'
+        run: |
+          test -f release/latest-linux.yml
+          # Authorize only apt for this disposable runner's desktop user.
+          rule=/etc/polkit-1/rules.d/49-papercanvas-ci.rules
+          trap 'sudo rm -f "$rule"' EXIT
+          printf 'polkit.addRule(function(action, subject) { if (action.id === "org.freedesktop.policykit.exec" && action.lookup("program") === "/usr/bin/apt-get" && subject.user === "%s") return polkit.Result.YES; });\n' "$(id -un)" | sudo tee "$rule" > /dev/null
+          sudo systemctl restart polkit
+          xvfb-run -a dbus-run-session -- node electron/run-linux-update-smoke.mjs release /usr/bin/paper-canvas
+          xvfb-run -a dbus-run-session -- node electron/run-linux-update-smoke.mjs release "$PWD"/release/*.AppImage
       - name: Install and test Windows app
         if: runner.os == 'Windows'
         shell: pwsh
@@ -118,6 +129,7 @@ jobs:
           path: |
             release/*.deb
             release/*.AppImage
+            release/latest-linux.yml
           if-no-files-found: error
       - uses: actions/upload-artifact@v4
         if: failure()
@@ -149,6 +161,13 @@ jobs:
           desktop-file-validate /usr/share/applications/paper-canvas.desktop
           test -f /etc/apparmor.d/paper-canvas
           xvfb-run -a dbus-run-session -- node electron/run-smoke.mjs /usr/bin/paper-canvas
+      - name: Test Ubuntu 24.04 application update
+        run: |
+          rule=/etc/polkit-1/rules.d/49-papercanvas-ci.rules
+          trap 'sudo rm -f "$rule"' EXIT
+          printf 'polkit.addRule(function(action, subject) { if (action.id === "org.freedesktop.policykit.exec" && action.lookup("program") === "/usr/bin/apt-get" && subject.user === "%s") return polkit.Result.YES; });\n' "$(id -un)" | sudo tee "$rule" > /dev/null
+          sudo systemctl restart polkit
+          xvfb-run -a dbus-run-session -- node electron/run-linux-update-smoke.mjs release /usr/bin/paper-canvas
       - uses: actions/upload-artifact@v4
         if: failure()
         with:

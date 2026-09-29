@@ -111,7 +111,7 @@ chmod +x PaperCanvas-0.2.8-Linux-x86_64.AppImage
 
 The AppImage uses FUSE 2 (`sudo apt install libfuse2` on Ubuntu 22.04). `APPIMAGE_EXTRACT_AND_RUN=1 ./PaperCanvas-0.2.8-Linux-x86_64.AppImage` can run without a FUSE mount. If the system blocks Chromium's user-namespace sandbox, use the `.deb` on Ubuntu; do not add `--no-sandbox` for the embedded chat. AppImage does not install an application-menu shortcut.
 
-Linux updates use **Help → Check for Updates… → View release**. Quit the app, then install the newer `.deb` or replace the AppImage. Both formats share the data directory listed below; upgrades retain the library and sign-in profile. Linux uses the same **Ctrl** shortcuts as Windows.
+Linux 0.2.8 and later supports in-app updates: **Help → Check for Updates…** downloads and verifies the newer package; choose **Restart and install** to save and reopen. Ubuntu `.deb` installations request system authorization. Keep the AppImage in a writable folder; it updates itself without administrator access. Both formats share the data directory listed below; upgrades retain the library and sign-in profile. Linux uses the same **Ctrl** shortcuts as Windows.
 
 ### Manual upgrades and data backups
 
@@ -465,7 +465,7 @@ Linux x64 builds generate `release/PaperCanvas-linux-x64/`,
 
 The **Desktop builds** GitHub Actions workflow runs on macOS, Windows and Ubuntu 22.04,
 checks the frontend and Rust backend, runs a native Electron smoke test, and
-uploads versioned artifacts. Linux uses Xvfb and an isolated D-Bus session to test the installed `.deb` and AppImage; another job tests the `.deb` on Ubuntu 24.04. These automated runs cover X11, PDF interactions and local chat fixtures; real ChatGPT sign-in, Wayland and Chinese IME input still need desktop validation.
+uploads versioned artifacts. Linux uses Xvfb and an isolated D-Bus session to test the installed `.deb` and AppImage; another job tests the `.deb` on Ubuntu 24.04. Update smoke tests use a local feed to reject bad checksums, download and reinstall both formats, then verify relaunch and data retention. These automated runs cover X11, PDF interactions and local chat fixtures; real ChatGPT sign-in, Wayland and Chinese IME input still need desktop validation.
 It can also be started manually. Download the
 platform artifacts and attach them to a GitHub Release with the matching version
 tag and `docs/releases/<tag>.md` notes after the workflow succeeds.
@@ -478,11 +478,13 @@ Keep PaperCanvas in a writable installation folder such as `~/Applications`. A p
 
 **Upgrade once from 0.2.5 or earlier:** quit the old app, download and install 0.2.6 or later manually, replacing the old copy. Older versions only link to GitHub and cannot gain an installer without this one-time upgrade.
 
+**Linux, 0.2.8 and later:** both `.deb` and AppImage support downloading and installing updates from **Help → Check for Updates…**. Downloads are verified with SHA512. Choose **Restart and install** to save first, or **Later** to keep working. Ubuntu uses the system authorization dialog to install the `.deb` with apt; cancelling or an installation error leaves the app open. AppImage updates need write permission to the file and its folder.
+
 **Windows Setup installation, 0.2.6 and later:** **Help → Check for Updates…** downloads a newer stable installer and checks its SHA512 checksum. Progress appears on the taskbar. Choose **Restart and install** to save, install, and reopen, or **Later** to continue working; check again when ready to install. Installation errors leave save-on-close protection enabled. The portable ZIP still opens **View release** and requires manual replacement. To switch from ZIP, quit it and install the Setup version once; your local data is reused. The legacy Tauri build has no native updater.
 
 Packaged Electron builds check the public latest-release API once after startup. **Later** dismisses the offer; the app does not continuously poll. This startup check has a 10-second timeout and fails quietly. Development and smoke runs do not check automatically. Update requests contain no papers, notes, or login credentials; the native updaters contact GitHub to retrieve update metadata and archives. Download time depends on the network.
 
-For maintainers, publish a public, non-draft, non-prerelease release marked **Latest**, with a stable `vX.Y.Z` tag matching the packaged version. Upload the macOS and portable Windows ZIPs, the Windows **Setup.exe**, its **.blockmap**, **latest.yml**, the Linux `.deb` and `.AppImage`, checksums, and the signed macOS **appcast.xml** before publishing. Keep the Windows metadata and installer from the same build together. The macOS feed points to this latest release asset, so omitting it breaks native update checks.
+For maintainers, publish a public, non-draft, non-prerelease release marked **Latest**, with a stable `vX.Y.Z` tag matching the packaged version. Upload the macOS and portable Windows ZIPs, the Windows **Setup.exe**, its **.blockmap**, **latest.yml**, the Linux `.deb`, `.AppImage` and **latest-linux.yml**, checksums, and the signed macOS **appcast.xml** before publishing. Keep each platform’s update metadata and packages from the same build together. The macOS feed points to this latest release asset, so omitting it breaks native update checks.
 
 The macOS package includes the pinned official [Sparkle](https://sparkle-project.org/) framework. The public update key is committed in `electron/macos/sparkle.mjs`; the matching private key stays in the maintainer's login Keychain under the `PaperCanvas` Sparkle account. To prepare a release, download the successful CI build archives into `release/`, then run on that Mac:
 

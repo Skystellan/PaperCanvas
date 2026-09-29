@@ -33,7 +33,11 @@ export async function packageLinux(output) {
       },
       // The legacy AppImage launcher otherwise adds --no-sandbox to its desktop entry.
       appImage: { executableArgs: [] },
-      publish: null,
+      // Add the authorization helper without replacing builder's runtime dependencies.
+      deb: { fpm: ['--depends', 'policykit-1 | pkexec'] },
+      publish: {
+        provider: 'github', owner: 'Skystellan', repo: 'PaperCanvas', protocol: 'https', private: false,
+      },
     },
   });
 }

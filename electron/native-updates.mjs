@@ -1,23 +1,36 @@
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
+import { createLinuxUpdater } from './linux-updates.mjs';
 
 const require = createRequire(import.meta.url);
 
 // Returns undefined for the portable ZIP so UpdateChecker keeps its browser fallback.
 // requestInstall must save through normal window close before invoking its handler.
-export function createWindowsUpdater({
+export function createNativeUpdater({
   showMessageBox, setProgress, requestInstall, onInstallError = () => {},
   platform = process.platform, resourcesPath = process.resourcesPath, env = process.env,
-  isPackaged = platform === 'win32' && require('electron').app.isPackaged,
+  isPackaged = ['win32', 'linux'].includes(platform) && require('electron').app.isPackaged,
   updater,
 }) {
-  if (platform !== 'win32' || !isPackaged || !resourcesPath ||
-      env.PORTABLE_EXECUTABLE_DIR || env.PORTABLE_EXECUTABLE_FILE ||
-      !existsSync(path.join(resourcesPath, 'app-update.yml')) ||
-      !existsSync(path.join(resourcesPath, '..', 'Uninstall PaperCanvas.exe'))) return undefined;
+  if (!isPackaged || !resourcesPath ||
+      !existsSync(path.join(resourcesPath, 'app-update.yml'))) return undefined;
+  let format;
+  if (platform === 'win32' && !env.PORTABLE_EXECUTABLE_DIR && !env.PORTABLE_EXECUTABLE_FILE &&
+      existsSync(path.join(resourcesPath, '..', 'Uninstall PaperCanvas.exe'))) format = 'nsis';
+  if (platform === 'linux') {
+    // APPIMAGE takes precedence: builder's shared staging directory can contain
+    // the DEB package-type marker in both formats.
+    if (env.APPIMAGE && path.isAbsolute(env.APPIMAGE)) format = 'AppImage';
+    else if (existsSync(path.join(resourcesPath, 'package-type')) &&
+        readFileSync(path.join(resourcesPath, 'package-type'), 'utf8').trim() === 'deb') format = 'deb';
+  }
+  if (!format) return undefined;
 
-  updater ??= require('./vendor/update.cjs').autoUpdater;
+  if (!updater) {
+    const library = require('./vendor/update.cjs');
+    updater = format === 'nsis' ? library.autoUpdater : createLinuxUpdater(format, library);
+  }
   updater.autoDownload = false;
   // Never let the library's quit hook bypass the parent's save/close coordinator.
   updater.autoInstallOnAppQuit = false;
@@ -69,7 +82,9 @@ export function createWindowsUpdater({
       const { response } = await showMessageBox({
         type: 'info', title: 'PaperCanvas update ready',
         message: `PaperCanvas ${update.version} is ready to install.`,
-        detail: 'Restart to install the update after saving your work. Choose Later to keep working, then use Check for Updates to install it.',
+        detail: 'Restart to install the update after saving your work. Choose Later to keep working, then use Check for Updates to install it.' +
+          (format === 'deb' ? '\nUbuntu will ask you to authorize installation with your system password.' : '') +
+          (format === 'AppImage' ? '\nKeep the AppImage in a folder you can write to.' : ''),
         buttons: ['Restart and install', 'Later'], defaultId: 1, cancelId: 1,
       });
       if (response === 0) await requestInstall(() => {

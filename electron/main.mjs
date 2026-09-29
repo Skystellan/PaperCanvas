@@ -7,7 +7,7 @@ import { Backend } from './backend.mjs';
 import { Chats, CHAT_PARTITION } from './chats.mjs';
 import { APP_URL, assetPath, canWriteChatClipboard, isHttps, isLocalFrame } from './security.mjs';
 import { UpdateChecker } from './updates.mjs';
-import { createWindowsUpdater } from './windows-updates.mjs';
+import { createNativeUpdater } from './native-updates.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const dataDirectory = process.env.PAPERCANVAS_DATA_DIR || path.join(
@@ -178,16 +178,17 @@ else {
   mainWindow.once('ready-to-show', () => mainWindow.show());
   const showUpdateDialog = (options) => mainWindow.isDestroyed()
     ? Promise.resolve({ response: 1 }) : dialog.showMessageBox(mainWindow, options);
-  const windowsUpdate = createWindowsUpdater({
-    showMessageBox: showUpdateDialog,
-    setProgress: (progress) => { if (!mainWindow.isDestroyed()) mainWindow.setProgressBar(progress); },
-    requestInstall: (install) => new Promise((resolve, reject) => {
+  const requestInstall = (install) => new Promise((resolve, reject) => {
       installOnClose = () => {
         try { install(); resolve(); }
         catch (error) { allowClose = false; reject(error); }
       };
       mainWindow.close();
-    }),
+    });
+  const installerUpdate = createNativeUpdater({
+    showMessageBox: showUpdateDialog,
+    setProgress: (progress) => { if (!mainWindow.isDestroyed()) mainWindow.setProgressBar(progress); },
+    requestInstall,
     onInstallError: () => { allowClose = false; installOnClose = null; },
   });
   const updates = new UpdateChecker({
@@ -202,7 +203,7 @@ else {
       child.once('error', reject);
       child.once('exit', (code) => code === 0 ? resolve() : reject(new Error('Updater could not start.')));
       child.unref();
-    }) : windowsUpdate,
+    }) : installerUpdate,
   });
   Menu.setApplicationMenu(Menu.buildFromTemplate([
     ...(process.platform === 'darwin' ? [{ role: 'appMenu' }] : []),
@@ -215,8 +216,13 @@ else {
   void updates.check();
   if (process.env.PAPERCANVAS_SMOKE === '1') {
     try {
-      const { smoke } = await import('./smoke.mjs');
-      await smoke({ window: mainWindow, backend, chats, dataDirectory, chatSession });
+      if (process.platform === 'linux' && process.env.PAPERCANVAS_UPDATE_SMOKE) {
+        const { linuxUpdateSmoke } = await import('./linux-update-smoke.mjs');
+        await linuxUpdateSmoke({ dataDirectory, requestInstall });
+      } else {
+        const { smoke } = await import('./smoke.mjs');
+        await smoke({ window: mainWindow, backend, chats, dataDirectory, chatSession });
+      }
       backend.close();
       app.exit(0);
     } catch (error) {

@@ -4,15 +4,16 @@ import { EventEmitter } from 'node:events';
 import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { createWindowsUpdater } from './windows-updates.mjs';
+import { createNativeUpdater } from './native-updates.mjs';
 
-async function setup(t, { available = true, choice = 1, config = true, uninstaller = true, ...options } = {}) {
-  const directory = await mkdtemp(path.join(tmpdir(), 'papercanvas-windows-update-test-'));
+async function setup(t, { available = true, choice = 1, config = true, uninstaller = true, packageType, ...options } = {}) {
+  const directory = await mkdtemp(path.join(tmpdir(), 'papercanvas-native-update-test-'));
   t.after(() => rm(directory, { recursive: true, force: true }));
   const resourcesPath = path.join(directory, 'resources');
   await mkdir(resourcesPath);
   if (config) await writeFile(path.join(resourcesPath, 'app-update.yml'), 'provider: github\n');
   if (uninstaller) await writeFile(path.join(directory, 'Uninstall PaperCanvas.exe'), 'fixture');
+  if (packageType) await writeFile(path.join(resourcesPath, 'package-type'), packageType);
   const dialogs = [], progress = [], installs = [], requests = [], installErrors = [];
   const updater = new EventEmitter();
   updater.checkForUpdates = async () => ({ isUpdateAvailable: available, updateInfo: { version: '0.2.7' } });
@@ -22,7 +23,7 @@ async function setup(t, { available = true, choice = 1, config = true, uninstall
     return ['verified-installer.exe'];
   };
   updater.quitAndInstall = (...args) => installs.push(args);
-  const nativeUpdate = createWindowsUpdater({
+  const nativeUpdate = createNativeUpdater({
     platform: 'win32', isPackaged: true, resourcesPath, env: {}, updater,
     showMessageBox: async (dialog) => { dialogs.push(dialog); return { response: choice }; },
     setProgress: (value) => progress.push(value),
@@ -46,6 +47,26 @@ test('only an installed NSIS app enables native updates', async (t) => {
     assert.deepEqual(dialogs, []);
   }
   assert.equal(typeof (await setup(t)).nativeUpdate, 'function');
+});
+
+test('Linux enables DEB and AppImage updates but leaves unpacked builds alone', async (t) => {
+  for (const options of [
+    { platform: 'linux', packageType: 'deb' },
+    { platform: 'linux', env: { APPIMAGE: '/home/user/PaperCanvas.AppImage' } },
+    { platform: 'linux', packageType: 'deb', env: { APPIMAGE: '/home/user/PaperCanvas.AppImage' } },
+  ]) {
+    const { nativeUpdate, requests, installs, dialogs } = await setup(t, { ...options, choice: 0 });
+    await nativeUpdate();
+    assert.equal(requests.length, 1);
+    assert.deepEqual(installs, []);
+    assert.match(dialogs[0].detail, options.env ? /folder you can write/ : /system password/);
+    requests[0]();
+    assert.deepEqual(installs, [[false, true]]);
+  }
+  for (const options of [{}, { packageType: 'rpm' }, { env: { APPIMAGE: 'relative.AppImage' } },
+    { packageType: 'deb', config: false }, { packageType: 'deb', isPackaged: false }]) {
+    assert.equal((await setup(t, { platform: 'linux', ...options })).nativeUpdate, undefined);
+  }
 });
 
 test('downloads with taskbar progress and defers restart until the parent has saved', async (t) => {

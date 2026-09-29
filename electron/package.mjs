@@ -1,5 +1,6 @@
 import { packageSparkle, SPARKLE_FEED, SPARKLE_PUBLIC_KEY } from './macos/sparkle.mjs';
-import { prepareWindowsStage, packageWindows } from './windows-package.mjs';
+import { packageWindows } from './windows-package.mjs';
+import { prepareUpdaterStage } from './updater-package.mjs';
 import { packageLinux } from './linux-package.mjs';
 import { packager } from '@electron/packager';
 import { cp, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
@@ -21,7 +22,7 @@ try {
   await cp(path.join(root, 'electron'), path.join(stage, 'electron'), {
     recursive: true, filter: (source) => !source.endsWith('.test.mjs'),
   });
-  if (process.platform === 'win32') await prepareWindowsStage(stage);
+  if (['win32', 'linux'].includes(process.platform)) await prepareUpdaterStage(stage);
   if (process.platform === 'linux') await cp(path.join(root, 'src-tauri/icons/icon.png'), path.join(stage, 'icon.png'));
   const paths = await packager({
     dir: stage, out: path.resolve(root, process.argv[2] || 'release'), overwrite: true,
