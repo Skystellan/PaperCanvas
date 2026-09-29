@@ -1,13 +1,19 @@
-use rusqlite::{Connection, OpenFlags, OptionalExtension};
+use rusqlite::{Connection, OptionalExtension};
 use std::{
     fs,
     io::{self, Write},
     path::{Path, PathBuf},
-    time::Duration,
 };
+#[cfg(feature = "tauri-shell")]
+use rusqlite::OpenFlags;
+#[cfg(feature = "tauri-shell")]
+use std::time::Duration;
+#[cfg(feature = "tauri-shell")]
 use tauri::{AppHandle, Manager, Webview};
+#[cfg(feature = "tauri-shell")]
 use tokio::sync::Mutex;
 
+#[cfg(feature = "tauri-shell")]
 #[derive(Default)]
 pub struct NoteFileState(pub Mutex<()>);
 
@@ -107,6 +113,7 @@ pub(crate) fn save_note(
     atomic_write(&path, content)
 }
 
+#[cfg(feature = "tauri-shell")]
 fn storage(app: &AppHandle, view: &Webview) -> Result<(Connection, PathBuf), String> {
     if view.label() != "main" {
         return Err("Only the local reader can access notes.".into());
@@ -128,6 +135,7 @@ fn storage(app: &AppHandle, view: &Webview) -> Result<(Connection, PathBuf), Str
     Ok((db, directory))
 }
 
+#[cfg(feature = "tauri-shell")]
 #[tauri::command]
 pub async fn load_markdown_note(
     app: AppHandle,
@@ -140,6 +148,7 @@ pub async fn load_markdown_note(
     load_note(&db, &directory, &paper_id)
 }
 
+#[cfg(feature = "tauri-shell")]
 #[tauri::command]
 pub async fn save_markdown_note(
     app: AppHandle,
@@ -164,6 +173,7 @@ pub async fn save_markdown_note(
     save_note(&directory, &paper_id, &content, &expected)
 }
 
+#[cfg(feature = "tauri-shell")]
 #[tauri::command]
 pub fn reveal_markdown_note(
     app: AppHandle,

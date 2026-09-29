@@ -1,7 +1,7 @@
 {
   "name": "paper-canvas",
   "private": true,
-  "version": "0.2.8",
+  "version": "0.2.9",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -14,8 +14,8 @@
     "test:coverage": "vitest run --coverage",
     "preview": "vite preview",
     "tauri": "tauri",
-    "chromium:backend": "cargo build --manifest-path src-tauri/Cargo.toml --bin paper-canvas-backend --locked",
-    "chromium:backend:release": "cargo build --release --manifest-path src-tauri/Cargo.toml --bin paper-canvas-backend --locked",
+    "chromium:backend": "cargo build --manifest-path src-tauri/Cargo.toml --bin paper-canvas-backend --no-default-features --locked",
+    "chromium:backend:release": "cargo build --release --manifest-path src-tauri/Cargo.toml --bin paper-canvas-backend --no-default-features --locked",
     "chromium:dev": "npm run build && npm run chromium:backend && electron electron/main.mjs",
     "chromium:build": "npm run build && npm run chromium:backend:release && node electron/package.mjs",
     "chromium:test": "node --test electron/*.test.mjs",

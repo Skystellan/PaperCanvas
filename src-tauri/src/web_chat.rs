@@ -1,12 +1,19 @@
 use rusqlite::{params, Connection};
-use serde::{Deserialize, Serialize};
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use serde::Serialize;
+#[cfg(feature = "tauri-shell")]
+use serde::Deserialize;
+use std::time::{SystemTime, UNIX_EPOCH};
+#[cfg(feature = "tauri-shell")]
+use std::time::Duration;
+#[cfg(feature = "tauri-shell")]
 use tauri::{
     webview::WebviewBuilder, AppHandle, Emitter, LogicalPosition, LogicalSize, Manager, Rect,
     Webview, WebviewUrl,
 };
+#[cfg(feature = "tauri-shell")]
 use tokio::sync::Mutex;
 
+#[cfg(feature = "tauri-shell")]
 #[derive(Default)]
 pub struct WebChatState(pub Mutex<Option<String>>);
 
@@ -20,6 +27,7 @@ pub struct PaperWebChat {
     last_opened_at: i64,
 }
 
+#[cfg(feature = "tauri-shell")]
 #[derive(Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BrowserBounds {
@@ -30,6 +38,7 @@ pub struct BrowserBounds {
     viewport_height: f64,
 }
 
+#[cfg(feature = "tauri-shell")]
 fn trusted(view: &Webview) -> Result<(), String> {
     if view.label() == "main" {
         Ok(())
@@ -38,6 +47,7 @@ fn trusted(view: &Webview) -> Result<(), String> {
     }
 }
 
+#[cfg(feature = "tauri-shell")]
 fn connection(app: &AppHandle) -> Result<Connection, String> {
     let file = app
         .path()
@@ -69,6 +79,7 @@ fn row(row: &rusqlite::Row<'_>) -> rusqlite::Result<PaperWebChat> {
     })
 }
 
+#[cfg(feature = "tauri-shell")]
 fn get(app: &AppHandle, id: &str) -> Result<PaperWebChat, String> {
     get_from_db(&connection(app)?, id)
 }
@@ -84,7 +95,7 @@ pub(crate) fn get_from_db(db: &Connection, id: &str) -> Result<PaperWebChat, Str
 
 // Accept ordinary and project/GPT conversation URLs, never share links or login URLs.
 pub fn conversation_url(value: &str) -> Option<String> {
-    let mut url = tauri::Url::parse(value.trim()).ok()?;
+    let mut url = url::Url::parse(value.trim()).ok()?;
     if url.scheme() != "https"
         || url.host_str() != Some("chatgpt.com")
         || url.port().is_some()
@@ -104,6 +115,7 @@ pub fn conversation_url(value: &str) -> Option<String> {
     Some(url.to_string())
 }
 
+#[cfg(feature = "tauri-shell")]
 fn capture(app: &AppHandle, id: &str, url: &str) -> Result<(), String> {
     let Some(url) = conversation_url(url) else {
         return Ok(());
@@ -161,6 +173,7 @@ pub(crate) fn update_title(
     )
 }
 
+#[cfg(feature = "tauri-shell")]
 fn capture_title(app: &AppHandle, id: &str, url: &str, title: &str) -> Result<(), String> {
     capture(app, id, url)?;
     if update_title(&connection(app)?, id, url, title).map_err(|e| e.to_string())? > 0 {
@@ -170,6 +183,7 @@ fn capture_title(app: &AppHandle, id: &str, url: &str, title: &str) -> Result<()
     Ok(())
 }
 
+#[cfg(feature = "tauri-shell")]
 #[tauri::command]
 pub async fn list_paper_web_chats(
     app: AppHandle,
@@ -189,6 +203,7 @@ pub(crate) fn list_from_db(db: &Connection, paper_id: &str) -> Result<Vec<PaperW
         .map_err(|e| e.to_string())
 }
 
+#[cfg(feature = "tauri-shell")]
 #[tauri::command]
 pub async fn save_paper_web_chat(
     app: AppHandle,
@@ -237,6 +252,7 @@ pub(crate) fn save_in_db(
     get_from_db(db, &id)
 }
 
+#[cfg(feature = "tauri-shell")]
 #[tauri::command]
 pub async fn layout_paper_web_chat(
     app: AppHandle,
@@ -376,6 +392,7 @@ pub async fn layout_paper_web_chat(
     Ok(())
 }
 
+#[cfg(feature = "tauri-shell")]
 #[tauri::command]
 pub async fn open_paper_web_chat_external(
     app: AppHandle,
@@ -406,6 +423,7 @@ pub async fn open_paper_web_chat_external(
     }
 }
 
+#[cfg(feature = "tauri-shell")]
 #[tauri::command]
 pub async fn reload_paper_web_chat(
     app: AppHandle,
@@ -420,6 +438,7 @@ pub async fn reload_paper_web_chat(
     Ok(())
 }
 
+#[cfg(feature = "tauri-shell")]
 #[tauri::command]
 pub async fn restore_paper_web_chat(
     app: AppHandle,

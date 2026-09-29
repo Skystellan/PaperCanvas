@@ -38,7 +38,7 @@ async fn upgrades_existing_sqlx_database_and_keeps_rollback_compatible() {
             sqlx::migrate::Migration::new(
                 m.version,
                 m.description.into(),
-                m.kind.into(),
+                sqlx::migrate::MigrationType::ReversibleUp,
                 m.sql.into(),
                 false,
             )

@@ -2519,7 +2519,7 @@ dependencies = [
 
 [[package]]
 name = "paper-canvas"
-version = "0.2.8"
+version = "0.2.9"
 dependencies = [
  "rusqlite",
  "serde",
@@ -2531,6 +2531,7 @@ dependencies = [
  "tauri-plugin-fs",
  "tauri-plugin-sql",
  "tokio",
+ "url",
  "uuid",
 ]
 

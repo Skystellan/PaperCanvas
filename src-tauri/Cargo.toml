@@ -1,6 +1,6 @@
 [package]
 name = "paper-canvas"
-version = "0.2.8"
+version = "0.2.9"
 license = "MIT"
 description = "A local-first paper whiteboard"
 edition = "2021"
@@ -15,22 +15,32 @@ default-run = "paper-canvas"
 name = "paper_canvas_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
+[features]
+default = ["tauri-shell"]
+tauri-shell = ["dep:tauri", "dep:tauri-build", "dep:tauri-plugin-dialog", "dep:tauri-plugin-fs", "dep:tauri-plugin-sql"]
+
 [build-dependencies]
-tauri-build = { version = "2", features = [] }
+tauri-build = { version = "2", optional = true }
 
 [dependencies]
-tauri = { version = "2", features = ["unstable"] }
-tauri-plugin-dialog = "2"
-tauri-plugin-fs = "2"
-tauri-plugin-sql = { version = "2", features = ["sqlite"] }
+tauri = { version = "2", features = ["unstable"], optional = true }
+tauri-plugin-dialog = { version = "2", optional = true }
+tauri-plugin-fs = { version = "2", optional = true }
+tauri-plugin-sql = { version = "2", features = ["sqlite"], optional = true }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+url = "2"
 rusqlite = { version = "0.31", features = ["bundled"] }
 uuid = { version = "1", features = ["v4"] }
 tokio = { version = "1", features = ["macros", "sync", "time", "rt-multi-thread"] }
 
 sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "sqlite", "migrate"] }
 
+
+[[bin]]
+name = "paper-canvas"
+path = "src/main.rs"
+required-features = ["tauri-shell"]
 
 [[bin]]
 name = "paper-canvas-backend"

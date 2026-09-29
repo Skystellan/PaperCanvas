@@ -39,7 +39,7 @@ pub async fn migrate(path: &Path) -> Result<(), String> {
             sqlx::migrate::Migration::new(
                 m.version,
                 m.description.into(),
-                m.kind.into(),
+                sqlx::migrate::MigrationType::ReversibleUp,
                 m.sql.into(),
                 false,
             )

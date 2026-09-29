@@ -33,8 +33,9 @@ export async function packageLinux(output) {
       },
       // The legacy AppImage launcher otherwise adds --no-sandbox to its desktop entry.
       appImage: { executableArgs: [] },
-      // Add the authorization helper without replacing builder's runtime dependencies.
-      deb: { fpm: ['--depends', 'policykit-1 | pkexec'] },
+      // Keep builder's dependencies and declare the oldest supported system ABI.
+      deb: { fpm: ['--depends', 'policykit-1 | pkexec', '--depends', 'libc6 (>= 2.31)',
+        '--depends', 'libgbm1', '--depends', 'libasound2'] },
       publish: {
         provider: 'github', owner: 'Skystellan', repo: 'PaperCanvas', protocol: 'https', private: false,
       },

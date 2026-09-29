@@ -1,5 +1,3 @@
-use tauri_plugin_sql::{Migration, MigrationKind};
-
 pub mod backend;
 mod markdown_notes;
 mod paper_import;
@@ -10,6 +8,7 @@ pub use paper_import::{
     reconcile_paper_storage, DeletePaperError, ImportPdfError, ImportedPaper,
 };
 
+#[cfg(feature = "tauri-shell")]
 const DATABASE_URL: &str = "sqlite:papercanvas.db";
 
 pub fn initial_migration_sql() -> &'static str {
@@ -72,6 +71,7 @@ pub fn paper_web_chats_migration_sql() -> &'static str {
     include_str!("../migrations/0015_paper_web_chats.sql")
 }
 
+#[cfg(feature = "tauri-shell")]
 #[tauri::command(async)]
 fn import_pdf(
     app: tauri::AppHandle,
@@ -111,6 +111,7 @@ fn import_pdf(
     .map_err(|error| error.to_string())
 }
 
+#[cfg(feature = "tauri-shell")]
 #[tauri::command(async)]
 fn delete_paper(app: tauri::AppHandle, paper_id: String) -> Result<(), String> {
     use tauri::Manager;
@@ -132,6 +133,7 @@ fn delete_paper(app: tauri::AppHandle, paper_id: String) -> Result<(), String> {
     .map_err(|error| error.to_string())
 }
 
+#[cfg(feature = "tauri-shell")]
 #[tauri::command(async)]
 fn reconcile_pdf_storage(app: tauri::AppHandle) -> Result<(), String> {
     use tauri::Manager;
@@ -152,116 +154,112 @@ fn reconcile_pdf_storage(app: tauri::AppHandle) -> Result<(), String> {
     .map_err(|error| error.to_string())
 }
 
+// Shared migration definitions keep both desktop shells on the same SQL/checksums.
+pub struct Migration {
+    pub version: i64,
+    pub description: &'static str,
+    pub sql: &'static str,
+}
+
 pub fn migrations() -> Vec<Migration> {
     vec![
         Migration {
             version: 1,
             description: "create the V0 paper canvas",
             sql: initial_migration_sql(),
-            kind: MigrationKind::Up,
         },
         Migration {
             version: 2,
             description: "add the local paper library",
             sql: library_migration_sql(),
-            kind: MigrationKind::Up,
         },
         Migration {
             version: 3,
             description: "add one primary note per paper",
             sql: note_migration_sql(),
-            kind: MigrationKind::Up,
         },
         Migration {
             version: 4,
             description: "add ordinary board edges",
             sql: edge_migration_sql(),
-            kind: MigrationKind::Up,
         },
         Migration {
             version: 5,
             description: "add persistent PDF highlights",
             sql: highlight_migration_sql(),
-            kind: MigrationKind::Up,
         },
         Migration {
             version: 6,
             description: "add one paper mind map per paper",
             sql: mind_map_migration_sql(),
-            kind: MigrationKind::Up,
         },
         Migration {
             version: 7,
             description: "add local Codex runtime settings",
             sql: runtime_settings_migration_sql(),
-            kind: MigrationKind::Up,
         },
         Migration {
             version: 8,
             description: "cache complete extracted paper text",
             sql: paper_text_migration_sql(),
-            kind: MigrationKind::Up,
         },
         Migration {
             version: 9,
             description: "persist AI discussions and explicit paper context",
             sql: chat_migration_sql(),
-            kind: MigrationKind::Up,
         },
         Migration {
             version: 10,
             description: "allow selectable Codex models",
             sql: model_settings_migration_sql(),
-            kind: MigrationKind::Up,
         },
         Migration {
             version: 11,
             description: "apply model settings to a chat atomically",
             sql: atomic_model_settings_migration_sql(),
-            kind: MigrationKind::Up,
         },
         Migration {
             version: 12,
             description: "organize papers into domains",
             sql: paper_domains_migration_sql(),
-            kind: MigrationKind::Up,
         },
         Migration {
             version: 13,
             description: "persist both chat turn messages atomically",
             sql: atomic_chat_turns_migration_sql(),
-            kind: MigrationKind::Up,
         },
         Migration {
             version: 14,
             description: "classify board edges",
             sql: edge_relations_migration_sql(),
-            kind: MigrationKind::Up,
         },
         Migration {
             version: 15,
             description: "link multiple web conversations to each paper",
             sql: paper_web_chats_migration_sql(),
-            kind: MigrationKind::Up,
         },
         Migration {
             version: 16,
             description: "add explanations and evidence to board edges",
             sql: include_str!("../migrations/0016_board_annotations.sql"),
-            kind: MigrationKind::Up,
         },
         Migration {
             version: 17,
             description: "store manually supplied Mermaid mind maps",
             sql: include_str!("../migrations/0017_paper_mermaid_maps.sql"),
-            kind: MigrationKind::Up,
         },
     ]
 }
 
+#[cfg(feature = "tauri-shell")]
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let migrations = migrations();
+    let migrations = migrations().into_iter().map(|m| tauri_plugin_sql::Migration {
+        version: m.version,
+        description: m.description,
+        sql: m.sql,
+        kind: tauri_plugin_sql::MigrationKind::Up,
+    }).collect();
     tauri::Builder::default()
         .manage(markdown_notes::NoteFileState::default())
         .manage(web_chat::WebChatState::default())
