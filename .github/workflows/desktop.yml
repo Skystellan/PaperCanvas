@@ -64,10 +64,12 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           test -f release/latest-linux.yml
-          # Authorize only apt for this disposable runner's desktop user.
-          rule=/etc/polkit-1/rules.d/49-papercanvas-ci.rules
+          # Ubuntu 22.04 uses Polkit's legacy local-authority format.
+          # This temporary permission applies only to the disposable CI user.
+          rule=/etc/polkit-1/localauthority/50-local.d/papercanvas-ci.pkla
           trap 'sudo rm -f "$rule"' EXIT
-          printf 'polkit.addRule(function(action, subject) { if (action.id === "org.freedesktop.policykit.exec" && action.lookup("program") === "/usr/bin/apt-get" && subject.user === "%s") return polkit.Result.YES; });\n' "$(id -un)" | sudo tee "$rule" > /dev/null
+          sudo mkdir -p "$(dirname "$rule")"
+          printf '[PaperCanvas update smoke]\nIdentity=unix-user:%s\nAction=org.freedesktop.policykit.exec\nResultAny=yes\nResultInactive=yes\nResultActive=yes\n' "$(id -un)" | sudo tee "$rule" > /dev/null
           sudo systemctl restart polkit
           xvfb-run -a dbus-run-session -- node electron/run-linux-update-smoke.mjs release /usr/bin/paper-canvas
           xvfb-run -a dbus-run-session -- node electron/run-linux-update-smoke.mjs release "$PWD"/release/*.AppImage
@@ -165,6 +167,7 @@ jobs:
         run: |
           rule=/etc/polkit-1/rules.d/49-papercanvas-ci.rules
           trap 'sudo rm -f "$rule"' EXIT
+          sudo mkdir -p "$(dirname "$rule")"
           printf 'polkit.addRule(function(action, subject) { if (action.id === "org.freedesktop.policykit.exec" && action.lookup("program") === "/usr/bin/apt-get" && subject.user === "%s") return polkit.Result.YES; });\n' "$(id -un)" | sudo tee "$rule" > /dev/null
           sudo systemctl restart polkit
           xvfb-run -a dbus-run-session -- node electron/run-linux-update-smoke.mjs release /usr/bin/paper-canvas
