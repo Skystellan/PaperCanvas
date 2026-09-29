@@ -1,10 +1,13 @@
 # PaperCanvas
 
+![PaperCanvas — Your papers. Your conversations. Build your own network.](docs/media/papercanvas-social-preview.png)
+
 **[English](README.md)** | [简体中文](README.zh-CN.md)
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Download Windows installer](https://img.shields.io/badge/Download-Windows%20installer-0078D4?style=for-the-badge)](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.7/PaperCanvas-0.2.7-Windows-x64-Setup.exe)
-[![Download for macOS](https://img.shields.io/badge/Download-macOS%20Apple%20Silicon-007AFF?style=for-the-badge)](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.7/PaperCanvas-0.2.7-macOS-arm64.zip)
+[![License: MIT](https://img.shields.io/badge/License-MIT-0078D4?style=flat)](LICENSE)
+
+[![Download Windows installer](https://img.shields.io/badge/Download-Windows%20x64-0078D4?style=flat)](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.7/PaperCanvas-0.2.7-Windows-x64-Setup.exe)
+[![Download for macOS](https://img.shields.io/badge/Download-macOS%20ARM64-0078D4?style=flat)](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.7/PaperCanvas-0.2.7-macOS-arm64.zip)
 
 Download directly with the buttons above: **Windows 10/11 x64 installer** or **macOS 13+ Apple Silicon ZIP**.
 [Installation guide](#download) · [All downloads and release notes](https://github.com/Skystellan/PaperCanvas/releases/latest)

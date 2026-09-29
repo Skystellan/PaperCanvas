@@ -1,10 +1,13 @@
 # PaperCanvas
 
+![PaperCanvas — 论文与讨论放在一起，构建属于你的论文网络。](docs/media/papercanvas-social-preview.png)
+
 [English](README.md) | **[简体中文](README.zh-CN.md)**
 
-[![许可证：MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![下载 Windows 安装版](https://img.shields.io/badge/下载-Windows%20安装版-0078D4?style=for-the-badge)](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.7/PaperCanvas-0.2.7-Windows-x64-Setup.exe)
-[![下载 macOS 版](https://img.shields.io/badge/下载-macOS%20Apple%20Silicon-007AFF?style=for-the-badge)](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.7/PaperCanvas-0.2.7-macOS-arm64.zip)
+[![许可证：MIT](https://img.shields.io/badge/License-MIT-0078D4?style=flat)](LICENSE)
+
+[![下载 Windows 安装版](https://img.shields.io/badge/下载-Windows%20x64-0078D4?style=flat)](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.7/PaperCanvas-0.2.7-Windows-x64-Setup.exe)
+[![下载 macOS 版](https://img.shields.io/badge/下载-macOS%20ARM64-0078D4?style=flat)](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.7/PaperCanvas-0.2.7-macOS-arm64.zip)
 
 点击上方按钮即可直接下载：**Windows 10/11 x64 安装版** 或 **macOS 13+ Apple Silicon 版**。
 [安装教程](#下载安装) · [所有下载与更新说明](https://github.com/Skystellan/PaperCanvas/releases/latest)
