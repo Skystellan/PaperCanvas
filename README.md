@@ -6,10 +6,11 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-0078D4?style=flat)](LICENSE)
 
-[![Download Windows installer](https://img.shields.io/badge/Download-Windows%20x64-0078D4?style=flat)](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.7/PaperCanvas-0.2.7-Windows-x64-Setup.exe)
-[![Download for macOS](https://img.shields.io/badge/Download-macOS%20ARM64-0078D4?style=flat)](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.7/PaperCanvas-0.2.7-macOS-arm64.zip)
+[![Download Windows installer](https://img.shields.io/badge/Download-Windows%20x64-0078D4?style=flat)](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.8/PaperCanvas-0.2.8-Windows-x64-Setup.exe)
+[![Download for macOS](https://img.shields.io/badge/Download-macOS%20ARM64-0078D4?style=flat)](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.8/PaperCanvas-0.2.8-macOS-arm64.zip)
+[![Download for Ubuntu](https://img.shields.io/badge/Download-Linux%20x64-0078D4?style=flat)](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.8/PaperCanvas-0.2.8-Linux-amd64.deb)
 
-Download directly with the buttons above: **Windows 10/11 x64 installer** or **macOS 13+ Apple Silicon ZIP**.
+Download directly with the buttons above: **Windows 10/11 x64 installer**, **macOS 13+ Apple Silicon ZIP**, or **Ubuntu 22.04 / 24.04 x64 DEB**.
 [Installation guide](#download) · [All downloads and release notes](https://github.com/Skystellan/PaperCanvas/releases/latest)
 
 **Linux x64:** see [Ubuntu packages and installation](#linux-ubuntu-x64).
@@ -50,13 +51,13 @@ annotations and Markdown-based Markmap mind maps work entirely offline.
 
 ## Download
 
-The current release is **0.2.7**. Choose your platform below to download directly; there is no need to sort through release assets.
+The current release is **0.2.8**. Choose your platform below to download directly; there is no need to sort through release assets.
 
 | Your computer | Download | After downloading |
 | --- | --- | --- |
-| Windows 10/11, Intel or AMD x64 | **[Download Windows installer (.exe)](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.7/PaperCanvas-0.2.7-Windows-x64-Setup.exe)** | Double-click to install; supports future in-app updates. |
-| macOS 13+, Apple Silicon (M1 or newer) | **[Download for Mac (.zip)](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.7/PaperCanvas-0.2.7-macOS-arm64.zip)** | Unzip, then move PaperCanvas.app to Applications. |
-| Linux x64, Ubuntu 22.04 / 24.04 | [Builds and installation](#linux-ubuntu-x64) | Install the `.deb`; AppImage is also provided. |
+| Windows 10/11, Intel or AMD x64 | **[Download Windows installer (.exe)](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.8/PaperCanvas-0.2.8-Windows-x64-Setup.exe)** | Double-click to install; supports future in-app updates. |
+| macOS 13+, Apple Silicon (M1 or newer) | **[Download for Mac (.zip)](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.8/PaperCanvas-0.2.8-macOS-arm64.zip)** | Unzip, then move PaperCanvas.app to Applications. |
+| Linux x64, Ubuntu 22.04 / 24.04 | **[Download Ubuntu installer (.deb)](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.8/PaperCanvas-0.2.8-Linux-amd64.deb)** | [Install with apt](#linux-ubuntu-x64); AppImage is also provided. |
 
 [Release notes and other files](https://github.com/Skystellan/PaperCanvas/releases/latest). You do not need the source archives or updater metadata to install the app.
 
@@ -64,12 +65,12 @@ The current release is **0.2.7**. Choose your platform below to download directl
 
 **Windows 10/11, x64 (Intel or AMD).**
 
-1. Click **[Download Windows installer](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.7/PaperCanvas-0.2.7-Windows-x64-Setup.exe)**. This is the recommended build for application-managed updates.
+1. Click **[Download Windows installer](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.8/PaperCanvas-0.2.8-Windows-x64-Setup.exe)**. This is the recommended build for application-managed updates.
 2. Quit an older PaperCanvas copy, run the installer, and open PaperCanvas from its shortcut. It installs for the current user and reuses the existing local data directory.
 3. Import PDFs using the file picker or drag them from File Explorer. PDF search uses **Ctrl+F**; Markdown formatting uses **Ctrl+B/I/K**.
 4. For future updates, use **Help → Check for Updates…**. A newer version downloads in the background, with progress on the taskbar; choose **Restart and install** when it is ready. PaperCanvas saves before restarting.
 
-**Portable alternative:** download the [Windows portable ZIP](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.7/PaperCanvas-0.2.7-Windows-x64.zip), extract the entire archive into a writable folder, and open `PaperCanvas.exe` inside `PaperCanvas-win32-x64`. Keep the adjacent resources and DLLs together. This ZIP build still uses manual upgrades: quit the app and replace the program folder, or install the Setup version once to enable future in-app installation.
+**Portable alternative:** download the [Windows portable ZIP](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.8/PaperCanvas-0.2.8-Windows-x64.zip), extract the entire archive into a writable folder, and open `PaperCanvas.exe` inside `PaperCanvas-win32-x64`. Keep the adjacent resources and DLLs together. This ZIP build still uses manual upgrades: quit the app and replace the program folder, or install the Setup version once to enable future in-app installation.
 
 No Node.js, Rust, or separate WebView2 install is needed. Data is stored separately at `%APPDATA%\com.papercanvas.desktop`, including the `chromium` sign-in profile. The installer and portable app use the same data directory under the same Windows user account; keep only the copy you intend to use. This community build is unsigned, so Windows may show an unknown-publisher/SmartScreen prompt on first launch.
 
@@ -77,7 +78,7 @@ No Node.js, Rust, or separate WebView2 install is needed. Data is stored separat
 
 **Apple Silicon Macs (M1 or newer), macOS 13+.**
 
-1. Click **[Download for Mac](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.7/PaperCanvas-0.2.7-macOS-arm64.zip)**.
+1. Click **[Download for Mac](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.8/PaperCanvas-0.2.8-macOS-arm64.zip)**.
 2. Unzip it and move `PaperCanvas.app` to **Applications**. Quit an older copy before replacing it.
 3. Open PaperCanvas and import your PDFs. Upgrading the app preserves your local library and notes.
 
@@ -85,18 +86,18 @@ This community build is ad-hoc signed, without an Apple Developer ID or notariza
 If macOS blocks the first launch and you trust this download, use **System Settings →
 Privacy & Security → Open Anyway** after attempting to open it. See
 [Apple's opening instructions](https://support.apple.com/en-us/102445).
-Intel Mac, native Windows ARM64, and Linux binaries are not included in the published 0.2.7 release.
+Intel Mac, native Windows ARM64, and Linux ARM64 binaries are not included in this release.
 
 ### Linux (Ubuntu x64)
 
 The initial Linux target is **Ubuntu 22.04 and 24.04, x64 (Intel or AMD), with a desktop environment**. Packages are built on Ubuntu 22.04; CI also installs and tests the same `.deb` on Ubuntu 24.04. Other distributions and ARM64 are outside the initial validation scope.
 
-Until Linux packages are attached to a release, open a successful [Desktop builds](https://github.com/Skystellan/PaperCanvas/actions/workflows/desktop.yml) run and download the **PaperCanvas-Linux-x64** artifact (GitHub sign-in required). Unzip it to find the `.deb` and `.AppImage`. Node.js and Rust are only needed to build from source.
+Download the **[Ubuntu installer (.deb)](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.8/PaperCanvas-0.2.8-Linux-amd64.deb)** or **[Linux AppImage](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.8/PaperCanvas-0.2.8-Linux-x86_64.AppImage)** directly. Node.js and Rust are only needed to build from source.
 
 **Recommended on Ubuntu:** in the download directory, install the `.deb`, then open **PaperCanvas** from the application menu or run `paper-canvas`:
 
 ```sh
-sudo apt install ./PaperCanvas-0.2.7-Linux-amd64.deb
+sudo apt install ./PaperCanvas-0.2.8-Linux-amd64.deb
 ```
 
 The installer configures the desktop icon and the application-specific AppArmor profile on Ubuntu 24.04. Run the app as your normal desktop user.
@@ -104,11 +105,11 @@ The installer configures the desktop icon and the application-specific AppArmor 
 **AppImage:** on compatible Linux desktops, make it executable and run it:
 
 ```sh
-chmod +x PaperCanvas-0.2.7-Linux-x86_64.AppImage
-./PaperCanvas-0.2.7-Linux-x86_64.AppImage
+chmod +x PaperCanvas-0.2.8-Linux-x86_64.AppImage
+./PaperCanvas-0.2.8-Linux-x86_64.AppImage
 ```
 
-The AppImage uses FUSE 2 (`sudo apt install libfuse2` on Ubuntu 22.04). `APPIMAGE_EXTRACT_AND_RUN=1 ./PaperCanvas-0.2.7-Linux-x86_64.AppImage` can run without a FUSE mount. If the system blocks Chromium's user-namespace sandbox, use the `.deb` on Ubuntu; do not add `--no-sandbox` for the embedded chat. AppImage does not install an application-menu shortcut.
+The AppImage uses FUSE 2 (`sudo apt install libfuse2` on Ubuntu 22.04). `APPIMAGE_EXTRACT_AND_RUN=1 ./PaperCanvas-0.2.8-Linux-x86_64.AppImage` can run without a FUSE mount. If the system blocks Chromium's user-namespace sandbox, use the `.deb` on Ubuntu; do not add `--no-sandbox` for the embedded chat. AppImage does not install an application-menu shortcut.
 
 Linux updates use **Help → Check for Updates… → View release**. Quit the app, then install the newer `.deb` or replace the AppImage. Both formats share the data directory listed below; upgrades retain the library and sign-in profile. Linux uses the same **Ctrl** shortcuts as Windows.
 

@@ -6,10 +6,11 @@
 
 [![许可证：MIT](https://img.shields.io/badge/License-MIT-0078D4?style=flat)](LICENSE)
 
-[![下载 Windows 安装版](https://img.shields.io/badge/下载-Windows%20x64-0078D4?style=flat)](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.7/PaperCanvas-0.2.7-Windows-x64-Setup.exe)
-[![下载 macOS 版](https://img.shields.io/badge/下载-macOS%20ARM64-0078D4?style=flat)](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.7/PaperCanvas-0.2.7-macOS-arm64.zip)
+[![下载 Windows 安装版](https://img.shields.io/badge/下载-Windows%20x64-0078D4?style=flat)](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.8/PaperCanvas-0.2.8-Windows-x64-Setup.exe)
+[![下载 macOS 版](https://img.shields.io/badge/下载-macOS%20ARM64-0078D4?style=flat)](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.8/PaperCanvas-0.2.8-macOS-arm64.zip)
+[![下载 Ubuntu 版](https://img.shields.io/badge/下载-Linux%20x64-0078D4?style=flat)](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.8/PaperCanvas-0.2.8-Linux-amd64.deb)
 
-点击上方按钮即可直接下载：**Windows 10/11 x64 安装版** 或 **macOS 13+ Apple Silicon 版**。
+点击上方按钮即可直接下载：**Windows 10/11 x64 安装版**、**macOS 13+ Apple Silicon 版** 或 **Ubuntu 22.04 / 24.04 x64 DEB 安装版**。
 [安装教程](#下载安装) · [所有下载与更新说明](https://github.com/Skystellan/PaperCanvas/releases/latest)
 
 **Linux x64：** 参见 [Ubuntu 安装包与安装说明](#linuxubuntu-x64)。
@@ -46,13 +47,13 @@ PDF 与应用数据保存在应用管理的本地目录中。macOS、Windows 和
 
 ## 下载安装
 
-当前版本为 **0.2.7**。按电脑类型点击下方链接，直接下载安装包，无需在 Release 附件里挑文件。
+当前版本为 **0.2.8**。按电脑类型点击下方链接，直接下载安装包，无需在 Release 附件里挑文件。
 
 | 你的电脑 | 下载入口 | 下载后怎么做 |
 | --- | --- | --- |
-| Windows 10/11，Intel 或 AMD x64 | **[下载 Windows 安装版（.exe）](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.7/PaperCanvas-0.2.7-Windows-x64-Setup.exe)** | 双击安装，之后支持应用内更新。 |
-| macOS 13+，Apple Silicon（M1 或更新芯片） | **[下载 Mac 版（.zip）](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.7/PaperCanvas-0.2.7-macOS-arm64.zip)** | 解压后将 PaperCanvas.app 移到「应用程序」。 |
-| Linux x64，Ubuntu 22.04 / 24.04 | [构建下载与安装说明](#linuxubuntu-x64) | 推荐安装 `.deb`，同时提供 AppImage。 |
+| Windows 10/11，Intel 或 AMD x64 | **[下载 Windows 安装版（.exe）](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.8/PaperCanvas-0.2.8-Windows-x64-Setup.exe)** | 双击安装，之后支持应用内更新。 |
+| macOS 13+，Apple Silicon（M1 或更新芯片） | **[下载 Mac 版（.zip）](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.8/PaperCanvas-0.2.8-macOS-arm64.zip)** | 解压后将 PaperCanvas.app 移到「应用程序」。 |
+| Linux x64，Ubuntu 22.04 / 24.04 | **[下载 Ubuntu 安装版（.deb）](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.8/PaperCanvas-0.2.8-Linux-amd64.deb)** | [通过 apt 安装](#linuxubuntu-x64)，同时提供 AppImage。 |
 
 [查看更新说明与其他文件](https://github.com/Skystellan/PaperCanvas/releases/latest)。普通安装无需下载源码包或自动更新用的辅助文件。
 
@@ -60,12 +61,12 @@ PDF 与应用数据保存在应用管理的本地目录中。macOS、Windows 和
 
 **支持 Windows 10/11，x64（Intel 或 AMD）。**
 
-1. 点击 **[下载 Windows 安装版](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.7/PaperCanvas-0.2.7-Windows-x64-Setup.exe)**，推荐使用此版本以获得应用内更新。
+1. 点击 **[下载 Windows 安装版](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.8/PaperCanvas-0.2.8-Windows-x64-Setup.exe)**，推荐使用此版本以获得应用内更新。
 2. 先退出旧版 PaperCanvas，再运行安装器，通过快捷方式打开应用。它为当前用户安装，并沿用已有的本地数据目录。
 3. 使用文件选择器导入 PDF，或从文件资源管理器拖入。PDF 搜索快捷键为 **Ctrl+F**，Markdown 格式快捷键为 **Ctrl+B/I/K**。
 4. 以后升级使用 **Help → Check for Updates…（帮助 → 检查更新）**。发现新版后会在后台下载，任务栏显示进度；下载完成后选择 **Restart and install（重启并安装）**，应用会先保存再重启。
 
-**便携版：** 也可以下载 [Windows 便携 ZIP 版](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.7/PaperCanvas-0.2.7-Windows-x64.zip)，完整解压到可写入的文件夹，打开 `PaperCanvas-win32-x64` 中的 `PaperCanvas.exe`，并保留配套资源和 DLL。ZIP 版仍采用手动更新：先退出应用，再替换程序目录；也可以手动安装一次 Setup 版，之后使用应用内更新。
+**便携版：** 也可以下载 [Windows 便携 ZIP 版](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.8/PaperCanvas-0.2.8-Windows-x64.zip)，完整解压到可写入的文件夹，打开 `PaperCanvas-win32-x64` 中的 `PaperCanvas.exe`，并保留配套资源和 DLL。ZIP 版仍采用手动更新：先退出应用，再替换程序目录；也可以手动安装一次 Setup 版，之后使用应用内更新。
 
 无需安装 Node.js、Rust 或单独的 WebView2。数据独立保存在 `%APPDATA%\com.papercanvas.desktop`，包括 `chromium` 登录资料目录。同一个 Windows 用户下，安装版与便携版使用同一份数据；请保留你准备使用的程序副本。此社区构建未经发布者签名，首次运行时可能显示未知发布者或 SmartScreen 提示。
 
@@ -73,25 +74,25 @@ PDF 与应用数据保存在应用管理的本地目录中。macOS、Windows 和
 
 **支持 Apple Silicon Mac（M1 或更新芯片），macOS 13 及以上。**
 
-1. 点击 **[下载 Mac 版](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.7/PaperCanvas-0.2.7-macOS-arm64.zip)**。
+1. 点击 **[下载 Mac 版](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.8/PaperCanvas-0.2.8-macOS-arm64.zip)**。
 2. 解压并将 `PaperCanvas.app` 移到 **应用程序** 文件夹。替换旧版本前请先退出应用。
 3. 打开 PaperCanvas 并导入 PDF。升级应用会保留本地论文库和笔记。
 
 此社区构建采用临时签名（ad-hoc），没有 Apple Developer ID 签名或公证。
 如果 macOS 阻止首次启动，且你信任此次下载，请先尝试打开应用，再前往
 **系统设置 → 隐私与安全性 → 仍要打开**。参见 [Apple 官方打开说明](https://support.apple.com/en-us/102445)。
-已发布的 0.2.7 Release 不提供 Intel Mac、原生 Windows ARM64 或 Linux 二进制包。
+此版本不提供 Intel Mac、原生 Windows ARM64 或 Linux ARM64 二进制包。
 
 ### Linux（Ubuntu x64）
 
 首批 Linux 支持目标为 **Ubuntu 22.04 和 24.04，x64（Intel 或 AMD），需要桌面环境**。安装包在 Ubuntu 22.04 构建，CI 也会在 Ubuntu 24.04 安装并测试同一个 `.deb`。其他发行版和 ARM64 暂不在首批验证范围内。
 
-Linux 安装包尚未附加到正式 Release 时，请打开成功的 [Desktop builds](https://github.com/Skystellan/PaperCanvas/actions/workflows/desktop.yml) 工作流，下载 **PaperCanvas-Linux-x64** 产物（需要登录 GitHub），解压后获得 `.deb` 和 `.AppImage`。只有从源码构建才需要 Node.js 和 Rust。
+直接下载 **[Ubuntu 安装版（.deb）](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.8/PaperCanvas-0.2.8-Linux-amd64.deb)** 或 **[Linux AppImage](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.8/PaperCanvas-0.2.8-Linux-x86_64.AppImage)**。只有从源码构建才需要 Node.js 和 Rust。
 
 **Ubuntu 推荐安装 `.deb`：** 在下载文件所在目录执行，安装后从应用菜单打开 **PaperCanvas**，也可运行 `paper-canvas`：
 
 ```sh
-sudo apt install ./PaperCanvas-0.2.7-Linux-amd64.deb
+sudo apt install ./PaperCanvas-0.2.8-Linux-amd64.deb
 ```
 
 安装器会配置应用图标，并在 Ubuntu 24.04 配置应用专用的 AppArmor 规则。请使用普通桌面用户运行应用。
@@ -99,11 +100,11 @@ sudo apt install ./PaperCanvas-0.2.7-Linux-amd64.deb
 **AppImage：** 在兼容的 Linux 桌面环境中，添加执行权限后运行：
 
 ```sh
-chmod +x PaperCanvas-0.2.7-Linux-x86_64.AppImage
-./PaperCanvas-0.2.7-Linux-x86_64.AppImage
+chmod +x PaperCanvas-0.2.8-Linux-x86_64.AppImage
+./PaperCanvas-0.2.8-Linux-x86_64.AppImage
 ```
 
-此 AppImage 使用 FUSE 2（Ubuntu 22.04 可执行 `sudo apt install libfuse2`）。也可用 `APPIMAGE_EXTRACT_AND_RUN=1 ./PaperCanvas-0.2.7-Linux-x86_64.AppImage` 解压运行，避免依赖 FUSE 挂载。如果系统限制 Chromium 的用户命名空间沙箱，Ubuntu 请使用 `.deb`；不要为内嵌聊天添加 `--no-sandbox`。AppImage 不会自动添加应用菜单快捷方式。
+此 AppImage 使用 FUSE 2（Ubuntu 22.04 可执行 `sudo apt install libfuse2`）。也可用 `APPIMAGE_EXTRACT_AND_RUN=1 ./PaperCanvas-0.2.8-Linux-x86_64.AppImage` 解压运行，避免依赖 FUSE 挂载。如果系统限制 Chromium 的用户命名空间沙箱，Ubuntu 请使用 `.deb`；不要为内嵌聊天添加 `--no-sandbox`。AppImage 不会自动添加应用菜单快捷方式。
 
 Linux 通过 **Help → Check for Updates… → View release** 提示新版。升级前退出应用，再安装新版 `.deb` 或替换 AppImage。两种格式共用下表中的数据目录，升级会保留论文库和登录资料。Linux 与 Windows 使用相同的 **Ctrl** 快捷键。
 
