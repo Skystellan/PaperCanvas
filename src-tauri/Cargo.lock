@@ -2519,7 +2519,7 @@ dependencies = [
 
 [[package]]
 name = "paper-canvas"
-version = "0.2.6"
+version = "0.2.7"
 dependencies = [
  "rusqlite",
  "serde",

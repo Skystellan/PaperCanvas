@@ -12,7 +12,7 @@ PaperCanvas turns your paper library into a visual map of your thinking.
 Bring papers onto an infinite canvas, connect their ideas, and shape the network
 as your understanding grows.
 
-![PaperCanvas demo: drag a paper from the library, connect it to other papers, and move a card as its network and topic regions adjust. Includes English and Chinese captions.](docs/media/paper-network-demo.gif)
+![PaperCanvas demo: organize a paper network, discuss a paper in the embedded chat, and turn a Markdown outline into an interactive mind map. Includes English and Chinese captions.](docs/media/paper-network-demo.gif)
 
 [Watch the HD demo](docs/media/paper-network-demo.mp4) · [Static preview](docs/media/paper-network-poster.png)
 
@@ -20,7 +20,7 @@ as your understanding grows.
 - **Connect your ideas.** Link papers and record support, challenges, and evidence.
 - **Make the space yours.** Move cards while connections and topic regions follow smoothly.
 
-*Real app demo · sample papers and illustrative connections · 2× playback.*
+*Recorded in the real app with public research PDFs and the actual embedded ChatGPT website, at 2× speed. The mind map uses Markdown copied from the live reply. The paper connections are illustrative; no personal library or signed-in account is recorded.*
 
 Read, highlight, annotate, and discuss papers in the same local-first workspace.
 PDFs and product data stay in app-owned local storage. The macOS and Windows desktops
@@ -37,18 +37,18 @@ annotations and Markdown-based Markmap mind maps work entirely offline.
 
 ## Download
 
-The current release is **0.2.6**. Get the app from [GitHub Releases](https://github.com/Skystellan/PaperCanvas/releases/latest).
+The current release is **0.2.7**. Get the app from [GitHub Releases](https://github.com/Skystellan/PaperCanvas/releases/latest).
 
 ### Windows
 
 **Windows 10/11, x64 (Intel or AMD).**
 
-1. Download **`PaperCanvas-0.2.6-Windows-x64-Setup.exe`** from the release's **Assets**. This is the recommended build for application-managed updates.
+1. Download **`PaperCanvas-0.2.7-Windows-x64-Setup.exe`** from the release's **Assets**. This is the recommended build for application-managed updates.
 2. Quit an older PaperCanvas copy, run the installer, and open PaperCanvas from its shortcut. It installs for the current user and reuses the existing local data directory.
 3. Import PDFs using the file picker or drag them from File Explorer. PDF search uses **Ctrl+F**; Markdown formatting uses **Ctrl+B/I/K**.
 4. For future updates, use **Help → Check for Updates…**. A newer version downloads in the background, with progress on the taskbar; choose **Restart and install** when it is ready. PaperCanvas saves before restarting.
 
-**Portable alternative:** download `PaperCanvas-0.2.6-Windows-x64.zip`, extract the entire archive into a writable folder, and open `PaperCanvas.exe` inside `PaperCanvas-win32-x64`. Keep the adjacent resources and DLLs together. This ZIP build still uses manual upgrades: quit the app and replace the program folder, or install the Setup version once to enable future in-app installation.
+**Portable alternative:** download `PaperCanvas-0.2.7-Windows-x64.zip`, extract the entire archive into a writable folder, and open `PaperCanvas.exe` inside `PaperCanvas-win32-x64`. Keep the adjacent resources and DLLs together. This ZIP build still uses manual upgrades: quit the app and replace the program folder, or install the Setup version once to enable future in-app installation.
 
 No Node.js, Rust, or separate WebView2 install is needed. Data is stored separately at `%APPDATA%\com.papercanvas.desktop`, including the `chromium` sign-in profile. The installer and portable app use the same data directory under the same Windows user account; keep only the copy you intend to use. This community build is unsigned, so Windows may show an unknown-publisher/SmartScreen prompt on first launch.
 
@@ -56,7 +56,7 @@ No Node.js, Rust, or separate WebView2 install is needed. Data is stored separat
 
 **Apple Silicon Macs (M1 or newer), macOS 13+.**
 
-1. Download `PaperCanvas-0.2.6-macOS-arm64.zip` from the release's **Assets**.
+1. Download `PaperCanvas-0.2.7-macOS-arm64.zip` from the release's **Assets**.
 2. Unzip it and move `PaperCanvas.app` to **Applications**. Quit an older copy before replacing it.
 3. Open PaperCanvas and import your PDFs. Upgrading the app preserves your local library and notes.
 
@@ -119,7 +119,7 @@ In connection mode, you can also use **Tab** to focus cards and **Enter** to sel
 
 ### Arrange the canvas, describe relationships, and delete items
 
-- Drag an empty part of the canvas to pan. Mouse-wheel or trackpad scrolling also pans; a trackpad pinch zooms. Moving a card adjusts related nodes and domain backgrounds.
+- Drag an empty part of the canvas to pan. Mouse-wheel or trackpad scrolling also pans; a trackpad pinch zooms from 5% to 200%, so you can zoom out to see a much larger network. Moving a card adjusts related nodes and domain backgrounds.
 - Use **All / a domain name / 未分区 (Unassigned)** at the top to choose what is visible. **重新整理布局 (Rearrange layout)** arranges the papers in the current view again.
 - Click a connection and choose **Support / Challenge / 未分类 (Unclassified)**. Describe the relationship under **解释 (Explanation)** and add quotations, sources, or page numbers under **证据 (Evidence)**, then click **保存解释与证据 (Save explanation and evidence)**. Drafts are preserved when you change the selection and saved before you enter the reader.
 - Select a canvas card and press **Delete / Backspace**, or click **从白板移除选中卡片 (Remove selected card from whiteboard)**. This removes only the card and its connections. The paper and PDF remain in the library, ready to be dragged onto the canvas again.

@@ -1369,7 +1369,7 @@ function WhiteboardCanvas({
           deleteKeyCode={null}
           fitView
           fitViewOptions={{ padding: 0.22, maxZoom: 1.1 }}
-          minZoom={0.2}
+          minZoom={0.05}
           maxZoom={2}
         >
           <ViewportPortal>

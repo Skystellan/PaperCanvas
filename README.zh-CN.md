@@ -11,7 +11,7 @@
 PaperCanvas 把论文库变成一张可视化的思考地图。
 将论文放上无限画布，连接彼此的思路，随着理解深入，逐步整理出自己的研究脉络。
 
-![PaperCanvas 演示：将论文从论文库拖入画布，与其他论文连线，再移动卡片，观察论文网络和领域背景随之调整。含中英文字幕。](docs/media/paper-network-demo.gif)
+![PaperCanvas 演示：整理论文网络，在内嵌聊天中讨论论文，再把 Markdown 大纲渲染成可交互的思维导图。含中英文字幕。](docs/media/paper-network-demo.gif)
 
 [观看高清演示](docs/media/paper-network-demo.mp4) · [查看静态预览](docs/media/paper-network-poster.png)
 
@@ -19,7 +19,7 @@ PaperCanvas 把论文库变成一张可视化的思考地图。
 - **连接思路。** 连起论文之间的关系，记录支持、质疑和证据。
 - **整理自己的研究空间。** 移动卡片，连线与领域背景平滑跟随，让研究脉络逐渐清晰。
 
-*演示录制自真实应用，使用示例论文和用于说明的连线，以 2 倍速播放。*
+*演示使用真实公开论文 PDF 和应用内实际打开的 ChatGPT 网页，以 2 倍速播放。思维导图由真实回复中复制的 Markdown 渲染；论文连线仅用于演示，不录制个人论文库或已登录账号。*
 
 在同一个以本地存储为主的工作空间中阅读、高亮、批注和讨论论文。
 PDF 与应用数据保存在应用管理的本地目录中。macOS 和 Windows 桌面版通过 Electron 使用 Chromium；
@@ -35,18 +35,18 @@ PDF 与应用数据保存在应用管理的本地目录中。macOS 和 Windows �
 
 ## 下载安装
 
-当前版本为 **0.2.6**，请从 [GitHub Releases](https://github.com/Skystellan/PaperCanvas/releases/latest) 下载。
+当前版本为 **0.2.7**，请从 [GitHub Releases](https://github.com/Skystellan/PaperCanvas/releases/latest) 下载。
 
 ### Windows
 
 **支持 Windows 10/11，x64（Intel 或 AMD）。**
 
-1. 在发布页的 **Assets（资源）** 中下载 **`PaperCanvas-0.2.6-Windows-x64-Setup.exe`**，推荐使用此安装版以获得应用内更新。
+1. 在发布页的 **Assets（资源）** 中下载 **`PaperCanvas-0.2.7-Windows-x64-Setup.exe`**，推荐使用此安装版以获得应用内更新。
 2. 先退出旧版 PaperCanvas，再运行安装器，通过快捷方式打开应用。它为当前用户安装，并沿用已有的本地数据目录。
 3. 使用文件选择器导入 PDF，或从文件资源管理器拖入。PDF 搜索快捷键为 **Ctrl+F**，Markdown 格式快捷键为 **Ctrl+B/I/K**。
 4. 以后升级使用 **Help → Check for Updates…（帮助 → 检查更新）**。发现新版后会在后台下载，任务栏显示进度；下载完成后选择 **Restart and install（重启并安装）**，应用会先保存再重启。
 
-**便携版：** 也可以下载 `PaperCanvas-0.2.6-Windows-x64.zip`，完整解压到可写入的文件夹，打开 `PaperCanvas-win32-x64` 中的 `PaperCanvas.exe`，并保留配套资源和 DLL。ZIP 版仍采用手动更新：先退出应用，再替换程序目录；也可以手动安装一次 Setup 版，之后使用应用内更新。
+**便携版：** 也可以下载 `PaperCanvas-0.2.7-Windows-x64.zip`，完整解压到可写入的文件夹，打开 `PaperCanvas-win32-x64` 中的 `PaperCanvas.exe`，并保留配套资源和 DLL。ZIP 版仍采用手动更新：先退出应用，再替换程序目录；也可以手动安装一次 Setup 版，之后使用应用内更新。
 
 无需安装 Node.js、Rust 或单独的 WebView2。数据独立保存在 `%APPDATA%\com.papercanvas.desktop`，包括 `chromium` 登录资料目录。同一个 Windows 用户下，安装版与便携版使用同一份数据；请保留你准备使用的程序副本。此社区构建未经发布者签名，首次运行时可能显示未知发布者或 SmartScreen 提示。
 
@@ -54,7 +54,7 @@ PDF 与应用数据保存在应用管理的本地目录中。macOS 和 Windows �
 
 **支持 Apple Silicon Mac（M1 或更新芯片），macOS 13 及以上。**
 
-1. 在发布页的 **Assets（资源）** 中下载 `PaperCanvas-0.2.6-macOS-arm64.zip`。
+1. 在发布页的 **Assets（资源）** 中下载 `PaperCanvas-0.2.7-macOS-arm64.zip`。
 2. 解压并将 `PaperCanvas.app` 移到 **应用程序** 文件夹。替换旧版本前请先退出应用。
 3. 打开 PaperCanvas 并导入 PDF。升级应用会保留本地论文库和笔记。
 
@@ -116,7 +116,7 @@ PaperCanvas 不会自动把正在阅读的 PDF、选中文字或问题发给 Cha
 
 ### 整理画布、解释关系与删除
 
-- 拖动画布空白处可平移视图；滚轮 / 触控板滚动也用于平移，触控板捏合用于缩放。拖动卡片会带动相关节点和领域背景调整位置。
+- 拖动画布空白处可平移视图；滚轮 / 触控板滚动也用于平移，触控板捏合可在 **5%–200%** 之间缩放，缩小后能看到更大范围的论文网络。拖动卡片会带动相关节点和领域背景调整位置。
 - 顶部 **All / 领域名 / 未分区** 用来切换显示范围；**重新整理布局** 会重新安排当前范围内的论文。
 - 单击一条连线，选择 **Support（支持）/ Challenge（质疑）/ 未分类**。在「解释」中记录关系，在「证据」中填写摘录、来源或页码，点击 **保存解释与证据**。切换选择会保留草稿，进入阅读器前也会保存。
 - 选中画布卡片后，按 **Delete / Backspace** 或点击 **从白板移除选中卡片**，只移除卡片及其连线；论文和 PDF 仍在论文库，可以再次拖入。
