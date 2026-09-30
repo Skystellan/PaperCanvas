@@ -64,7 +64,12 @@ function PaperChats({ paper, initialChatId }: { paper: Paper; initialChatId?: st
     mounted.current = true;
     let active = true;
     void listPaperWebChats(paper.id).then((items) => {
-      if (active) { setChats(items); setSelected(items.find((item) => item.id === initialChatId)?.id ?? items[0]?.id ?? ""); }
+      if (active) {
+        const activeChat = items.find((item) => item.id === initialChatId) ?? items[0];
+        setChats(items);
+        setSelected(activeChat?.id ?? "");
+        if (activeChat && !activeChat.url) setLoginHelpId(activeChat.id);
+      }
     }).catch((reason: unknown) => { if (active) setError(String(reason)); })
       .finally(() => { if (active) setLoading(false); });
     const updates = listen<PaperWebChat>("paper-web-chat-updated", ({ payload }) => {
@@ -180,6 +185,7 @@ function PaperChats({ paper, initialChatId }: { paper: Paper; initialChatId?: st
       if (!mounted.current) return;
       setChats((items) => [chat, ...items.filter((item) => item.id !== chat.id)]);
       setSelected(chat.id);
+      if (next === "new") setLoginHelpId(chat.id);
       setMode(null);
       if (next !== "new") menuButton.current?.focus();
     } catch (reason) { if (mounted.current) setError(String(reason)); }
@@ -249,29 +255,29 @@ function PaperChats({ paper, initialChatId }: { paper: Paper; initialChatId?: st
     {error && <p className="web-chat-options ai-panel__error" role="alert">{error} <button type="button" onClick={reloadWebChat}>重试网页</button></p>}
     {loadState?.message && <div className="web-chat-login-help" role="status">
       <p>{loadState.message}</p>
-      <div className="web-chat-actions"><button type="button" onClick={reloadWebChat}>重试加载</button><button type="button" onClick={openInBrowser}>在浏览器继续</button></div>
+      <div className="web-chat-actions"><button type="button" onClick={reloadWebChat}>重试加载</button><button type="button" onClick={openInBrowser}>在浏览器中使用（不会登录应用）</button></div>
     </div>}
     {current && loginHelpId === selected && <div className="web-chat-login-help" role="status">
       <strong>使用 ChatGPT 账号密码登录</strong>
+      <p><strong>请在应用内完成登录。</strong>浏览器的登录状态不会同步到这里；浏览器已登录时，直接进入对话页是正常现象。</p>
       <p>在下方 ChatGPT 页面选择“登录”，输入原账号邮箱和 OpenAI 密码，并完成页面要求的验证。OpenAI 密码不是 Google 邮箱密码。</p>
-      <p>Google 不支持在内嵌窗口登录。浏览器的登录状态不会同步到这里；浏览器已登录时，直接进入对话页是正常现象。</p>
       <details>
         <summary>在内嵌窗口使用原来的 Google 注册账号</summary>
-        <p>先在系统浏览器中用 Google 登录原账号，核对“设置 → 账号”中的完整邮箱、订阅和历史对话。</p>
+        <p>Google 不支持在内嵌窗口登录。系统浏览器仅用于确认原账号和设置 OpenAI 密码，设置密码后仍需回到应用内登录。</p>
+        <p>浏览器已进入对话页时，直接打开“设置 → 账号”，核对完整邮箱、订阅和历史对话；无需退出账号、清除 Cookie 或反复登录。尚未登录时，才使用 Google 登录原账号。</p>
         <p>如果账号设置提供“添加密码”，为这个原账号添加 OpenAI 密码，再在内嵌窗口选择“登录”，使用该邮箱和新密码。若已设置密码，直接使用即可；没有该选项时，请继续在系统浏览器使用原账号。</p>
+        <button type="button" onClick={openInBrowser}>打开浏览器查看账号设置</button>
         <p>邮箱验证码不等同于 Google 授权。若出现姓名、生日等注册步骤，或订阅和历史对话不见了，请先返回核对账号与工作区。</p>
         <p><a href="https://help.openai.com/en/articles/4936828-resetting-or-changing-your-chatgpt-password" target="_blank" rel="noreferrer">OpenAI 官方密码设置说明</a></p>
       </details>
-      <p>“关联已有对话”只保存对话链接，不会关联账号或同步登录。新对话的链接可从浏览器地址栏复制。</p>
+      <p>“在浏览器中打开”只在外部网页继续使用；“关联已有对话”只保存链接。两者都不会让应用内登录。</p>
       <div className="web-chat-actions">
-        <button type="button" onClick={openInBrowser}>打开浏览器继续</button>
-        <button type="button" onClick={() => { edit("link"); setLoginHelpId(""); }}>关联浏览器对话</button>
-        <button type="button" onClick={() => setLoginHelpId("")}>关闭提示</button>
+        <button type="button" onClick={() => setLoginHelpId("")}>关闭提示，继续在应用内登录</button>
       </div>
     </div>}
     <div className="web-chat-browser" ref={slot} data-testid="paper-chat-browser-slot">
-      {!selected && <p>{loading ? "正在读取论文讨论…" : "为这篇论文新建讨论，或关联已有的 ChatGPT 对话。"}</p>}
-      {selected && loadState?.status !== "ready" && <p>{loadState?.message || "正在打开 ChatGPT…使用 Google 登录时，请点击“登录帮助”。"}</p>}
+      {!selected && <p>{loading ? "正在读取论文讨论…" : "点击＋新建讨论。首次使用请在应用内的 ChatGPT 页面用原账号邮箱和 OpenAI 密码登录；浏览器登录不会同步到这里。"}</p>}
+      {selected && loadState?.status !== "ready" && <p>{loadState?.message || "正在打开 ChatGPT…请在应用内使用原账号邮箱和 OpenAI 密码登录。"}</p>}
     </div>
 
   </section>;

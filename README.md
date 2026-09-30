@@ -1,5 +1,11 @@
 # PaperCanvas
 
+> [!IMPORTANT]
+> **Using AI chat? Sign in inside PaperCanvas with your ChatGPT account email and OpenAI password.**
+> Signing in to your system browser does **not** sign you in to the app. If the browser opens straight to a chat, it is already signed in there; that does not complete the app's sign-in.
+> **Originally signed up with Google?** If your account offers **Settings → Account → Add password**, set an OpenAI password there, then return to the app to sign in. Your Google password is separate.
+> **[Read the sign-in guide first](#chatgpt-email-and-password-sign-in)** · [中文登录教程](README.zh-CN.md#chatgpt-账号密码登录)
+
 ![PaperCanvas — Your papers. Your conversations. Build your own network.](docs/media/papercanvas-cover.png)
 
 **[English](README.md)** | [简体中文](README.zh-CN.md)
@@ -41,13 +47,56 @@ PDFs and product data stay in app-owned local storage. The macOS, Windows and Li
 use Chromium through Electron. The reader can open ChatGPT in an embedded browser;
 annotations and Markdown-based Markmap mind maps work entirely offline.
 
-**User guide:** [Download](#download) · [Quick start](#quick-start) ·
-[Library and canvas](#paper-library-and-canvas) · [Account sign-in](#chatgpt-email-and-password-sign-in) ·
+**User guide:** [Account sign-in — read first](#chatgpt-email-and-password-sign-in) · [Download](#download) ·
+[Quick start](#quick-start) · [Library and canvas](#paper-library-and-canvas) ·
 [Copy titles and discuss](#copy-a-paper-title-and-start-a-discussion) · [Reading and annotations](#reading-highlights-and-annotations) ·
 [Notes](#markdown-notes) · [Mind maps](#mind-maps) · [Keyboard shortcuts](#keyboard-shortcuts)
 
 **Project:** [Features](#what-is-included) · [Local data and privacy](#local-data-and-embedded-conversations) ·
 [Development](#development-prerequisites) · [Contributing](#contributing) · [Discussions](https://github.com/Skystellan/PaperCanvas/discussions) · [Updates](#releases-and-update-notifications) · [License](#license)
+
+## ChatGPT email and password sign-in
+
+**AI chat** opens the official ChatGPT website. Use your **ChatGPT / OpenAI account email and password**; you do not need a separate PaperCanvas account or an API key.
+**Complete sign-in on the embedded ChatGPT page inside PaperCanvas.** The app saves its own session; **Open in browser** and **Link existing conversation** do not sign you in inside the app. You can reopen these instructions from **AI chat → ⋯ → 登录帮助 (Sign-in help)**.
+
+### If you already have an OpenAI password
+
+1. Double-click a paper, select **AI chat** on the right, and click **＋** at the top if there is no discussion yet.
+2. Click **Log in** on the embedded ChatGPT page. Enter your existing account's full email address, choose password sign-in, and enter your **OpenAI password**.
+3. Complete any email verification or multifactor authentication requested by the website. A verification-code prompt can appear during sign-in; it does not by itself mean you are creating a new account.
+4. Check your account, subscription, and conversation history in ChatGPT to confirm that you are using your usual account.
+
+The session is stored in the app's local data directory, so reopening the app usually does not require signing in again. An expired session or changes to account security policies may require verification again.
+If you forget an OpenAI password you previously set, choose **Forgot password?** on the official sign-in page and follow the reset email.
+Setting or resetting the password affects that same OpenAI account. See [OpenAI's password instructions](https://help.openai.com/en/articles/4936828-resetting-or-changing-your-chatgpt-password).
+
+### If you have always signed in with Google and have no OpenAI password
+
+**Your Google password and your OpenAI password are separate.** The browser step below is only for checking your existing account and adding an OpenAI password if available; you must then return to PaperCanvas and sign in there:
+
+1. Open [ChatGPT](https://chatgpt.com/) in your usual system browser. **If it opens straight to a chat, you are already signed in there:** go directly to **Settings → Account**. You do not need to sign out, clear cookies, or make a login screen reappear. Use **Continue with Google** only if that browser is signed out.
+2. Check your existing Plus/Pro subscription and conversation history. Confirm the full email address under **Settings → Account**.
+3. **If your account offers Add password**, set a password there. If it already has a password, use that password. You do not need to create a new account or change your email address.
+4. Return to PaperCanvas, choose **Log in** on the embedded website, and use the email address you just checked and your newly set **OpenAI password**. Complete any requested verification.
+5. Check your subscription and history again. If the wrong account appears, sign out within the embedded ChatGPT page and retry with the correct account.
+
+See [OpenAI's account instructions](https://help.openai.com/en/articles/4936827-how-to-change-your-email-address) for adding a password to an account that uses social sign-in.
+If **Add password** is unavailable, or you still see **Wrong authentication method**, continue using your original sign-in method in the system browser or contact OpenAI support. Do not enter your Google password as an OpenAI password or register another account to try to “link” your subscription.
+For a Google sign-in account without an OpenAI password, **Forgot password?** does not replace adding a password within the original account.
+
+### Troubleshooting sign-in
+
+| Symptom | What to do |
+| --- | --- |
+| The browser opens directly to a chat, but the app is still signed out. | The sessions are separate. Complete email and password sign-in inside the app; **在浏览器中打开 (Open in browser)** only opens a web page. |
+| Clicking Google sign-in in the embedded page shows a notice. | Follow the email and password workflow above. **登录帮助 (Sign-in help)** also explains how to add a password to an existing Google-based account. |
+| After entering an email, you only see a verification code, or a registration form asking for a name or date of birth. | Check that you chose **Log in** and entered the correct email. Entering a Gmail address alone does not complete Google authorization. If password sign-in is offered, use your OpenAI password. If a registration flow appears, go back and check the account first. |
+| Your Plus/Pro subscription and history are missing. | Check the full email address, sign-in method, and active workspace. Missing history alone does not prove that a new account was created. Compare with your original account in your usual browser before subscribing again. |
+| The page is blank, loads slowly, or has not finished website verification. | Choose **⋯ → 重新加载网页 (Reload page)** in the chat toolbar, or continue in the browser. Reloading preserves the app's sign-in data. |
+
+For further help, see [OpenAI's sign-in troubleshooting](https://help.openai.com/en/articles/7426629-why-cant-i-log-in-to-chatgpt).
+PaperCanvas does not merge ChatGPT accounts or synchronize external-browser cookies. Linking an existing conversation only saves its URL.
 
 ## Download
 
@@ -137,7 +186,7 @@ To find the data directory, paste the Windows path into File Explorer's address 
 1. Click **导入 PDF (Import PDF)** in the left-hand **论文库 (Paper Library)**, or drag PDFs into the library from Finder or File Explorer.
 2. Drag a paper from the library onto the central canvas to create a card. Double-click a library entry or canvas card to open the reader.
 3. Use **Notes / Mind map / AI chat** on the right to take notes, organize a mind map, or open ChatGPT.
-4. The first time you use **AI chat**, click **＋** to create a discussion, then sign in on the embedded website with your existing ChatGPT account's email and OpenAI password.
+4. The first time you use **AI chat**, read the [account sign-in guide](#chatgpt-email-and-password-sign-in), click **＋** to create a discussion, and sign in **inside the app** with your existing ChatGPT account's email and OpenAI password. Signing in to an external browser does not sign you in here.
 5. Click **⧉ (复制论文信息 / Copy paper information)** in the chat toolbar, click the ChatGPT message box, and press **⌘V / Ctrl+V** to paste the paper title. Add your question and send it yourself.
 6. Return to the canvas, press **Space once**, and click two paper cards in sequence to connect them. Press **Esc** to exit connection mode.
 
@@ -173,49 +222,6 @@ In connection mode, you can also use **Tab** to focus cards and **Enter** to sel
 - Select a canvas card and press **Delete / Backspace**, or click **从白板移除选中卡片 (Remove selected card from whiteboard)**. This removes only the card and its connections. The paper and PDF remain in the library, ready to be dragged onto the canvas again.
 - Select a connection and press **Delete / Backspace**, or click **删除选中连线 (Delete selected connection)**, to remove only that relationship.
 - In the library, **⋯ → 删除 → 确认删除 (Delete → Confirm deletion)** deletes the library record, managed PDF copy, and associated content. It leaves the original imported file intact and keeps existing `.md` notes as a safety copy. To tidy the canvas without deleting a paper, use the remove-from-whiteboard action.
-
-## ChatGPT email and password sign-in
-
-**AI chat** opens the official ChatGPT website. Use your **ChatGPT / OpenAI account email and password**; you do not need a separate PaperCanvas account or an API key.
-The app saves its own sign-in session. Being signed in to your system browser does not sign you in to the app.
-
-### If you already have an OpenAI password
-
-1. Double-click a paper, select **AI chat** on the right, and click **＋** at the top if there is no discussion yet.
-2. Click **Log in** on the embedded ChatGPT page. Enter your existing account's full email address, choose password sign-in, and enter your **OpenAI password**.
-3. Complete any email verification or multifactor authentication requested by the website. A verification-code prompt can appear during sign-in; it does not by itself mean you are creating a new account.
-4. Check your account, subscription, and conversation history in ChatGPT to confirm that you are using your usual account.
-
-The session is stored in the app's local data directory, so reopening the app usually does not require signing in again. An expired session or changes to account security policies may require verification again.
-If you forget an OpenAI password you previously set, choose **Forgot password?** on the official sign-in page and follow the reset email.
-Setting or resetting the password affects that same OpenAI account. See [OpenAI's password instructions](https://help.openai.com/en/articles/4936828-resetting-or-changing-your-chatgpt-password).
-
-### If you have always signed in with Google and have no OpenAI password
-
-**Your Google password and your OpenAI password are separate.** Add an OpenAI password within your existing account before trying email and password sign-in in the app:
-
-1. Open [ChatGPT](https://chatgpt.com/) in your usual system browser and use **Continue with Google** to sign in with your original Google account.
-2. Check your existing Plus/Pro subscription and conversation history. Confirm the full email address under **Settings → Account**.
-3. **If your account offers Add password**, set a password there. If it already has a password, use that password. You do not need to create a new account or change your email address.
-4. Return to PaperCanvas, choose **Log in** on the embedded website, and use the email address you just checked and your newly set **OpenAI password**. Complete any requested verification.
-5. Check your subscription and history again. If the wrong account appears, sign out within the embedded ChatGPT page and retry with the correct account.
-
-See [OpenAI's account instructions](https://help.openai.com/en/articles/4936827-how-to-change-your-email-address) for adding a password to an account that uses social sign-in.
-If **Add password** is unavailable, or you still see **Wrong authentication method**, continue using your original sign-in method in the system browser or contact OpenAI support. Do not enter your Google password as an OpenAI password or register another account to try to “link” your subscription.
-For a Google sign-in account without an OpenAI password, **Forgot password?** does not replace adding a password within the original account.
-
-### Troubleshooting sign-in
-
-| Symptom | What to do |
-| --- | --- |
-| The browser opens directly to a chat, but the app is still signed out. | The sessions are separate. Complete email and password sign-in inside the app; **在浏览器中打开 (Open in browser)** only opens a web page. |
-| Clicking Google sign-in in the embedded page shows a notice. | Follow the email and password workflow above. **登录帮助 (Sign-in help)** also explains how to add a password to an existing Google-based account. |
-| After entering an email, you only see a verification code, or a registration form asking for a name or date of birth. | Check that you chose **Log in** and entered the correct email. Entering a Gmail address alone does not complete Google authorization. If password sign-in is offered, use your OpenAI password. If a registration flow appears, go back and check the account first. |
-| Your Plus/Pro subscription and history are missing. | Check the full email address, sign-in method, and active workspace. Missing history alone does not prove that a new account was created. Compare with your original account in your usual browser before subscribing again. |
-| The page is blank, loads slowly, or has not finished website verification. | Choose **⋯ → 重新加载网页 (Reload page)** in the chat toolbar, or continue in the browser. Reloading preserves the app's sign-in data. |
-
-For further help, see [OpenAI's sign-in troubleshooting](https://help.openai.com/en/articles/7426629-why-cant-i-log-in-to-chatgpt).
-PaperCanvas does not merge ChatGPT accounts or synchronize external-browser cookies. Linking an existing conversation only saves its URL.
 
 ## Copy a paper title and start a discussion
 

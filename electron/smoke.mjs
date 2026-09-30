@@ -126,6 +126,10 @@ export async function smoke({ window, backend, chats, dataDirectory, chatSession
   await until(`!!document.querySelector('button[aria-label^="Open Chat fixture"]')`, 'recent discussion');
   await evaluate(`document.querySelector('button[aria-label^="Open Chat fixture"]').click()`);
   await until(`!!document.querySelector('.pdfViewer .page canvas')?.width`, 'real PDF.js render');
+  await until(`!!document.querySelector('.web-chat-login-help')?.textContent.includes('请在应用内完成登录')`, 'initial sign-in guidance');
+  await writeFile(path.join(dataDirectory, 'initial-login-help.png'), (await wc.capturePage()).toPNG());
+  await evaluate(`[...document.querySelectorAll('button')].find(b => b.textContent==='关闭提示，继续在应用内登录').click()`);
+  await until(`!document.querySelector('.web-chat-login-help')`, 'dismissed sign-in guidance');
   const zoom = await evaluate(`(async () => {
     const label = () => [...document.querySelectorAll('.pdf-viewer__toolbar span')].map(e=>e.textContent).find(t=>t.endsWith('%'));
     const before = label();
@@ -229,11 +233,11 @@ export async function smoke({ window, backend, chats, dataDirectory, chatSession
     assert.equal(guest.getURL(), 'https://chatgpt.com/');
     assert.equal(await evaluate(`document.querySelector('.web-chat-login-help').textContent.includes('不会同步')`), true);
     await writeFile(path.join(dataDirectory, 'google-login-help.png'), (await wc.capturePage()).toPNG());
-    await evaluate(`[...document.querySelectorAll('button')].find(b => b.textContent==='关闭提示').click()`);
+    await evaluate(`[...document.querySelectorAll('button')].find(b => b.textContent==='关闭提示，继续在应用内登录').click()`);
   }
   const { workspaceSmoke } = await import('./workspace-smoke.mjs');
   const workspace = await workspaceSmoke({ wc, backend, paper, dataDirectory, evaluate, until, chats, chat });
-  const report = { workspace, chromium: process.versions.chrome, electron: process.versions.electron, pdf: zoom, chatClipboard: { copy: true, pasteText: true, pasteImage: true }, guestReused: true, remoteHasNoBridge: true, googleLoginHandoff: true, verificationRetryRecovered: true, errors };
+  const report = { workspace, chromium: process.versions.chrome, electron: process.versions.electron, pdf: zoom, chatClipboard: { copy: true, pasteText: true, pasteImage: true }, guestReused: true, remoteHasNoBridge: true, initialSignInGuidance: true, googleLoginHandoff: true, verificationRetryRecovered: true, errors };
   await writeFile(path.join(dataDirectory, 'report.json'), JSON.stringify(report, null, 2));
   console.log(JSON.stringify(report));
   assert.deepEqual(errors, [], 'Native workflows should not produce renderer errors');

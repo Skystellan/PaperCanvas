@@ -107,6 +107,7 @@ describe("paper conversation bindings", () => {
     await waitFor(() => expect(screen.getByRole("combobox")).toHaveValue("chat-a"));
     fireEvent.change(screen.getByRole("combobox"), { target: { value: "chat-b" } });
     expect(screen.getByRole("combobox")).toHaveValue("chat-b");
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
     await waitFor(() => expect(layoutPaperWebChat).toHaveBeenCalledWith("chat-a", null));
   });
 
@@ -125,6 +126,23 @@ describe("paper conversation bindings", () => {
     await waitFor(() => expect(invoke).toHaveBeenCalledWith("save_paper_web_chat", { paperId: paper.id, id: null, title: "新对话", url: null }));
     await waitFor(() => expect(screen.getByRole("combobox")).toHaveValue("new-chat"));
     expect(screen.getByText("发出首条消息后自动保存对话链接")).toBeVisible();
+    expect(screen.getByRole("status")).toHaveTextContent("使用 ChatGPT 账号密码登录");
+    expect(invoke).not.toHaveBeenCalledWith("open_paper_web_chat_external", expect.anything());
+  });
+
+  it("shows sign-in guidance for an unfinished discussion before a Google login attempt", async () => {
+    vi.mocked(listPaperWebChats).mockResolvedValue([{ ...chat, url: null }]);
+    render(<WebChatPanel paper={paper} />);
+    await waitFor(() => expect(screen.getByRole("combobox")).toHaveValue(chat.id));
+    expect(screen.getByRole("status")).toHaveTextContent("浏览器的登录状态不会同步到这里");
+    expect(screen.getByRole("status")).toHaveTextContent("输入原账号邮箱和 OpenAI 密码");
+    expect(screen.getByRole("button", { name: "打开浏览器查看账号设置" })).not.toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "关闭提示，继续在应用内登录" }));
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(invoke).not.toHaveBeenCalledWith("open_paper_web_chat_external", expect.anything());
+    await openActions();
+    fireEvent.click(screen.getByRole("menuitem", { name: "登录帮助" }));
+    expect(screen.getByRole("status")).toHaveTextContent("使用 ChatGPT 账号密码登录");
   });
 
   it("associates a pasted conversation link with this paper", async () => {
@@ -176,10 +194,11 @@ describe("paper conversation bindings", () => {
     expect(screen.getByRole("status")).toHaveTextContent("为这个原账号添加 OpenAI 密码");
     expect(screen.getByRole("status")).toHaveTextContent("订阅和历史对话不见了，请先返回核对账号与工作区");
     expect(screen.getByRole("link", { name: "OpenAI 官方密码设置说明" })).toHaveAttribute("href", "https://help.openai.com/en/articles/4936828-resetting-or-changing-your-chatgpt-password");
-    fireEvent.click(screen.getByRole("button", { name: "打开浏览器继续" }));
+    expect(screen.getByRole("status")).toHaveTextContent("无需退出账号、清除 Cookie 或反复登录");
+    expect(screen.getByRole("status")).toHaveTextContent("设置密码后仍需回到应用内登录");
+    fireEvent.click(screen.getByRole("button", { name: "打开浏览器查看账号设置" }));
     await waitFor(() => expect(invoke).toHaveBeenCalledWith("open_paper_web_chat_external", { id: chat.id }));
-    fireEvent.click(screen.getByRole("button", { name: "关联浏览器对话" }));
-    expect(screen.getByLabelText("ChatGPT 对话链接")).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "关闭提示，继续在应用内登录" }));
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
 
@@ -276,7 +295,7 @@ describe("paper conversation bindings", () => {
     await user.click(screen.getByRole("menuitem", { name: "登录帮助" }));
     expect(screen.getByRole("status")).toHaveTextContent("使用 ChatGPT 账号密码登录");
     expect(screen.queryByRole("menu")).not.toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "关闭提示" }));
+    await user.click(screen.getByRole("button", { name: "关闭提示，继续在应用内登录" }));
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
 });
