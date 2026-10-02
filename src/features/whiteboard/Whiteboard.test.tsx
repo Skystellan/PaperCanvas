@@ -640,16 +640,16 @@ describe("Whiteboard", () => {
 
   it("keeps annotation drafts across selection, retries errors, and flushes the latest edit before navigation", async () => {
     const repository = createRepository();
-    repository.loadBoard.mockResolvedValue({ nodes: [firstNode, secondNode], edges: [firstEdge] });
+    repository.loadBoard.mockResolvedValue({ nodes: [firstNode, secondNode], edges: [{ ...firstEdge, evidence: "Page 4" }] });
     render(<Whiteboard repository={repository} />);
     fireEvent.click(await screen.findByRole("button", { name: `Select ${firstEdge.id}` }));
-    fireEvent.change(screen.getByLabelText("解释"), { target: { value: "Same result" } });
-    fireEvent.change(screen.getByLabelText("证据"), { target: { value: "Page 4" } });
+    fireEvent.change(screen.getByLabelText("批注"), { target: { value: "Same result" } });
+    expect(screen.queryByLabelText("证据")).toBeNull();
     expect(persistence.writer?.isDirty()).toBe(true);
     fireEvent.click(screen.getByRole("button", { name: firstNode.paper.title }));
-    expect(screen.queryByLabelText("解释")).toBeNull();
+    expect(screen.queryByLabelText("批注")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: `Select ${firstEdge.id}` }));
-    expect(screen.getByLabelText("解释")).toHaveValue("Same result");
+    expect(screen.getByLabelText("批注")).toHaveValue("Same result");
     repository.updateEdgeAnnotations.mockRejectedValueOnce(new Error("disk full"));
     await act(async () => {
       await expect(persistence.writer!.flush()).rejects.toThrow("disk full");
@@ -659,14 +659,14 @@ describe("Whiteboard", () => {
 
     const saving = deferred<void>();
     repository.updateEdgeAnnotations.mockReturnValueOnce(saving.promise);
-    fireEvent.click(screen.getByRole("button", { name: "重试保存解释与证据" }));
-    fireEvent.change(screen.getByLabelText("解释"), { target: { value: "Latest explanation" } });
+    fireEvent.click(screen.getByRole("button", { name: "重试保存批注" }));
+    fireEvent.change(screen.getByLabelText("批注"), { target: { value: "Latest explanation" } });
     await act(async () => { saving.resolve(); await persistence.writer!.flush(); });
     expect(repository.updateEdgeAnnotations).toHaveBeenLastCalledWith(firstEdge.id, {
       explanation: "Latest explanation", evidence: "Page 4",
     });
     expect(persistence.writer?.isDirty()).toBe(false);
-    expect(screen.getByLabelText("解释")).toHaveValue("Latest explanation");
+    expect(screen.getByLabelText("批注")).toHaveValue("Latest explanation");
   });
 
   it("drains position saves before removing a card, retains failed deletions, and allows drag-back", async () => {
@@ -1506,7 +1506,7 @@ describe("Whiteboard", () => {
       }),
     );
 
-    expect(screen.getByRole("group", { name: "连线关系" })).toBeVisible();
+    expect(screen.getByRole("group", { name: "连线颜色" })).toBeVisible();
   });
 
   it("keeps an active drag pinned when a pending connection finishes saving", async () => {

@@ -48,7 +48,7 @@ export async function workspaceSmoke({ wc, backend, paper, dataDirectory, evalua
   await until(`!document.querySelector('.paper-reader')`, 'canvas return');
 
   await backend.call('database_execute', { query: 'INSERT INTO board_nodes(id,board_id,paper_id,x,y,width,height) VALUES(?,?,?,?,?,?,?)', values: ['smoke-paper-node','board-default',paper.id,500,450,280,128] });
-  await backend.call('database_execute', { query: 'INSERT INTO board_edges(id,board_id,source_node_id,target_node_id,created_at) VALUES(?,?,?,?,?)', values: ['smoke-edge','board-default','smoke-paper-node','node-attention',1] });
+  await backend.call('database_execute', { query: 'INSERT INTO board_edges(id,board_id,source_node_id,target_node_id,created_at,evidence) VALUES(?,?,?,?,?,?)', values: ['smoke-edge','board-default','smoke-paper-node','node-attention',1,'Paper 1, page 3, Table 1'] });
   await reload();
   await until(`!!document.querySelector('.react-flow__edge[data-testid="rf__edge-smoke-edge"]')`, 'test canvas connection');
   const { whiteboardDragSmoke } = await import('./whiteboard-drag-smoke.mjs');
@@ -68,14 +68,16 @@ export async function workspaceSmoke({ wc, backend, paper, dataDirectory, evalua
   assert.ok(widthAfter > widthBefore, 'Library resize handle changes its width');
 
   await evaluate(`document.querySelector('.react-flow__edge[data-testid="rf__edge-smoke-edge"]').dispatchEvent(new MouseEvent('click',{bubbles:true}))`);
-  await until(`!!document.querySelector('[aria-label="连线解释与证据"]')`, 'connection editor');
-  await setText('.whiteboard__edge-editor textarea[placeholder="这两篇论文为什么相关？"]', 'Supports the comparison');
-  await setText('.whiteboard__edge-editor textarea[placeholder="摘录、来源或页码"]', 'Paper 1, page 3, Table 1');
-  // Navigation, rather than a Save click, must preserve edited evidence.
+  await until(`!!document.querySelector('[role="dialog"][aria-label="连线备注"]')`, 'connection editor');
+  assert.equal(await evaluate(`document.querySelectorAll('.whiteboard__edge-editor textarea').length`), 1);
+  await textButton('Support');
+  await until(`document.querySelector('.whiteboard__edge-editor .is-support')?.getAttribute('aria-pressed') === 'true'`, 'connection color saved');
+  await setText('.whiteboard__edge-editor textarea', 'Supports the comparison');
+  // Navigation must save the new annotation and retain historical evidence.
   await openPaper();
   await until(`!!document.querySelector('.pdfViewer .page canvas')?.width`, 'reader opened from library');
-  const savedEdge = await backend.call('database_select', { query: 'SELECT explanation,evidence FROM board_edges WHERE id=?', values:['smoke-edge'] });
-  assert.deepEqual(savedEdge, [{ explanation:'Supports the comparison', evidence:'Paper 1, page 3, Table 1' }]);
+  const savedEdge = await backend.call('database_select', { query: 'SELECT explanation,evidence,relation_type FROM board_edges WHERE id=?', values:['smoke-edge'] });
+  assert.deepEqual(savedEdge, [{ explanation:'Supports the comparison', evidence:'Paper 1, page 3, Table 1', relation_type:'support' }]);
   await evaluate(`[...document.querySelectorAll('[role="tab"]')].find(t=>t.textContent==='Notes').click()`);
   assert.equal(await evaluate(`document.querySelector('.paper-reader__title').textContent.includes('Metadata unavailable')`), false);
   assert.equal(await evaluate(`!!document.querySelector('[aria-label="Search highlights"]')`), false);
@@ -197,7 +199,7 @@ export async function workspaceSmoke({ wc, backend, paper, dataDirectory, evalua
   await until(`!document.querySelector('.paper-reader')`, 'canvas before deletions');
 
   await evaluate(`document.querySelector('.react-flow__edge[data-testid="rf__edge-smoke-edge"]').dispatchEvent(new MouseEvent('click',{bubbles:true}))`);
-  await until(`!!document.querySelector('[aria-label="连线解释与证据"]')`, 'selected edge before delete');
+  await until(`!!document.querySelector('[role="dialog"][aria-label="连线备注"]')`, 'selected edge before delete');
   await evaluate(`document.activeElement?.blur(); document.querySelector('.whiteboard').dispatchEvent(new KeyboardEvent('keydown',{key:'Delete',bubbles:true,cancelable:true}))`);
   await until(`!document.querySelector('.react-flow__edge[data-testid="rf__edge-smoke-edge"]')`, 'keyboard deletes connection');
   await click(paper.title);

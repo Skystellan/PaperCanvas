@@ -1278,52 +1278,52 @@ function WhiteboardCanvas({
             从白板移除选中卡片
           </button>
         )}
-        {selectedEdge && (
-          <div className="whiteboard__edge-relations" role="group" aria-label="连线关系">
-            {(
-              [
-                [null, "未分类"],
-                ["support", "Support"],
-                ["challenge", "Challenge"],
-              ] as const
-            ).map(([relation, label]) => (
-              <button
-                key={label}
-                type="button"
-                className={relation ? `is-${relation}` : undefined}
-                aria-pressed={(selectedEdge.data?.relation ?? null) === relation}
-                disabled={relationUpdatePending || deletionPending}
-                onClick={() => updateSelectedEdgeRelation(relation)}
-              >
-                {label}
-              </button>
-            ))}
-            <button type="button" disabled={deletionPending}
-              onClick={() => deleteSelected("edges")}>
-              删除选中连线
-            </button>
-          </div>
-        )}
       </div>
 
       {selectedEdge && (
-        <aside className="whiteboard__edge-editor" aria-label="连线解释与证据">
+        <aside className="whiteboard__edge-editor" role="dialog" aria-label="连线备注">
+          <h2>连线备注</h2>
+          <div className="whiteboard__edge-color-field">
+            <span>连线颜色</span>
+            <div className="whiteboard__edge-relations" role="group" aria-label="连线颜色">
+              {(
+                [
+                  [null, "未分类"],
+                  ["support", "Support"],
+                  ["challenge", "Challenge"],
+                ] as const
+              ).map(([relation, label]) => (
+                <button
+                  key={label}
+                  type="button"
+                  className={`is-${relation ?? "neutral"}`}
+                  aria-pressed={(selectedEdge.data?.relation ?? null) === relation}
+                  disabled={relationUpdatePending || deletionPending}
+                  onClick={() => updateSelectedEdgeRelation(relation)}
+                >
+                  <span className="whiteboard__edge-color-swatch" aria-hidden="true" />
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
           <label>
-            解释
+            批注
             <textarea value={selectedAnnotations?.explanation ?? ""} disabled={deletionPending}
-              placeholder="这两篇论文为什么相关？"
+              rows={4} placeholder="记录这两篇论文之间的联系…"
               onChange={(event) => editAnnotations(selectedEdge, "explanation", event.target.value)} />
           </label>
-          <label>
-            证据
-            <textarea value={selectedAnnotations?.evidence ?? ""} disabled={deletionPending}
-              placeholder="摘录、来源或页码"
-              onChange={(event) => editAnnotations(selectedEdge, "evidence", event.target.value)} />
-          </label>
-          <button type="button" disabled={deletionPending || annotationSaveState === "saving" || annotationDrafts.size === 0}
-            onClick={() => void flushAnnotations().catch(() => undefined)}>
-            {annotationSaveState === "saving" ? "保存中…" : "保存解释与证据"}
-          </button>
+          <div className="whiteboard__edge-editor-actions">
+            <button className="whiteboard__edge-delete" type="button" disabled={deletionPending}
+              onClick={() => deleteSelected("edges")}>
+              删除选中连线
+            </button>
+            <button className="whiteboard__edge-save" type="button"
+              disabled={deletionPending || annotationSaveState === "saving" || annotationDrafts.size === 0}
+              onClick={() => void flushAnnotations().catch(() => undefined)}>
+              {annotationSaveState === "saving" ? "保存中…" : "保存批注"}
+            </button>
+          </div>
           <small>打开阅读器前会保存；切换选择保留草稿。</small>
         </aside>
       )}
@@ -1411,8 +1411,8 @@ function WhiteboardCanvas({
       )}
       {annotationSaveState === "error" && (
         <div className="save-error" role="alert">
-          <span>解释与证据未保存，草稿已保留。</span>
-          <button type="button" onClick={() => void flushAnnotations().catch(() => undefined)}>重试保存解释与证据</button>
+          <span>批注未保存，草稿已保留。</span>
+          <button type="button" onClick={() => void flushAnnotations().catch(() => undefined)}>重试保存批注</button>
         </div>
       )}
     </section>
