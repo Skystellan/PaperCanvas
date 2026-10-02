@@ -262,7 +262,7 @@ describe("createPdfViewerRuntime", () => {
     expect(onLocationChange).toHaveBeenCalledTimes(2);
   });
 
-  it("restores the reading offset using the saved zoom's page layout", async () => {
+  it("restores the reading offset after the saved zoom has painted its page layout", async () => {
     const { container, viewer } = createElements();
     let firstRendered!: (value: object) => void;
     runtimeFakes.nextOnePageRendered = new Promise((resolve) => { firstRendered = resolve; });
@@ -277,6 +277,10 @@ describe("createPdfViewerRuntime", () => {
     expect(container.scrollTop).toBe(0);
     firstRendered({});
     await vi.waitFor(() => expect(animationFrames.size).toBe(1));
+    expect(container.scrollTop).toBe(0);
+    // RAF callbacks precede painting: the first one can still see the old size.
+    paintAnimationFrame();
+    await Promise.resolve();
     expect(container.scrollTop).toBe(0);
     pageHeight = 2000;
     paintAnimationFrame();
@@ -308,6 +312,7 @@ describe("createPdfViewerRuntime", () => {
     expect(onLocationChange).not.toHaveBeenCalled();
     targetReady({});
     await vi.waitFor(() => expect(animationFrames.size).toBe(1));
+    paintAnimationFrame();
     paintAnimationFrame();
     const runtime = await loading;
     expect(runtime.currentPage).toBe(1200);
