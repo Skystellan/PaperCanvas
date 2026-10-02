@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PersistenceCoordinator } from "../persistence";
@@ -85,12 +85,27 @@ describe("real React Flow deletion", () => {
     await waitFor(() => expect(screen.queryByTestId("rf__edge-a-b")).toBeNull());
   });
 
-  it("still deletes the selected edge after changing its relation from the toolbar", async () => {
+  it("edits the edge color inside the annotation dialog and still supports keyboard deletion", async () => {
     const user = userEvent.setup();
     const { repository } = setup();
     fireEvent.click(await screen.findByTestId("rf__edge-a-b"));
-    await user.click(screen.getByRole("button", { name: "Support" }));
+    const editor = within(screen.getByRole("dialog", { name: "连线备注" }));
+    expect(editor.getByRole("group", { name: "连线颜色" })).toBeVisible();
+    expect(within(screen.getByRole("toolbar", { name: "白板视图" })).queryByRole("group", { name: "连线颜色" })).toBeNull();
+    expect(editor.getAllByRole("textbox")).toHaveLength(1);
+    expect(editor.getByRole("textbox", { name: "批注" })).toBeVisible();
+    expect(editor.queryByLabelText("证据")).toBeNull();
+    await user.click(editor.getByRole("button", { name: "Support" }));
     expect(repository.updateEdgeRelation).toHaveBeenCalledWith("a-b", "support");
+    expect(screen.getByTestId("rf__edge-a-b")).toHaveClass("whiteboard__edge--support");
+    expect(editor.getByRole("button", { name: "Support" })).toHaveAttribute("aria-pressed", "true");
+    await user.click(editor.getByRole("button", { name: "Challenge" }));
+    expect(repository.updateEdgeRelation).toHaveBeenLastCalledWith("a-b", "challenge");
+    expect(screen.getByTestId("rf__edge-a-b")).toHaveClass("whiteboard__edge--challenge");
+    await user.click(editor.getByRole("button", { name: "未分类" }));
+    expect(repository.updateEdgeRelation).toHaveBeenLastCalledWith("a-b", null);
+    expect(editor.getByRole("button", { name: "未分类" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByTestId("rf__edge-a-b")).not.toHaveClass("whiteboard__edge--challenge");
     await user.keyboard("{Delete}");
     await waitFor(() => expect(repository.deleteEdges).toHaveBeenCalledWith(["a-b"]));
     await waitFor(() => expect(screen.queryByTestId("rf__edge-a-b")).toBeNull());
@@ -112,12 +127,12 @@ describe("real React Flow deletion", () => {
     const { repository } = setup();
     const edge = await screen.findByTestId("rf__edge-a-b");
     fireEvent.click(edge);
-    expect(screen.getByRole("group", { name: "连线关系" })).toBeVisible();
+    expect(screen.getByRole("group", { name: "连线颜色" })).toBeVisible();
     fireEvent.keyDown(window, { key: "Control" });
     fireEvent.click(edge, { ctrlKey: true });
     fireEvent.keyUp(window, { key: "Control" });
     expect(edge).not.toHaveClass("selected");
-    expect(screen.queryByRole("group", { name: "连线关系" })).toBeNull();
+    expect(screen.queryByRole("group", { name: "连线颜色" })).toBeNull();
     fireEvent.keyDown(edge, { key: "Delete" });
     await act(async () => undefined);
     expect(repository.deleteEdges).not.toHaveBeenCalled();
@@ -140,7 +155,7 @@ describe("real React Flow deletion", () => {
     const { repository, rerender } = setup();
     const edge = await screen.findByTestId("rf__edge-a-b");
     fireEvent.click(edge);
-    fireEvent.keyDown(screen.getByLabelText("解释"), { key: "Delete" });
+    fireEvent.keyDown(screen.getByLabelText("批注"), { key: "Delete" });
     const editable = document.createElement("div");
     editable.setAttribute("contenteditable", "true");
     editable.innerHTML = "<span>Draft</span>";
@@ -159,10 +174,9 @@ describe("real React Flow deletion", () => {
   it("deletes a saved annotated edge after returning from an inactive reader workspace", async () => {
     const { repository, rerender } = setup();
     fireEvent.click(await screen.findByTestId("rf__edge-a-b"));
-    fireEvent.change(screen.getByLabelText("解释"), { target: { value: "Support" } });
-    fireEvent.change(screen.getByLabelText("证据"), { target: { value: "Page 3" } });
-    fireEvent.click(screen.getByRole("button", { name: "保存解释与证据" }));
-    await waitFor(() => expect(repository.updateEdgeAnnotations).toHaveBeenCalledWith("a-b", { explanation: "Support", evidence: "Page 3" }));
+    fireEvent.change(screen.getByLabelText("批注"), { target: { value: "Support" } });
+    fireEvent.click(screen.getByRole("button", { name: "保存批注" }));
+    await waitFor(() => expect(repository.updateEdgeAnnotations).toHaveBeenCalledWith("a-b", { explanation: "Support", evidence: "" }));
     rerender(<PersistenceCoordinator><Whiteboard active={false} repository={repository} domains={[]} /></PersistenceCoordinator>);
     rerender(<PersistenceCoordinator><Whiteboard active={true} repository={repository} domains={[]} /></PersistenceCoordinator>);
     fireEvent.click(screen.getByTestId("rf__edge-a-b"));

@@ -71,18 +71,16 @@
   color: #626a77;
 }
 
-.whiteboard__views button:hover {
+.whiteboard__views button:hover,
+.whiteboard__edge-editor button:hover:not(:disabled) {
   background: rgb(255 255 255 / 55%);
 }
 
-.whiteboard__views button[aria-pressed="true"] {
+.whiteboard__views button[aria-pressed="true"],
+.whiteboard__edge-relations button[aria-pressed="true"] {
   color: #0868ce;
   background: rgb(255 255 255 / 94%);
   box-shadow: 0 1px 3px rgb(34 48 73 / 12%), 0 0 0 1px rgb(64 76 99 / 5%);
-}
-
-.whiteboard__edge-relations {
-  border-color: var(--glass-line);
 }
 
 .react-flow__controls-button {
@@ -135,7 +133,9 @@
 .recent-discussions article > div,
 .recent-discussions footer,
 .ai-eyebrow,
-.paper-reader__title p {
+.paper-reader__title p,
+.whiteboard__edge-editor small,
+.whiteboard__edge-editor textarea::placeholder {
   color: var(--glass-secondary);
 }
 
@@ -162,7 +162,8 @@
 .paper-library__search,
 .paper-library__domain-form input,
 .paper-reader__highlight-search,
-.pdf-selection-popover textarea {
+.pdf-selection-popover textarea,
+.whiteboard__edge-editor textarea {
   border-color: rgb(64 76 99 / 10%);
   color: #566171;
   background: rgb(255 255 255 / 50%);
@@ -172,7 +173,8 @@
 .paper-library__search:focus-within,
 .paper-library__domain-form input:focus,
 .paper-reader__highlight-search:focus-within,
-.pdf-selection-popover textarea:focus {
+.pdf-selection-popover textarea:focus,
+.whiteboard__edge-editor textarea:focus {
   border-color: rgb(0 122 255 / 60%);
   box-shadow: 0 0 0 3px var(--glass-focus);
 }
@@ -211,7 +213,8 @@
 .web-chat-controls button,
 .web-chat-controls select,
 .web-chat-form input,
-.ai-panel__header > button {
+.ai-panel__header > button,
+.whiteboard__edge-editor button {
   border-color: rgb(64 76 99 / 14%);
   color: #4b5565;
   background: linear-gradient(rgb(255 255 255 / 88%), rgb(255 255 255 / 58%));
@@ -220,15 +223,21 @@
 
 .paper-library__import,
 .pdf-selection-popover__actions button.is-active,
-.pdf-selection-popover .pdf-selection-popover__save {
+.pdf-selection-popover .pdf-selection-popover__save,
+.whiteboard__edge-editor .whiteboard__edge-save {
   border-color: rgb(0 94 210 / 25%);
   color: white;
   background: linear-gradient(#2996ff, #007aff);
   box-shadow: inset 0 1px 0 rgb(255 255 255 / 28%), 0 2px 5px rgb(0 122 255 / 18%);
 }
 
-.paper-library__import:hover:not(:disabled) {
+.paper-library__import:hover:not(:disabled),
+.whiteboard__edge-editor .whiteboard__edge-save:hover:not(:disabled) {
   background: linear-gradient(#168bff, #006fe8);
+}
+
+.whiteboard__edge-editor .whiteboard__edge-delete {
+  color: #b13b3b;
 }
 
 .paper-reader__workspace-tabs,
@@ -281,7 +290,8 @@
 }
 
 .paper-library__dialog,
-.pdf-selection-popover {
+.pdf-selection-popover,
+.whiteboard__edge-editor {
   border-color: rgb(255 255 255 / 90%);
   border-radius: 18px;
   color: var(--glass-ink);
@@ -297,7 +307,9 @@
 
 .paper-reader__workspace-tabs button:focus-visible,
 .recent-discussions__open:focus-visible,
-.whiteboard__views button:focus-visible {
+.whiteboard__views button:focus-visible,
+.whiteboard__edge-editor button:focus-visible,
+.whiteboard__edge-editor textarea:focus-visible {
   outline: 2px solid var(--glass-accent);
   outline-offset: 2px;
 }
@@ -313,7 +325,8 @@
   .whiteboard__connection-status,
   .paper-card,
   .paper-library__dialog,
-  .pdf-selection-popover {
+  .pdf-selection-popover,
+  .whiteboard__edge-editor {
     background: #f8faff;
     backdrop-filter: none;
   }

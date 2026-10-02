@@ -34,17 +34,32 @@
 
 .whiteboard__edge-relations {
   display: flex;
-  gap: 2px;
-  padding-left: 4px;
-  border-left: 1px solid #deddd7;
+  gap: 6px;
 }
 
-.whiteboard__edge-relations .is-support {
-  color: #2563a9;
+.whiteboard__edge-relations button {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: 12px;
 }
 
-.whiteboard__edge-relations .is-challenge {
-  color: #b13b3b;
+.whiteboard__edge-color-swatch {
+  flex: 0 0 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #8a9185;
+}
+
+.is-support .whiteboard__edge-color-swatch {
+  background: #3478c6;
+}
+
+.is-challenge .whiteboard__edge-color-swatch {
+  background: #cf4c4c;
 }
 
 .whiteboard .react-flow__edge.selected .react-flow__edge-path {
@@ -65,10 +80,12 @@
   top: 66px;
   right: 14px;
   display: grid;
-  gap: 10px;
-  width: min(300px, calc(100% - 28px));
+  gap: 16px;
+  width: min(340px, calc(100% - 28px));
+  max-height: calc(100% - 80px);
+  overflow-y: auto;
   box-sizing: border-box;
-  padding: 14px;
+  padding: 18px;
   border: 1px solid #deddd7;
   border-radius: 10px;
   background: #fffffd;
@@ -76,32 +93,60 @@
   font-size: 13px;
 }
 
-.whiteboard__edge-editor label {
+.whiteboard__edge-editor h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.whiteboard__edge-editor label,
+.whiteboard__edge-color-field {
   display: grid;
-  gap: 5px;
+  gap: 8px;
 }
 
 .whiteboard__edge-editor textarea {
   box-sizing: border-box;
   width: 100%;
-  min-height: 70px;
-  padding: 7px;
+  min-height: 100px;
+  padding: 10px 12px;
   resize: vertical;
   border: 1px solid #c9ccc5;
-  border-radius: 5px;
+  border-radius: 10px;
   font: inherit;
+  line-height: 1.6;
 }
 
 .whiteboard__edge-editor button {
-  padding: 7px;
+  padding: 8px;
   border: 1px solid #c9ccc5;
-  border-radius: 5px;
+  border-radius: 9px;
   background: #e8ede5;
   font: inherit;
   cursor: pointer;
 }
 
-.whiteboard__edge-editor small { color: #64675f; }
+.whiteboard__edge-editor button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.whiteboard__edge-editor-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.whiteboard__edge-editor-actions button {
+  padding-inline: 12px;
+}
+
+.whiteboard__edge-editor small {
+  color: #64675f;
+  font-size: 11px;
+  line-height: 1.5;
+}
 .whiteboard__edge-editor textarea:focus-visible,
 .whiteboard button:focus-visible { outline: 2px solid #526b4d; outline-offset: 2px; }
 
