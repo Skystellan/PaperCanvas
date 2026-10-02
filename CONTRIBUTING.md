@@ -11,7 +11,7 @@ macOS 安装 Xcode Command Line Tools，Windows 安装 Visual Studio 2022 Build 
 （勾选“使用 C++ 的桌面开发”和 Windows SDK），然后按 README 克隆并运行项目。
 使用 `npm ci` 安装锁定的依赖版本。
 
-Linux 0.2.9 的兼容目标为 Ubuntu 20.04 / 22.04 / 24.04 x64，按 README 安装 Linux 构建依赖后，
+Linux 0.2.9 及以后版本的兼容目标为 Ubuntu 20.04 / 22.04 / 24.04 x64，按 README 安装 Linux 构建依赖后，
 同样使用 `npm run chromium:dev` 和 `npm run chromium:build`。发布包在 Ubuntu 20.04 容器
 构建，生成 `.deb` 和 AppImage，并在 Ubuntu 22.04 / 24.04 验证安装和更新。
 Electron 后端使用 `--no-default-features`，无需 Tauri/WebKit 开发包；默认 Cargo features 保留旧 Tauri 壳。Linux CI 使用 Xvfb

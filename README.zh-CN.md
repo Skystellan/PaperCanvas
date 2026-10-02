@@ -12,9 +12,9 @@
 
 [![许可证：MIT](https://img.shields.io/badge/License-MIT-0078D4?style=flat)](LICENSE)
 
-[![下载 Windows 安装版](https://img.shields.io/badge/下载-Windows%20x64-0078D4?style=flat)](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.9/PaperCanvas-0.2.9-Windows-x64-Setup.exe)
-[![下载 macOS 版](https://img.shields.io/badge/下载-macOS%20ARM64-0078D4?style=flat)](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.9/PaperCanvas-0.2.9-macOS-arm64.zip)
-[![下载 Ubuntu 版](https://img.shields.io/badge/下载-Linux%20x64-0078D4?style=flat)](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.9/PaperCanvas-0.2.9-Linux-amd64.deb)
+[![下载 Windows 安装版](https://img.shields.io/badge/下载-Windows%20x64-0078D4?style=flat)](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.10/PaperCanvas-0.2.10-Windows-x64-Setup.exe)
+[![下载 macOS 版](https://img.shields.io/badge/下载-macOS%20ARM64-0078D4?style=flat)](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.10/PaperCanvas-0.2.10-macOS-arm64.zip)
+[![下载 Ubuntu 版](https://img.shields.io/badge/下载-Linux%20x64-0078D4?style=flat)](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.10/PaperCanvas-0.2.10-Linux-amd64.deb)
 
 点击上方按钮即可直接下载：**Windows 10/11 x64 安装版**、**macOS 13+ Apple Silicon 版** 或 **Ubuntu 20.04 / 22.04 / 24.04 x64 DEB 安装版**。
 [安装教程](#下载安装) · [所有下载与更新说明](https://github.com/Skystellan/PaperCanvas/releases/latest)
@@ -34,7 +34,7 @@ PaperCanvas 把论文库变成一张可视化的思考地图。
 [观看高清演示](docs/media/paper-network-demo.mp4) · [查看静态预览](docs/media/paper-network-poster.png) · [查看封面原图](docs/media/papercanvas-cover.png)
 
 - **放入论文。** 从论文库拖动论文到画布。
-- **连接思路。** 连起论文之间的关系，记录支持、质疑和证据。
+- **连接思路。** 连起论文之间的关系，记录支持、质疑和批注。
 - **整理自己的研究空间。** 移动卡片，连线与领域背景平滑跟随，让研究脉络逐渐清晰。
 
 *演示使用真实公开论文 PDF 和应用内实际打开的 ChatGPT 网页，以 2 倍速播放。思维导图由真实回复中复制的 Markdown 渲染；论文连线仅用于演示，不录制个人论文库或已登录账号。*
@@ -96,13 +96,13 @@ PaperCanvas 不合并 ChatGPT 账号，不同步外部浏览器 Cookie；「关�
 
 ## 下载安装
 
-当前版本为 **0.2.9**。按电脑类型点击下方链接，直接下载安装包，无需在 Release 附件里挑文件。
+当前版本为 **0.2.10**。按电脑类型点击下方链接，直接下载安装包，无需在 Release 附件里挑文件。
 
 | 你的电脑 | 下载入口 | 下载后怎么做 |
 | --- | --- | --- |
-| Windows 10/11，Intel 或 AMD x64 | **[下载 Windows 安装版（.exe）](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.9/PaperCanvas-0.2.9-Windows-x64-Setup.exe)** | 双击安装，之后支持应用内更新。 |
-| macOS 13+，Apple Silicon（M1 或更新芯片） | **[下载 Mac 版（.zip）](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.9/PaperCanvas-0.2.9-macOS-arm64.zip)** | 解压后将 PaperCanvas.app 移到「应用程序」。 |
-| Linux x64，Ubuntu 20.04 / 22.04 / 24.04 | **[下载 Ubuntu 安装版（.deb）](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.9/PaperCanvas-0.2.9-Linux-amd64.deb)** | [通过 apt 安装](#linuxubuntu-x64)，同时提供 AppImage。 |
+| Windows 10/11，Intel 或 AMD x64 | **[下载 Windows 安装版（.exe）](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.10/PaperCanvas-0.2.10-Windows-x64-Setup.exe)** | 双击安装，之后支持应用内更新。 |
+| macOS 13+，Apple Silicon（M1 或更新芯片） | **[下载 Mac 版（.zip）](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.10/PaperCanvas-0.2.10-macOS-arm64.zip)** | 解压后将 PaperCanvas.app 移到「应用程序」。 |
+| Linux x64，Ubuntu 20.04 / 22.04 / 24.04 | **[下载 Ubuntu 安装版（.deb）](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.10/PaperCanvas-0.2.10-Linux-amd64.deb)** | [通过 apt 安装](#linuxubuntu-x64)，同时提供 AppImage。 |
 
 [查看更新说明与其他文件](https://github.com/Skystellan/PaperCanvas/releases/latest)。普通安装无需下载源码包或自动更新用的辅助文件。
 
@@ -110,12 +110,12 @@ PaperCanvas 不合并 ChatGPT 账号，不同步外部浏览器 Cookie；「关�
 
 **支持 Windows 10/11，x64（Intel 或 AMD）。**
 
-1. 点击 **[下载 Windows 安装版](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.9/PaperCanvas-0.2.9-Windows-x64-Setup.exe)**，推荐使用此版本以获得应用内更新。
+1. 点击 **[下载 Windows 安装版](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.10/PaperCanvas-0.2.10-Windows-x64-Setup.exe)**，推荐使用此版本以获得应用内更新。
 2. 先退出旧版 PaperCanvas，再运行安装器，通过快捷方式打开应用。它为当前用户安装，并沿用已有的本地数据目录。
 3. 使用文件选择器导入 PDF，或从文件资源管理器拖入。PDF 搜索快捷键为 **Ctrl+F**，Markdown 格式快捷键为 **Ctrl+B/I/K**。
 4. 以后升级使用 **Help → Check for Updates…（帮助 → 检查更新）**。发现新版后会在后台下载，任务栏显示进度；下载完成后选择 **Restart and install（重启并安装）**，应用会先保存再重启。
 
-**便携版：** 也可以下载 [Windows 便携 ZIP 版](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.9/PaperCanvas-0.2.9-Windows-x64.zip)，完整解压到可写入的文件夹，打开 `PaperCanvas-win32-x64` 中的 `PaperCanvas.exe`，并保留配套资源和 DLL。ZIP 版仍采用手动更新：先退出应用，再替换程序目录；也可以手动安装一次 Setup 版，之后使用应用内更新。
+**便携版：** 也可以下载 [Windows 便携 ZIP 版](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.10/PaperCanvas-0.2.10-Windows-x64.zip)，完整解压到可写入的文件夹，打开 `PaperCanvas-win32-x64` 中的 `PaperCanvas.exe`，并保留配套资源和 DLL。ZIP 版仍采用手动更新：先退出应用，再替换程序目录；也可以手动安装一次 Setup 版，之后使用应用内更新。
 
 无需安装 Node.js、Rust 或单独的 WebView2。数据独立保存在 `%APPDATA%\com.papercanvas.desktop`，包括 `chromium` 登录资料目录。同一个 Windows 用户下，安装版与便携版使用同一份数据；请保留你准备使用的程序副本。此社区构建未经发布者签名，首次运行时可能显示未知发布者或 SmartScreen 提示。
 
@@ -123,7 +123,7 @@ PaperCanvas 不合并 ChatGPT 账号，不同步外部浏览器 Cookie；「关�
 
 **支持 Apple Silicon Mac（M1 或更新芯片），macOS 13 及以上。**
 
-1. 点击 **[下载 Mac 版](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.9/PaperCanvas-0.2.9-macOS-arm64.zip)**。
+1. 点击 **[下载 Mac 版](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.10/PaperCanvas-0.2.10-macOS-arm64.zip)**。
 2. 解压并将 `PaperCanvas.app` 移到 **应用程序** 文件夹。替换旧版本前请先退出应用。
 3. 打开 PaperCanvas 并导入 PDF。升级应用会保留本地论文库和笔记。
 
@@ -136,12 +136,12 @@ PaperCanvas 不合并 ChatGPT 账号，不同步外部浏览器 Cookie；「关�
 
 **支持 Ubuntu 20.04、22.04 和 24.04，x64（Intel 或 AMD），需要桌面环境。** 安装包在 Ubuntu 20.04 构建，并在这三个版本上验证，使用 ROS1 的用户无需升级系统或改动 ROS、Python 环境。验证范围见 [Ubuntu 20.04 兼容说明](docs/ubuntu-20.04.md)。其他发行版和 ARM64 暂不在验证范围内。
 
-直接下载 **[Ubuntu 安装版（.deb）](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.9/PaperCanvas-0.2.9-Linux-amd64.deb)** 或 **[Linux AppImage](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.9/PaperCanvas-0.2.9-Linux-x86_64.AppImage)**。只有从源码构建才需要 Node.js 和 Rust。
+直接下载 **[Ubuntu 安装版（.deb）](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.10/PaperCanvas-0.2.10-Linux-amd64.deb)** 或 **[Linux AppImage](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.10/PaperCanvas-0.2.10-Linux-x86_64.AppImage)**。只有从源码构建才需要 Node.js 和 Rust。
 
 **Ubuntu 推荐安装 `.deb`：** 在下载文件所在目录执行，安装后从应用菜单打开 **PaperCanvas**，也可运行 `paper-canvas`：
 
 ```sh
-sudo apt install ./PaperCanvas-0.2.9-Linux-amd64.deb
+sudo apt install ./PaperCanvas-0.2.10-Linux-amd64.deb
 ```
 
 安装器会配置应用图标，并在 Ubuntu 24.04 配置应用专用的 AppArmor 规则。请使用普通桌面用户运行应用。
@@ -149,11 +149,11 @@ sudo apt install ./PaperCanvas-0.2.9-Linux-amd64.deb
 **AppImage：** 在兼容的 Linux 桌面环境中，添加执行权限后运行：
 
 ```sh
-chmod +x PaperCanvas-0.2.9-Linux-x86_64.AppImage
-./PaperCanvas-0.2.9-Linux-x86_64.AppImage
+chmod +x PaperCanvas-0.2.10-Linux-x86_64.AppImage
+./PaperCanvas-0.2.10-Linux-x86_64.AppImage
 ```
 
-此 AppImage 使用 FUSE 2（Ubuntu 22.04 可执行 `sudo apt install libfuse2`）。也可用 `APPIMAGE_EXTRACT_AND_RUN=1 ./PaperCanvas-0.2.9-Linux-x86_64.AppImage` 解压运行，避免依赖 FUSE 挂载。如果系统限制 Chromium 的用户命名空间沙箱，Ubuntu 请使用 `.deb`；不要为内嵌聊天添加 `--no-sandbox`。AppImage 不会自动添加应用菜单快捷方式。
+此 AppImage 使用 FUSE 2（Ubuntu 22.04 可执行 `sudo apt install libfuse2`）。也可用 `APPIMAGE_EXTRACT_AND_RUN=1 ./PaperCanvas-0.2.10-Linux-x86_64.AppImage` 解压运行，避免依赖 FUSE 挂载。如果系统限制 Chromium 的用户命名空间沙箱，Ubuntu 请使用 `.deb`；不要为内嵌聊天添加 `--no-sandbox`。AppImage 不会自动添加应用菜单快捷方式。
 
 Linux 0.2.8 起支持应用内更新：**Help → Check for Updates…（帮助 → 检查更新）** 下载并校验新版，选择 **Restart and install（重启并安装）** 后先保存再安装重启。Ubuntu `.deb` 会弹出系统授权窗口；AppImage 请放在可写入的文件夹中，它会自行更新，无需管理员权限。两种格式共用下表中的数据目录，升级会保留论文库和登录资料。Linux 与 Windows 使用相同的 **Ctrl** 快捷键。
 
@@ -213,7 +213,7 @@ PaperCanvas 不会自动把正在阅读的 PDF、选中文字或问题发给 Cha
 
 - 拖动画布空白处可平移视图；滚轮 / 触控板滚动也用于平移，触控板捏合可在 **5%–200%** 之间缩放，缩小后能看到更大范围的论文网络。拖动卡片会带动相关节点和领域背景调整位置。
 - 顶部 **All / 领域名 / 未分区** 用来切换显示范围；**重新整理布局** 会重新安排当前范围内的论文。
-- 单击一条连线，选择 **Support（支持）/ Challenge（质疑）/ 未分类**。在「解释」中记录关系，在「证据」中填写摘录、来源或页码，点击 **保存解释与证据**。切换选择会保留草稿，进入阅读器前也会保存。
+- 单击一条连线打开 **连线备注**，在「连线颜色」中选择 **Support（支持）/ Challenge（质疑）/ 未分类**。输入「批注」后点击 **保存批注**。切换选择会保留草稿，进入阅读器前也会保存；旧版本的历史证据仍保存在本地。
 - 选中画布卡片后，按 **Delete / Backspace** 或点击 **从白板移除选中卡片**，只移除卡片及其连线；论文和 PDF 仍在论文库，可以再次拖入。
 - 选中连线后，按 **Delete / Backspace** 或点击 **删除选中连线**，只删除关系。
 - 论文库中的 **⋯ → 删除 → 确认删除** 会删除论文库记录、受管 PDF 副本及关联内容，原始导入文件不受影响；已有 `.md` 笔记文件会保留作安全副本。只想整理画布时，应使用「从白板移除」。
@@ -338,7 +338,7 @@ PaperCanvas 不会替你发送这些内容，也不会自动点击发送按钮�
 - 双击论文库条目即可阅读，单击可定位对应的画布卡片。
 - 无限白板，支持领域视图、力导向布局和手动建立连线。
 - 从画布移除卡片不会删除论文库中的论文；通过选中后的操作或 Delete / Backspace 删除连线。
-- 支持与质疑关系，以及保存在本地的关系解释和证据。
+- 支持与质疑关系，以及保存在本地的连线批注。
 - 基于 PDF.js 的阅读器，支持文字选择、连续滚动、触控板捏合缩放，并恢复每篇论文的阅读位置和阅读器布局。
 - 使用 Cmd/Ctrl+F 搜索 PDF 全文，支持结果高亮和前后切换；提供紧凑的右侧目录与本地页码书签。
 - 持久保存高亮与评论，为重叠的公式符号提供连贯的高亮背景，并可将带来源链接的摘录加入 Markdown 笔记。

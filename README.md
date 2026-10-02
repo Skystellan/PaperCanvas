@@ -12,9 +12,9 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-0078D4?style=flat)](LICENSE)
 
-[![Download Windows installer](https://img.shields.io/badge/Download-Windows%20x64-0078D4?style=flat)](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.9/PaperCanvas-0.2.9-Windows-x64-Setup.exe)
-[![Download for macOS](https://img.shields.io/badge/Download-macOS%20ARM64-0078D4?style=flat)](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.9/PaperCanvas-0.2.9-macOS-arm64.zip)
-[![Download for Ubuntu](https://img.shields.io/badge/Download-Linux%20x64-0078D4?style=flat)](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.9/PaperCanvas-0.2.9-Linux-amd64.deb)
+[![Download Windows installer](https://img.shields.io/badge/Download-Windows%20x64-0078D4?style=flat)](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.10/PaperCanvas-0.2.10-Windows-x64-Setup.exe)
+[![Download for macOS](https://img.shields.io/badge/Download-macOS%20ARM64-0078D4?style=flat)](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.10/PaperCanvas-0.2.10-macOS-arm64.zip)
+[![Download for Ubuntu](https://img.shields.io/badge/Download-Linux%20x64-0078D4?style=flat)](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.10/PaperCanvas-0.2.10-Linux-amd64.deb)
 
 Download directly with the buttons above: **Windows 10/11 x64 installer**, **macOS 13+ Apple Silicon ZIP**, or **Ubuntu 20.04 / 22.04 / 24.04 x64 DEB**.
 [Installation guide](#download) · [All downloads and release notes](https://github.com/Skystellan/PaperCanvas/releases/latest)
@@ -37,7 +37,7 @@ and restores the last discussion when you reopen the paper.
 [Watch the HD demo](docs/media/paper-network-demo.mp4) · [Static preview](docs/media/paper-network-poster.png) · [Full-resolution cover](docs/media/papercanvas-cover.png)
 
 - **Drop a paper.** Drag it from your library onto the canvas.
-- **Connect your ideas.** Link papers and record support, challenges, and evidence.
+- **Connect your ideas.** Link papers and record support, challenges, and annotations.
 - **Make the space yours.** Move cards while connections and topic regions follow smoothly.
 
 *Recorded in the real app with public research PDFs and the actual embedded ChatGPT website, at 2× speed. The mind map uses Markdown copied from the live reply. The paper connections are illustrative; no personal library or signed-in account is recorded.*
@@ -100,13 +100,13 @@ PaperCanvas does not merge ChatGPT accounts or synchronize external-browser cook
 
 ## Download
 
-The current release is **0.2.9**. Choose your platform below to download directly; there is no need to sort through release assets.
+The current release is **0.2.10**. Choose your platform below to download directly; there is no need to sort through release assets.
 
 | Your computer | Download | After downloading |
 | --- | --- | --- |
-| Windows 10/11, Intel or AMD x64 | **[Download Windows installer (.exe)](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.9/PaperCanvas-0.2.9-Windows-x64-Setup.exe)** | Double-click to install; supports future in-app updates. |
-| macOS 13+, Apple Silicon (M1 or newer) | **[Download for Mac (.zip)](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.9/PaperCanvas-0.2.9-macOS-arm64.zip)** | Unzip, then move PaperCanvas.app to Applications. |
-| Linux x64, Ubuntu 20.04 / 22.04 / 24.04 | **[Download Ubuntu installer (.deb)](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.9/PaperCanvas-0.2.9-Linux-amd64.deb)** | [Install with apt](#linux-ubuntu-x64); AppImage is also provided. |
+| Windows 10/11, Intel or AMD x64 | **[Download Windows installer (.exe)](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.10/PaperCanvas-0.2.10-Windows-x64-Setup.exe)** | Double-click to install; supports future in-app updates. |
+| macOS 13+, Apple Silicon (M1 or newer) | **[Download for Mac (.zip)](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.10/PaperCanvas-0.2.10-macOS-arm64.zip)** | Unzip, then move PaperCanvas.app to Applications. |
+| Linux x64, Ubuntu 20.04 / 22.04 / 24.04 | **[Download Ubuntu installer (.deb)](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.10/PaperCanvas-0.2.10-Linux-amd64.deb)** | [Install with apt](#linux-ubuntu-x64); AppImage is also provided. |
 
 [Release notes and other files](https://github.com/Skystellan/PaperCanvas/releases/latest). You do not need the source archives or updater metadata to install the app.
 
@@ -114,12 +114,12 @@ The current release is **0.2.9**. Choose your platform below to download directl
 
 **Windows 10/11, x64 (Intel or AMD).**
 
-1. Click **[Download Windows installer](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.9/PaperCanvas-0.2.9-Windows-x64-Setup.exe)**. This is the recommended build for application-managed updates.
+1. Click **[Download Windows installer](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.10/PaperCanvas-0.2.10-Windows-x64-Setup.exe)**. This is the recommended build for application-managed updates.
 2. Quit an older PaperCanvas copy, run the installer, and open PaperCanvas from its shortcut. It installs for the current user and reuses the existing local data directory.
 3. Import PDFs using the file picker or drag them from File Explorer. PDF search uses **Ctrl+F**; Markdown formatting uses **Ctrl+B/I/K**.
 4. For future updates, use **Help → Check for Updates…**. A newer version downloads in the background, with progress on the taskbar; choose **Restart and install** when it is ready. PaperCanvas saves before restarting.
 
-**Portable alternative:** download the [Windows portable ZIP](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.9/PaperCanvas-0.2.9-Windows-x64.zip), extract the entire archive into a writable folder, and open `PaperCanvas.exe` inside `PaperCanvas-win32-x64`. Keep the adjacent resources and DLLs together. This ZIP build still uses manual upgrades: quit the app and replace the program folder, or install the Setup version once to enable future in-app installation.
+**Portable alternative:** download the [Windows portable ZIP](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.10/PaperCanvas-0.2.10-Windows-x64.zip), extract the entire archive into a writable folder, and open `PaperCanvas.exe` inside `PaperCanvas-win32-x64`. Keep the adjacent resources and DLLs together. This ZIP build still uses manual upgrades: quit the app and replace the program folder, or install the Setup version once to enable future in-app installation.
 
 No Node.js, Rust, or separate WebView2 install is needed. Data is stored separately at `%APPDATA%\com.papercanvas.desktop`, including the `chromium` sign-in profile. The installer and portable app use the same data directory under the same Windows user account; keep only the copy you intend to use. This community build is unsigned, so Windows may show an unknown-publisher/SmartScreen prompt on first launch.
 
@@ -127,7 +127,7 @@ No Node.js, Rust, or separate WebView2 install is needed. Data is stored separat
 
 **Apple Silicon Macs (M1 or newer), macOS 13+.**
 
-1. Click **[Download for Mac](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.9/PaperCanvas-0.2.9-macOS-arm64.zip)**.
+1. Click **[Download for Mac](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.10/PaperCanvas-0.2.10-macOS-arm64.zip)**.
 2. Unzip it and move `PaperCanvas.app` to **Applications**. Quit an older copy before replacing it.
 3. Open PaperCanvas and import your PDFs. Upgrading the app preserves your local library and notes.
 
@@ -141,12 +141,12 @@ Intel Mac, native Windows ARM64, and Linux ARM64 binaries are not included in th
 
 **Ubuntu 20.04, 22.04 and 24.04, x64 (Intel or AMD), with a desktop environment.** Linux packages are built on Ubuntu 20.04 and tested there and on 22.04/24.04. This lets ROS1 users keep their existing system; no ROS or Python environment changes are required. See the [Ubuntu 20.04 compatibility notes](docs/ubuntu-20.04.md) for validation details. Other distributions and ARM64 are outside the validation scope.
 
-Download the **[Ubuntu installer (.deb)](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.9/PaperCanvas-0.2.9-Linux-amd64.deb)** or **[Linux AppImage](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.9/PaperCanvas-0.2.9-Linux-x86_64.AppImage)** directly. Node.js and Rust are only needed to build from source.
+Download the **[Ubuntu installer (.deb)](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.10/PaperCanvas-0.2.10-Linux-amd64.deb)** or **[Linux AppImage](https://github.com/Skystellan/PaperCanvas/releases/download/v0.2.10/PaperCanvas-0.2.10-Linux-x86_64.AppImage)** directly. Node.js and Rust are only needed to build from source.
 
 **Recommended on Ubuntu:** in the download directory, install the `.deb`, then open **PaperCanvas** from the application menu or run `paper-canvas`:
 
 ```sh
-sudo apt install ./PaperCanvas-0.2.9-Linux-amd64.deb
+sudo apt install ./PaperCanvas-0.2.10-Linux-amd64.deb
 ```
 
 The installer configures the desktop icon and the application-specific AppArmor profile on Ubuntu 24.04. Run the app as your normal desktop user.
@@ -154,11 +154,11 @@ The installer configures the desktop icon and the application-specific AppArmor 
 **AppImage:** on compatible Linux desktops, make it executable and run it:
 
 ```sh
-chmod +x PaperCanvas-0.2.9-Linux-x86_64.AppImage
-./PaperCanvas-0.2.9-Linux-x86_64.AppImage
+chmod +x PaperCanvas-0.2.10-Linux-x86_64.AppImage
+./PaperCanvas-0.2.10-Linux-x86_64.AppImage
 ```
 
-The AppImage uses FUSE 2 (`sudo apt install libfuse2` on Ubuntu 22.04). `APPIMAGE_EXTRACT_AND_RUN=1 ./PaperCanvas-0.2.9-Linux-x86_64.AppImage` can run without a FUSE mount. If the system blocks Chromium's user-namespace sandbox, use the `.deb` on Ubuntu; do not add `--no-sandbox` for the embedded chat. AppImage does not install an application-menu shortcut.
+The AppImage uses FUSE 2 (`sudo apt install libfuse2` on Ubuntu 22.04). `APPIMAGE_EXTRACT_AND_RUN=1 ./PaperCanvas-0.2.10-Linux-x86_64.AppImage` can run without a FUSE mount. If the system blocks Chromium's user-namespace sandbox, use the `.deb` on Ubuntu; do not add `--no-sandbox` for the embedded chat. AppImage does not install an application-menu shortcut.
 
 Linux 0.2.8 and later supports in-app updates: **Help → Check for Updates…** downloads and verifies the newer package; choose **Restart and install** to save and reopen. Ubuntu `.deb` installations request system authorization. Keep the AppImage in a writable folder; it updates itself without administrator access. Both formats share the data directory listed below; upgrades retain the library and sign-in profile. Linux uses the same **Ctrl** shortcuts as Windows.
 
@@ -218,7 +218,7 @@ In connection mode, you can also use **Tab** to focus cards and **Enter** to sel
 
 - Drag an empty part of the canvas to pan. Mouse-wheel or trackpad scrolling also pans; a trackpad pinch zooms from 5% to 200%, so you can zoom out to see a much larger network. Moving a card adjusts related nodes and domain backgrounds.
 - Use **All / a domain name / 未分区 (Unassigned)** at the top to choose what is visible. **重新整理布局 (Rearrange layout)** arranges the papers in the current view again.
-- Click a connection and choose **Support / Challenge / 未分类 (Unclassified)**. Describe the relationship under **解释 (Explanation)** and add quotations, sources, or page numbers under **证据 (Evidence)**, then click **保存解释与证据 (Save explanation and evidence)**. Drafts are preserved when you change the selection and saved before you enter the reader.
+- Click a connection to open **连线备注 (Connection notes)**. Choose **Support / Challenge / 未分类 (Unclassified)** under **连线颜色 (Connection color)**, write your notes under **批注 (Annotation)**, then click **保存批注 (Save annotation)**. Drafts are preserved when you change the selection and saved before you enter the reader. Historical evidence from earlier versions remains stored.
 - Select a canvas card and press **Delete / Backspace**, or click **从白板移除选中卡片 (Remove selected card from whiteboard)**. This removes only the card and its connections. The paper and PDF remain in the library, ready to be dragged onto the canvas again.
 - Select a connection and press **Delete / Backspace**, or click **删除选中连线 (Delete selected connection)**, to remove only that relationship.
 - In the library, **⋯ → 删除 → 确认删除 (Delete → Confirm deletion)** deletes the library record, managed PDF copy, and associated content. It leaves the original imported file intact and keeps existing `.md` notes as a safety copy. To tidy the canvas without deleting a paper, use the remove-from-whiteboard action.
@@ -345,7 +345,7 @@ Other editing and sending shortcuts within the ChatGPT page are handled by ChatG
 - Infinite whiteboard with domain views, force layout, and explicit connections
 - Remove canvas cards without deleting their library papers; remove connections
   with selection actions or Delete/Backspace
-- Support/challenge relationships with locally saved explanations and evidence
+- Support/challenge relationships with locally saved annotations
 - PDF.js reader with selectable text, continuous scrolling, trackpad pinch zoom,
   and restoration of each paper's reading position and reader layout
 - PDF text search with Cmd/Ctrl+F, highlighted results and previous/next matches;
