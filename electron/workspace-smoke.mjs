@@ -177,7 +177,7 @@ export async function workspaceSmoke({ wc, backend, paper, dataDirectory, evalua
   })()`);
   await openPaper();
   await until(`!!document.querySelector('.pdfViewer .page canvas')?.width`, 'restored PDF rendered');
-  assert.equal(await evaluate(`[...document.querySelectorAll('.pdf-outline button')].some(b=>b.textContent==='★ 第 3 页')`), true);
+  await until(`[...document.querySelectorAll('.pdf-outline button')].some(b=>b.textContent==='★ 第 3 页')`, 'saved bookmark restored');
   await until(`document.querySelector('.pdf-viewer__toolbar')?.textContent.includes('3 /')`, 'reading position restored');
   const restoredOffsetScript = `(() => {
     const container = document.querySelector('.pdf-viewer__pages').getBoundingClientRect();
