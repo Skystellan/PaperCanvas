@@ -76,3 +76,25 @@ it("reports a committed batch even if the view cannot reload", async () => {
   await send("import_research_batch", { papers: [] });
   expect(invoke).toHaveBeenLastCalledWith("research_tool_reply", { id: "request", result: expect.objectContaining({ batchId: "batch-1", viewUpdated: false }) });
 });
+
+it("reads the requested code review scope and saves reviews after flushing without importing or moving focus", async () => {
+  const { send, flushPending, refreshWorkspace } = setup(["unrelated-selected-paper"]);
+  await send("read_research_context", { intent: "code_review", paperIds: ["new", "existing"] });
+  expect(executeWorkspaceCommand).toHaveBeenCalledExactlyOnceWith({ type: "read_research_context", intent: "code_review", paperIds: ["new", "existing"] });
+  const reviews = [{ paperId: "existing", expectedGithubUrl: null, githubUrl: null,
+    codeReview: { status: "not_found", evidenceUrl: "https://example.org/paper", evidence: "Checked paper and author page." } }];
+  vi.mocked(executeWorkspaceCommand).mockResolvedValue({ revision: 2, value: { updatedPapers: 1 } });
+  await send("save_paper_code_reviews", { reviews });
+  expect(executeWorkspaceCommand).toHaveBeenLastCalledWith({ type: "save_paper_code_reviews", reviews });
+  expect(flushPending.mock.invocationCallOrder[0]).toBeLessThan(vi.mocked(executeWorkspaceCommand).mock.invocationCallOrder[1]);
+  expect(refreshWorkspace).toHaveBeenCalledExactlyOnceWith(undefined);
+  expect(invoke).toHaveBeenLastCalledWith("research_tool_reply", { id: "request", result: { updatedPapers: 1 } });
+});
+
+it("does not save a code review when pending user edits cannot be saved", async () => {
+  const { send, flushPending, refreshWorkspace } = setup();
+  flushPending.mockRejectedValue(new Error("Draft save failed"));
+  await send("save_paper_code_reviews", { reviews: [] });
+  expect(executeWorkspaceCommand).not.toHaveBeenCalled();
+  expect(refreshWorkspace).not.toHaveBeenCalled();
+});

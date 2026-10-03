@@ -3,11 +3,12 @@ import { listen } from "../platform/event";
 import { getDatabase } from "./sqliteDatabase";
 import type { NodePositionUpdate } from "../features/whiteboard/model/boardNode";
 import type { BoardEdgeAnnotations, BoardEdgeRelation } from "../features/whiteboard/model/boardEdge";
-import type { ResearchBatchInput } from "../features/research/research";
+import type { CodeReviewUpdate, ResearchBatchInput, ResearchContextIntent } from "../features/research/research";
 
 export type WorkspaceRequest =
   | { type: "import_research_batch"; batch: ResearchBatchInput }
-  | { type: "read_research_context"; intent: "selected_papers" | "gap_analysis"; paperIds?: string[] }
+  | { type: "read_research_context"; intent: ResearchContextIntent; paperIds?: string[] }
+  | { type: "save_paper_code_reviews"; reviews: CodeReviewUpdate[] }
   | { type: "list_research_batches" }
   | { type: "undo_research_batch"; batchId: string }
   | { type: "load_board" | "list_domains" }
@@ -18,6 +19,7 @@ export type WorkspaceRequest =
   | { type: "delete_domain"; domainId: string }
   | { type: "assign_paper"; paperId: string; domainId: string | null }
   | { type: "update_paper_title"; paperId: string; title: string }
+  | { type: "update_paper_github"; paperId: string; githubUrl: string | null; githubStars: number | null }
   | { type: "create_paper_node"; paperId: string; position: { x: number; y: number } }
   | { type: "create_edge"; sourceNodeId: string; targetNodeId: string }
   | { type: "update_edge_relation"; edgeId: string; relation: BoardEdgeRelation }

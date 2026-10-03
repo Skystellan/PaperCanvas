@@ -56,6 +56,7 @@ const annotations = {
   evidence: "第 4 页：原文\n包含引号 ' 和换行",
 };
 const edits: [string, (repository: SqliteBoardRepository) => Promise<unknown>][] = [
+  ["update a paper repository", (repository) => repository.updatePaperGithub(node.paper.id, "https://github.com/example/code", 0)],
   ["create a paper node", (repository) => repository.createPaperNode(node.paper.id, node.position)],
   ["create an edge", (repository) => repository.createEdge(node.id, "node-bert")],
   ["save positions", (repository) => repository.saveNodePositions(updates)],
@@ -66,6 +67,19 @@ const edits: [string, (repository: SqliteBoardRepository) => Promise<unknown>][]
 ];
 
 describe("SqliteBoardRepository", () => {
+  it("saves repository metadata with the board revision and advances subsequent edits", async () => {
+    const { command, repository } = createRepository();
+    command.mockResolvedValueOnce({ revision: 9, value: snapshot })
+      .mockResolvedValueOnce({ revision: 10, value: null })
+      .mockResolvedValueOnce({ revision: 11, value: null });
+    await repository.loadBoard();
+    await repository.updatePaperGithub(node.paper.id, "https://github.com/example/code", 0);
+    await repository.saveNodePositions(updates);
+    expect(command.mock.calls.slice(1)).toEqual([
+      [{ type: "update_paper_github", paperId: node.paper.id, githubUrl: "https://github.com/example/code", githubStars: 0 }, 9],
+      [{ type: "save_node_positions", updates }, 10],
+    ]);
+  });
   it.each([0, 17])("returns the loaded snapshot and uses its revision %i for edits", async (revision) => {
     const { command, repository } = createRepository();
     command

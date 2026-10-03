@@ -475,7 +475,7 @@ fn context_requires_intent_and_exact_selection_without_private_data_or_neighbors
     assert_eq!(both["value"]["papers"].as_array().unwrap().len(), 2);
     assert_eq!(both["value"]["edges"].as_array().unwrap().len(), 1);
     for paper in both["value"]["papers"].as_array().unwrap() {
-        assert_eq!(paper.as_object().unwrap().len(), 9);
+        assert_eq!(paper.as_object().unwrap().len(), 12);
         assert_eq!(paper["abstract"], "");
         assert_eq!(paper["abstractTruncated"], false);
     }
@@ -868,5 +868,193 @@ async fn backend_workspace_command_uses_the_same_research_contract() {
     assert_eq!(context["changed"], false);
     assert_eq!(context["value"]["papers"].as_array().unwrap().len(), 1);
     drop(backend);
+    std::fs::remove_dir_all(dir).unwrap();
+}
+
+#[test]
+fn github_metadata_import_enrichment_and_manual_edits_persist_without_overwriting_existing_repos() {
+    let db = database();
+    let original = single("github-original", "https://example.org/github-paper");
+    let first = import(&db, original.clone());
+    let id = &first["value"]["placements"][0]["paperId"];
+    assert!(paper(&db, id).get("githubUrl").is_none());
+    let mut enriched = single("github-enriched", "https://example.org/github-paper");
+    enriched["papers"][0]["githubUrl"] = json!("https://github.com/example/code");
+    enriched["papers"][0]["githubStars"] = json!(0);
+    let result = import(&db, enriched.clone());
+    assert_eq!(result["value"]["reusedPapers"], 1);
+    assert_eq!(paper(&db, id)["githubStars"], 0);
+    assert_eq!(paper(&db, id)["githubUrl"], "https://github.com/example/code");
+    assert_eq!(import(&db, original)["value"]["replayed"], true);
+    assert_eq!(import(&db, enriched.clone())["value"]["replayed"], true);
+    assert_eq!(undo(&db, &first["value"]["batchId"]).unwrap_err(), RESEARCH_UNDO_CONFLICT);
+
+    let request = json!({"type":"update_paper_github","paperId":id,
+        "githubUrl":"https://github.com/author/official","githubStars":1250});
+    let revision = board(&db)["revision"].as_i64().unwrap();
+    let updated = ok(&db, request.clone());
+    assert!(updated["revision"].as_i64().unwrap() > revision);
+    assert_eq!(ok(&db, request)["changed"], false);
+    enriched["requestId"] = json!("github-no-overwrite");
+    import(&db, enriched);
+    assert_eq!(paper(&db, id)["githubUrl"], "https://github.com/author/official");
+    assert_eq!(paper(&db, id)["githubStars"], 1250);
+    let snapshot = board(&db);
+    let node = snapshot["value"]["nodes"].as_array().unwrap().iter().find(|n| n["paper"]["id"] == *id).unwrap();
+    assert_eq!(node["paper"]["githubStars"], 1250);
+    ok(&db, json!({"type":"update_paper_github","paperId":id,"githubUrl":null,"githubStars":null}));
+    assert!(paper(&db, id).get("githubUrl").is_none());
+    assert!(paper(&db, id).get("githubStars").is_none());
+}
+
+#[test]
+fn github_new_import_validates_links_and_stars_atomically_and_guards_undo() {
+    let db = database();
+    let mut input = single("github-new", "https://example.org/github-new");
+    input["papers"][0]["githubUrl"] = json!("https://github.com/example/code");
+    input["papers"][0]["githubStars"] = json!(42);
+    let imported = import(&db, input);
+    let id = &imported["value"]["placements"][0]["paperId"];
+    assert_eq!(paper(&db, id)["githubStars"], 42);
+    for url in ["javascript:alert(1)", "http://github.com/owner/repo", "https://github.com/owner",
+        "https://github.com.evil.test/owner/repo", "https://github.com/owner/repo/issues",
+        "https://user:pass@github.com/owner/repo", "https://github.com/owner/repo/../other",
+        "https://github.com/owner/..", "https://github.com/owner/repo#readme"] {
+        let mut invalid = single("github-invalid", "https://example.org/invalid");
+        invalid["papers"][0]["githubUrl"] = json!(url);
+        assert_rejected_unchanged(&db, json!({"type":"import_research_batch","batch":invalid}));
+        assert_rejected_unchanged(&db, json!({"type":"update_paper_github","paperId":id,"githubUrl":url}));
+    }
+    for (url, stars) in [(json!(null), json!(5)), (json!("https://github.com/example/code"), json!(-1)),
+        (json!("https://github.com/example/code"), json!(1.5)),
+        (json!("https://github.com/example/code"), json!(9_007_199_254_740_992_i64))] {
+        assert_rejected_unchanged(&db, json!({"type":"update_paper_github","paperId":id,"githubUrl":url,"githubStars":stars}));
+    }
+    ok(&db, json!({"type":"update_paper_github","paperId":id,"githubUrl":"https://github.com/example/code","githubStars":43}));
+    assert_eq!(undo(&db, &imported["value"]["batchId"]).unwrap_err(), RESEARCH_UNDO_CONFLICT);
+}
+
+#[test]
+fn github_migration_preserves_legacy_undo_snapshots_and_idempotent_retries() {
+    // Recreate the saved request/snapshot shapes written before GitHub metadata existed.
+    let db = database();
+    let input = single("github-legacy", "https://example.org/legacy");
+    let imported = import(&db, input.clone());
+    db.execute("UPDATE research_batch_nodes SET snapshot=json_remove(snapshot,'$[16]','$[15]','$[14]')", []).unwrap();
+    let old_snapshot: String = db.query_row("SELECT snapshot FROM research_batch_nodes", [], |r| r.get(0)).unwrap();
+    let legacy = Connection::open_in_memory().unwrap();
+    for migration in migrations().into_iter().filter(|m| m.version <= 20) {
+        legacy.execute_batch(migration.sql).unwrap();
+    }
+    // Copy the import tables and rows into the v20 database, omitting the new columns.
+    for table in ["research_batches", "research_papers", "research_identities", "research_batch_nodes"] {
+        let mut stmt = db.prepare(&format!("SELECT * FROM {table}")).unwrap();
+        let count = stmt.column_count();
+        let rows = stmt.query_map([], |row| (0..count).map(|i| row.get::<_, rusqlite::types::Value>(i)).collect::<rusqlite::Result<Vec<_>>>()).unwrap();
+        // The referenced paper/node rows must exist before copying their metadata.
+        if table == "research_batches" {
+            let id = imported["value"]["placements"][0]["paperId"].as_str().unwrap();
+            let node_id = imported["value"]["placements"][0]["nodeId"].as_str().unwrap();
+            legacy.execute("INSERT INTO papers (id,title,created_at) VALUES (?1,'Same title',?2)", rusqlite::params![id, paper(&db, &json!(id))["createdAt"].as_i64().unwrap()]).unwrap();
+            let node = board(&db)["value"]["nodes"].as_array().unwrap().iter().find(|n| n["id"] == node_id).unwrap().clone();
+            legacy.execute("INSERT INTO board_nodes VALUES (?1,'board-default',?2,?3,?4,280,128)", rusqlite::params![node_id,id,node["position"]["x"].as_f64().unwrap(),node["position"]["y"].as_f64().unwrap()]).unwrap();
+        }
+        for row in rows {
+            let placeholders = vec!["?"; count].join(",");
+            legacy.execute(&format!("INSERT INTO {table} VALUES ({placeholders})"), rusqlite::params_from_iter(row.unwrap())).unwrap();
+        }
+    }
+    for migration in migrations().into_iter().filter(|m| m.version > 20) {
+        legacy.execute_batch(migration.sql).unwrap();
+    }
+    let upgraded: String = legacy.query_row("SELECT snapshot FROM research_batch_nodes", [], |r| r.get(0)).unwrap();
+    let mut expected: Value = serde_json::from_str(&old_snapshot).unwrap();
+    expected.as_array_mut().unwrap().extend([Value::Null, Value::Null, Value::Null]);
+    assert_eq!(serde_json::from_str::<Value>(&upgraded).unwrap(), expected);
+    assert_eq!(import(&legacy, input)["value"]["replayed"], true);
+    undo(&legacy, &imported["value"]["batchId"]).unwrap();
+}
+
+fn review(id: Value, status: &str, github_url: Value) -> Value {
+    json!({"paperId":id,"expectedGithubUrl":null,"githubUrl":github_url,
+        "codeReview":{"status":status,"evidenceUrl":"https://example.org/author-project",
+            "evidence":"Checked the paper, author project page and repository implementation."}})
+}
+
+#[test]
+fn code_reviews_share_one_write_path_for_new_and_existing_papers_and_preserve_layout() {
+    let db = database();
+    let imported = import(&db, single("review-new", "https://example.org/new-paper"));
+    let new_id = imported["value"]["placements"][0]["paperId"].clone();
+    let existing_id = json!("paper-attention");
+    let before = board(&db);
+    let mut new_review = review(new_id.clone(), "official", json!("https://github.com/author/code"));
+    new_review["githubStars"] = json!(12);
+    let existing_review = review(existing_id.clone(), "not_found", Value::Null);
+    let saved = ok(&db, json!({"type":"save_paper_code_reviews","reviews":[new_review,existing_review]}));
+    assert_eq!(saved["value"]["updatedPapers"], 2);
+    assert!(saved["revision"].as_i64().unwrap() > before["revision"].as_i64().unwrap());
+    assert_eq!(paper(&db, &new_id)["codeReview"]["status"], "official");
+    assert!(paper(&db, &new_id)["codeReview"]["checkedAt"].as_i64().unwrap() > 0);
+    assert_eq!(paper(&db, &existing_id)["codeReview"]["status"], "not_found");
+    assert!(paper(&db, &existing_id).get("githubUrl").is_none());
+    let after = board(&db);
+    assert_eq!(after["value"]["edges"], before["value"]["edges"]);
+    for (old, new) in before["value"]["nodes"].as_array().unwrap().iter().zip(after["value"]["nodes"].as_array().unwrap()) {
+        for key in ["id", "position", "width", "height"] { assert_eq!(old[key], new[key]); }
+    }
+    let context = ok(&db, json!({"type":"read_research_context","intent":"code_review","paperIds":[new_id,existing_id]}));
+    assert_eq!(context["value"]["papers"].as_array().unwrap().len(), 2);
+    let returned = context["value"]["papers"].as_array().unwrap().iter().find(|p| p["id"] == new_id).unwrap();
+    assert_eq!(returned["githubUrl"], "https://github.com/author/code");
+    assert_eq!(returned["codeReview"], paper(&db, &new_id)["codeReview"]);
+    let mut repeated = review(new_id.clone(), "third_party", returned["githubUrl"].clone());
+    repeated["expectedGithubUrl"] = returned["githubUrl"].clone();
+    ok(&db, json!({"type":"save_paper_code_reviews","reviews":[repeated]}));
+    assert_eq!(paper(&db, &new_id)["githubStars"], 12, "Reviewing without a new count retains cached Stars");
+    ok(&db, json!({"type":"update_paper_github","paperId":new_id,"githubUrl":"https://github.com/author/code","githubStars":13}));
+    assert_eq!(paper(&db, &new_id)["codeReview"]["status"], "third_party", "Star refresh retains evidence");
+    ok(&db, json!({"type":"update_paper_github","paperId":new_id,"githubUrl":"https://github.com/other/code","githubStars":null}));
+    assert!(paper(&db, &new_id).get("codeReview").is_none(), "Manual link edits invalidate old evidence");
+    assert_eq!(undo(&db, &imported["value"]["batchId"]).unwrap_err(), RESEARCH_UNDO_CONFLICT);
+}
+
+#[test]
+fn code_review_validation_conflicts_and_missing_papers_roll_back_the_entire_batch() {
+    let db = database();
+    let valid = review(json!("paper-attention"), "official", json!("https://github.com/author/code"));
+    let mut invalid = review(json!("paper-bert"), "not_found", Value::Null);
+    for field in ["status", "evidence", "evidenceUrl"] {
+        let original = invalid["codeReview"][field].clone();
+        invalid["codeReview"][field] = json!(if field == "evidenceUrl" { "javascript:alert(1)" } else { "" });
+        assert_rejected_unchanged(&db, json!({"type":"save_paper_code_reviews","reviews":[valid,invalid]}));
+        invalid["codeReview"][field] = original;
+    }
+    for second in [review(json!("missing"), "not_found", Value::Null), valid.clone(),
+        review(json!("paper-bert"), "official", Value::Null),
+        review(json!("paper-bert"), "not_released", json!("https://github.com/author/code"))] {
+        assert_rejected_unchanged(&db, json!({"type":"save_paper_code_reviews","reviews":[valid,second]}));
+    }
+    ok(&db, json!({"type":"save_paper_code_reviews","reviews":[valid]}));
+    let mut stale = valid.clone();
+    stale["githubUrl"] = json!("https://github.com/other/code");
+    assert!(assert_rejected_unchanged(&db, json!({"type":"save_paper_code_reviews","reviews":[stale]})).contains("CODE_REVIEW_CONFLICT"));
+    let mut absent = review(json!("paper-attention"), "not_found", Value::Null);
+    absent["expectedGithubUrl"] = json!("https://github.com/author/code");
+    assert!(assert_rejected_unchanged(&db, json!({"type":"save_paper_code_reviews","reviews":[absent]})).contains("failed search"));
+}
+
+#[tokio::test]
+async fn code_review_evidence_and_no_code_results_survive_reopening_the_workspace() {
+    let dir = std::env::temp_dir().join(format!("code-review-{}", uuid::Uuid::new_v4()));
+    let backend = paper_canvas_lib::backend::Backend::open(dir.clone()).await.unwrap();
+    let input = review(json!("paper-attention"), "not_released", Value::Null);
+    backend.dispatch("workspace_command", &json!({"request":{"type":"save_paper_code_reviews","reviews":[input]}})).unwrap();
+    drop(backend);
+    let reopened = paper_canvas_lib::backend::Backend::open(dir.clone()).await.unwrap();
+    let context = reopened.dispatch("workspace_command", &json!({"request":{"type":"read_research_context","intent":"code_review","paperIds":["paper-attention"]}})).unwrap();
+    assert_eq!(context["value"]["papers"][0]["codeReview"]["status"], "not_released");
+    assert_eq!(context["value"]["papers"][0]["githubUrl"], Value::Null);
+    drop(reopened);
     std::fs::remove_dir_all(dir).unwrap();
 }

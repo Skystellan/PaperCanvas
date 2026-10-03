@@ -5,9 +5,17 @@ import { PersistenceCoordinator } from "../persistence";
 import type { BoardRepository } from "./data/boardRepository";
 import type { BoardNodeRecord } from "./model/boardNode";
 import { Whiteboard } from "./Whiteboard";
+import { fetchGithubStars } from "../library/services/githubRepository";
+
+vi.mock("../library/services/githubRepository", () => ({ fetchGithubStars: vi.fn() }));
 
 // Keep React Flow itself real; jsdom only needs element measurements.
 beforeEach(() => {
+  vi.mocked(fetchGithubStars).mockReset().mockResolvedValue(1500);
+  Object.defineProperties(HTMLDialogElement.prototype, {
+    showModal: { configurable: true, value() { this.setAttribute("open", ""); } },
+    close: { configurable: true, value() { this.removeAttribute("open"); } },
+  });
   vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockImplementation(function (this: HTMLElement) {
     return this.classList.contains("react-flow__node") ? 280 : 1000;
   });
@@ -24,7 +32,11 @@ beforeEach(() => {
     disconnect() {}
   });
 });
-afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+afterEach(() => {
+  Reflect.deleteProperty(HTMLDialogElement.prototype, "showModal");
+  Reflect.deleteProperty(HTMLDialogElement.prototype, "close");
+  vi.restoreAllMocks(); vi.unstubAllGlobals();
+});
 
 function setup(extraConnection = false) {
   const nodes: BoardNodeRecord[] = (extraConnection ? ["a", "b", "c", "d"] : ["a", "b"]).map((id, i) => ({
@@ -43,12 +55,65 @@ function setup(extraConnection = false) {
     deleteEdges: vi.fn().mockResolvedValue(undefined),
     deleteNodes: vi.fn().mockResolvedValue(undefined),
     updateEdgeAnnotations: vi.fn().mockResolvedValue(undefined),
+    updatePaperGithub: vi.fn().mockResolvedValue(undefined),
   } satisfies BoardRepository;
   const view = render(<PersistenceCoordinator><Whiteboard repository={repository} domains={[]} /></PersistenceCoordinator>);
   return { repository, ...view };
 }
 
 describe("real React Flow deletion", () => {
+  it("adds a repository from the toolbar, refreshes only on open, and clears the saved marker", async () => {
+    const user = userEvent.setup();
+    const { repository } = setup();
+    fireEvent.click(await screen.findByText("Paper a"));
+    expect(screen.queryByRole("button", { name: /Paper a：.*GitHub/ })).toBeNull();
+    expect(fetchGithubStars).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "添加 GitHub 仓库" }));
+    const dialog = screen.getByRole("dialog", { name: "GitHub 仓库" });
+    await user.type(within(dialog).getByRole("textbox", { name: "仓库链接" }), "https://github.com/example/code");
+    await user.type(within(dialog).getByRole("spinbutton", { name: "Stars（可选）" }), "1250");
+    repository.updatePaperGithub.mockRejectedValueOnce(new Error("offline"));
+    await user.click(within(dialog).getByRole("button", { name: "保存" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("保存失败，输入已保留");
+    expect(within(dialog).getByRole("textbox")).toHaveValue("https://github.com/example/code");
+    await user.click(within(dialog).getByRole("button", { name: "保存" }));
+    expect(repository.updatePaperGithub).toHaveBeenLastCalledWith("paper-a", "https://github.com/example/code", 1250);
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "GitHub 仓库" })).toBeNull());
+    expect(fetchGithubStars).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: /Paper a：已记录 GitHub 仓库/ }));
+    await screen.findByText("Stars 已从 GitHub 刷新并保存。");
+    expect(fetchGithubStars).toHaveBeenCalledExactlyOnceWith("https://github.com/example/code");
+    expect(repository.updatePaperGithub).toHaveBeenLastCalledWith("paper-a", "https://github.com/example/code", 1500);
+    expect(screen.getByRole("button", { name: /Paper a：已记录 GitHub 仓库/ })).toHaveTextContent("★ 1.5K");
+    expect(screen.getByRole("link", { name: "打开已记录的仓库 ↗" })).toHaveAttribute("href", "https://github.com/example/code");
+    await user.click(screen.getByRole("button", { name: "取消" }));
+    await user.click(screen.getByRole("button", { name: /Paper a：已记录 GitHub 仓库/ }));
+    await screen.findByText("Stars 已从 GitHub 刷新并保存。");
+    expect(fetchGithubStars).toHaveBeenCalledTimes(2);
+    await user.clear(screen.getByRole("textbox", { name: "仓库链接" }));
+    await user.click(screen.getByRole("button", { name: "保存" }));
+    expect(repository.updatePaperGithub).toHaveBeenLastCalledWith("paper-a", null, null);
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "GitHub 仓库" })).toBeNull());
+    expect(screen.queryByRole("button", { name: /Paper a：.*GitHub/ })).toBeNull();
+    expect(repository.deleteNodes).not.toHaveBeenCalled();
+    expect(repository.createEdge).not.toHaveBeenCalled();
+  });
+
+  it("rejects non-repository links and isolates dialog keyboard shortcuts from the canvas", async () => {
+    const user = userEvent.setup();
+    const { repository } = setup();
+    fireEvent.click(await screen.findByText("Paper a"));
+    await user.click(screen.getByRole("button", { name: "添加 GitHub 仓库" }));
+    await user.type(screen.getByRole("textbox", { name: "仓库链接" }), "https://github.com.evil.test/owner/repo");
+    await user.click(screen.getByRole("button", { name: "保存" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("请输入 GitHub 仓库链接");
+    fireEvent.keyDown(screen.getByRole("button", { name: "取消" }), { key: "Delete" });
+    expect(repository.deleteNodes).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "取消" }));
+    expect(repository.updatePaperGithub).not.toHaveBeenCalled();
+    expect(screen.queryByRole("dialog", { name: "GitHub 仓库" })).toBeNull();
+  });
+
   it("keeps all connections visible and selectable while a paper remains selected", async () => {
     setup(true);
     const related = await screen.findByTestId("rf__edge-a-b");

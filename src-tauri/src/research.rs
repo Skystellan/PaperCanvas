@@ -32,6 +32,42 @@ pub enum ResearchIntent {
 pub enum ContextIntent {
     SelectedPapers,
     GapAnalysis,
+    CodeReview,
+}
+
+#[derive(Debug, Deserialize, Serialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum CodeStatus {
+    Official,
+    ThirdParty,
+    NotFound,
+    NotReleased,
+}
+
+#[derive(Debug, Deserialize, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct CodeReview {
+    pub status: CodeStatus,
+    pub evidence_url: String,
+    pub evidence: String,
+}
+
+#[derive(Debug, Deserialize, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct PaperCodeReview {
+    #[serde(flatten)]
+    pub review: CodeReview,
+    pub checked_at: i64,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct CodeReviewUpdate {
+    pub paper_id: String,
+    pub expected_github_url: Option<String>,
+    pub github_url: Option<String>,
+    pub github_stars: Option<i64>,
+    pub code_review: CodeReview,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -82,6 +118,10 @@ pub struct ResearchPaperInput {
     pub abstract_text: Option<String>,
     pub reason: Option<String>,
     pub group: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub github_url: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub github_stars: Option<i64>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -121,8 +161,9 @@ pub struct EdgeResearch {
 
 pub(crate) fn metadata<T: serde::de::DeserializeOwned>(
     row: &Row<'_>,
+    column: &str,
 ) -> rusqlite::Result<Option<T>> {
-    row.get::<_, Option<String>>("research")?
+    row.get::<_, Option<String>>(column)?
         .map(|text| {
             serde_json::from_str(&text).map_err(|e| {
                 rusqlite::Error::FromSqlConversionFailure(
@@ -197,6 +238,72 @@ fn source_url(value: &str) -> Result<Url, String> {
     }
     url.set_fragment(None);
     Ok(url)
+}
+
+pub(crate) fn validate_github(value: Option<&str>, stars: Option<i64>) -> Result<(), String> {
+    if let Some(value) = value {
+        let url = source_url(value)?;
+        // Inspect the supplied path before URL parsing can collapse dot segments.
+        let path = value.split_once("://").and_then(|(_, tail)| tail.split_once('/'))
+            .map(|(_, path)| path).unwrap_or("");
+        let parts: Vec<_> = path.strip_suffix('/').unwrap_or(path).split('/').collect();
+        if url.scheme() != "https" || url.host_str() != Some("github.com")
+            || url.port().is_some() || url.query().is_some() || value.contains('#')
+            || parts.len() != 2 || parts.iter().any(|part| part.is_empty() || *part == "." || *part == "..")
+            || !parts[0].bytes().all(|c| c.is_ascii_alphanumeric() || c == b'-')
+            || !parts[1].bytes().all(|c| c.is_ascii_alphanumeric() || b"-_.".contains(&c))
+        {
+            return Err("请输入 GitHub 仓库链接：https://github.com/owner/repo".into());
+        }
+    }
+    if stars.is_some_and(|stars| value.is_none() || !(0..=9_007_199_254_740_991).contains(&stars)) {
+        return Err("Stars 必须是非负整数，并关联一个 GitHub 仓库。".into());
+    }
+    Ok(())
+}
+
+fn validate_code_review(review: &CodeReview, github_url: Option<&str>) -> Result<(), String> {
+    source_url(&review.evidence_url)?;
+    text_limit(&review.evidence, "code review evidence", 4000, true)?;
+    let has_code = matches!(review.status, CodeStatus::Official | CodeStatus::ThirdParty);
+    if has_code != github_url.is_some() {
+        return Err("Official/third-party reviews require a repository; not-found/not-released reviews must omit it.".into());
+    }
+    Ok(())
+}
+
+fn reviewed_at(review: &CodeReview) -> Result<String, String> {
+    let mut value = serde_json::to_value(review).map_err(err)?;
+    value["checkedAt"] = json!(SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_millis() as i64);
+    Ok(value.to_string())
+}
+
+pub(crate) fn review_code(db: &Connection, updates: Vec<CodeReviewUpdate>) -> Result<Value, String> {
+    if updates.is_empty() || updates.len() > 100 {
+        return Err("Code reviews require 1–100 papers.".into());
+    }
+    let mut ids = HashSet::new();
+    for update in &updates {
+        text_limit(&update.paper_id, "paperId", 200, true)?;
+        if !ids.insert(&update.paper_id) {
+            return Err("Duplicate paperId.".into());
+        }
+        validate_github(update.github_url.as_deref(), update.github_stars)?;
+        validate_code_review(&update.code_review, update.github_url.as_deref())?;
+        let current: Option<String> = db.query_row("SELECT github_url FROM papers WHERE id=?1",
+            [&update.paper_id], |row| row.get(0)).optional().map_err(err)?.ok_or("Paper not found.")?;
+        if current != update.expected_github_url {
+            return Err("CODE_REVIEW_CONFLICT: Repository changed; read context again before saving.".into());
+        }
+        if current.is_some() && matches!(update.code_review.status, CodeStatus::NotFound) {
+            return Err("A failed search cannot remove an existing repository. Verify the recorded link first.".into());
+        }
+        // Preserve the live Stars snapshot when reviewing the same repository without a newer count.
+        db.execute("UPDATE papers SET github_stars=CASE WHEN github_url IS ?1 AND ?2 IS NULL THEN github_stars ELSE ?2 END,
+            github_url=?1, code_review=?3 WHERE id=?4",
+            params![update.github_url, update.github_stars, reviewed_at(&update.code_review)?, update.paper_id]).map_err(err)?;
+    }
+    Ok(json!({"updatedPapers":updates.len()}))
 }
 
 fn doi(value: &str) -> Result<String, String> {
@@ -367,6 +474,7 @@ fn validate(batch: &ResearchBatch) -> Result<Vec<Identity>, String> {
         if paper.year.is_some_and(|year| !(1..=9999).contains(&year)) {
             return Err("Invalid publication year.".into());
         }
+        validate_github(paper.github_url.as_deref(), paper.github_stars)?;
         identities.push(Identity::for_paper(paper)?);
     }
     for edge in &batch.edges {
@@ -430,7 +538,7 @@ fn resolve(db: &Connection, identity: &Identity) -> Result<Option<String>, Strin
 }
 
 const NODE_SNAPSHOT: &str = "SELECT json_array(n.id,n.board_id,n.paper_id,n.x,n.y,n.width,n.height,
-    p.title,p.authors,p.year,p.file_path,p.created_at,p.domain_id,r.metadata)
+    p.title,p.authors,p.year,p.file_path,p.created_at,p.domain_id,r.metadata,p.github_url,p.github_stars,p.code_review)
     FROM board_nodes n JOIN papers p ON p.id=n.paper_id
     LEFT JOIN research_papers r ON r.paper_id=p.id WHERE n.id=?1";
 const EDGE_SNAPSHOT: &str = "SELECT json_array(e.id,e.board_id,e.source_node_id,e.target_node_id,
@@ -513,15 +621,20 @@ pub(crate) fn import(db: &Connection, batch: ResearchBatch) -> Result<Value, Str
                 None => {
                     let id = uuid::Uuid::new_v4().to_string();
                     db.execute(
-                        "INSERT INTO papers (id,title,authors,year,file_path,created_at,domain_id)
-                        VALUES (?1,?2,?3,?4,NULL,?5,NULL)",
-                        params![id, paper.title, paper.authors, paper.year, timestamp],
+                        "INSERT INTO papers (id,title,authors,year,file_path,created_at,domain_id,github_url,github_stars)
+                        VALUES (?1,?2,?3,?4,NULL,?5,NULL,?6,?7)",
+                        params![id, paper.title, paper.authors, paper.year, timestamp, paper.github_url, paper.github_stars],
                     )
                     .map_err(err)?;
                     created_papers += 1;
                     id
                 }
             };
+            // Enrich older imports, but never overwrite a repository the user already recorded.
+            if let Some(url) = &paper.github_url {
+                db.execute("UPDATE papers SET github_url=?1, github_stars=?2, code_review=NULL WHERE id=?3 AND github_url IS NULL",
+                    params![url, paper.github_stars, paper_id]).map_err(err)?;
+            }
             for (kind, id) in identity.keys() {
                 db.execute(
                     "INSERT INTO research_identities (kind,identity,paper_id) VALUES (?1,?2,?3)
@@ -662,7 +775,7 @@ pub(crate) fn context(
         }
     }
     let scope = ids.as_ref().map(|ids| json!(ids).to_string());
-    let mut stmt = db.prepare("SELECT p.id,p.title,p.authors,p.year,
+    let mut stmt = db.prepare("SELECT p.id,p.title,p.authors,p.year,p.github_url,p.github_stars,p.code_review,
         (SELECT identity FROM research_identities WHERE paper_id=p.id AND kind='doi') AS doi,
         (SELECT identity FROM research_identities WHERE paper_id=p.id AND kind='arxiv') AS arxiv_id,
         COALESCE(json_extract(r.metadata,'$.url'),'') AS url,
@@ -672,12 +785,15 @@ pub(crate) fn context(
         WHERE (?1 IS NOT NULL AND p.id IN (SELECT value FROM json_each(?1)))
            OR (?1 IS NULL AND EXISTS (SELECT 1 FROM board_nodes WHERE board_id=?2 AND paper_id=p.id))
         ORDER BY p.id LIMIT 101").map_err(err)?;
-    let mut papers = stmt.query_map(params![scope,DEFAULT_BOARD_ID,matches!(intent, ContextIntent::SelectedPapers)], |row| Ok(json!({
+    let mut papers = stmt.query_map(params![scope,DEFAULT_BOARD_ID,!matches!(intent, ContextIntent::GapAnalysis)], |row| Ok(json!({
         "id":row.get::<_,String>("id")?,"title":row.get::<_,String>("title")?,
         "authors":row.get::<_,Option<String>>("authors")?,"year":row.get::<_,Option<i64>>("year")?,
         "doi":row.get::<_,Option<String>>("doi")?,"arxivId":row.get::<_,Option<String>>("arxiv_id")?,
         "url":row.get::<_,String>("url")?,"abstract":row.get::<_,String>("abstract")?,
-        "abstractTruncated":row.get::<_,bool>("abstract_truncated")?
+        "abstractTruncated":row.get::<_,bool>("abstract_truncated")?,
+        "githubUrl":row.get::<_,Option<String>>("github_url")?,
+        "githubStars":row.get::<_,Option<i64>>("github_stars")?,
+        "codeReview":metadata::<PaperCodeReview>(row,"code_review")?
     }))).map_err(err)?.collect::<rusqlite::Result<Vec<_>>>().map_err(err)?;
     let truncated = papers.len() > 100;
     papers.truncate(100);

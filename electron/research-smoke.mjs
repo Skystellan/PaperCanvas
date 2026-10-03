@@ -25,7 +25,7 @@ export async function researchSmoke({ wc, backend, dataDirectory, evaluate, unti
   const board = () => backend.call('workspace_command', { request: { type: 'load_board' } });
   const count = async () => (await backend.call('database_select', { query: 'SELECT COUNT(*) AS n FROM papers', values: [] }))[0].n;
   try {
-    assert.deepEqual((await client.listTools()).tools.map(tool => tool.name).sort(), ['import_research_batch', 'read_research_context']);
+    assert.deepEqual((await client.listTools()).tools.map(tool => tool.name).sort(), ['import_research_batch', 'read_research_context', 'save_paper_code_reviews']);
     const emptySelection = await client.callTool({ name: 'read_research_context', arguments: { intent: 'selected_papers' } });
     assert.equal(emptySelection.isError, true);
     assert.match(JSON.stringify(emptySelection), /NO_SELECTION/);
@@ -82,8 +82,33 @@ export async function researchSmoke({ wc, backend, dataDirectory, evaluate, unti
     await until(`document.querySelector('.research-imports__panel')?.textContent.includes('已撤回')`, 'batch undone');
     assert.deepEqual((await board()).value, before);
     assert.equal(await count(), beforeCount + 2, 'Undo keeps imported papers in the library');
+
+    console.log('Research MCP: reviewing new and existing papers through one interface');
+    const reimported = await call('import_research_batch', { ...batch, requestId: 'smoke-code-review' });
+    const reviewIds = [reimported.placements[0].paperId, before.nodes[0].paper.id];
+    const reviewContext = await call('read_research_context', { intent: 'code_review', paperIds: reviewIds });
+    assert.equal(reviewContext.papers.length, 2);
+    const review = (id, status, githubUrl) => ({ paperId: id,
+      expectedGithubUrl: reviewContext.papers.find(paper => paper.id === id).githubUrl, githubUrl,
+      codeReview: { status, evidenceUrl: 'https://example.org/research-alpha', evidence: 'Synthetic smoke-test evidence: paper identity and implementation checked.' },
+    });
+    const reviewed = await call('save_paper_code_reviews', { reviews: [
+      { ...review(reviewIds[0], 'official', 'https://github.com/example/research-alpha'), githubStars: 42 },
+      review(reviewIds[1], 'not_found', null),
+    ] });
+    assert.equal(reviewed.updatedPapers, 2);
+    assert.equal(reviewed.viewUpdated, undefined);
+    await until(`document.querySelectorAll('.paper-card__github').length === 1`, 'reviewed GitHub badge visible');
+    const reviewedBoard = (await board()).value;
+    assert.equal(reviewedBoard.nodes.find(node => node.paper.id === reviewIds[0]).paper.codeReview.status, 'official');
+    assert.equal(reviewedBoard.nodes.find(node => node.paper.id === reviewIds[1]).paper.codeReview.status, 'not_found');
+    for (const previous of before.nodes) {
+      assert.deepEqual(reviewedBoard.nodes.find(node => node.id === previous.id).position, previous.position);
+    }
+    await writeFile(path.join(dataDirectory, 'research-code-review.png'), (await wc.capturePage()).toPNG());
     const report = { mcpStdio: true, independentImport: true, noImplicitContext: true, selectionScope: true,
-      metadataReader: true, idempotentRetry: true, atomicFailure: true, previousLayoutPreserved: true, undoKeepsPapers: true };
+      metadataReader: true, idempotentRetry: true, atomicFailure: true, previousLayoutPreserved: true, undoKeepsPapers: true,
+      sharedCodeReview: true, codeReviewBadge: true };
     await writeFile(path.join(dataDirectory, 'research-report.json'), JSON.stringify(report, null, 2));
     console.log('Research MCP:', JSON.stringify(report));
   } finally { await client.close(); }

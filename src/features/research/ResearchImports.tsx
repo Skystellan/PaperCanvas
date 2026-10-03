@@ -23,6 +23,7 @@ export function ResearchImports({ revision, onUndo, disabled }: {
     {open && <div className="research-imports__panel">
       <h2>AI 导入记录</h2>
       <p>在已连接的 AI 客户端中搜索、初筛，再导入到画布。独立检索不会自动读取已有论文。</p>
+      <p>可让 AI「找论文时查证代码仓库」，或「审查当前画布论文的代码公开情况并保存依据」。未找到代码不等于未开源。</p>
       <p>撤回仅移除本批新增的卡片和连线，论文仍留在论文库。若这些内容已有修改或新增连接，将停止撤回并保留现状。</p>
       {batches.length === 0 && !error && <p>还没有研究导入记录。</p>}
       <ul>{batches.map(batch => <li key={batch.id}>

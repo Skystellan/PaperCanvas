@@ -33,6 +33,7 @@ import {
 } from "../library";
 import { usePersistenceWriter } from "../persistence";
 import { PaperCard } from "./PaperCard";
+import { PaperGithubDialog } from "./PaperGithubDialog";
 import { PaperEdge } from "./PaperEdge";
 import type { BoardRepository } from "./data/boardRepository";
 import {
@@ -187,6 +188,7 @@ function WhiteboardCanvas({
     null,
   );
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
+  const [githubPaper, setGithubPaper] = useState<Paper | null>(null);
   const [relationUpdatePending, setRelationUpdatePending] = useState(false);
   const [deletionPending, setDeletionPending] = useState(false);
   const deletionPendingRef = useRef(false);
@@ -1149,6 +1151,15 @@ function WhiteboardCanvas({
     [flush, repository, trackMutation],
   );
 
+  const saveGithub = useCallback(async (githubUrl: string | null, githubStars: number | null) => {
+    if (!githubPaper) return;
+    await trackMutation(repository.updatePaperGithub(githubPaper.id, githubUrl, githubStars));
+    replaceNodes(nodesRef.current.map(node => node.data.paper.id === githubPaper.id
+      ? { ...node, data: { ...node.data, paper: { ...node.data.paper, githubUrl, githubStars,
+        codeReview: (node.data.paper.githubUrl ?? null) === githubUrl ? node.data.paper.codeReview : undefined } } }
+      : node));
+  }, [githubPaper, repository, replaceNodes, trackMutation]);
+
   const visibleNodes = useMemo(() => {
     return nodes
       .filter((node) => nodeBelongsToScope(node, resolvedScope))
@@ -1162,6 +1173,7 @@ function WhiteboardCanvas({
           .join(" "),
         data: {
           ...node.data,
+          onEditGithub: setGithubPaper,
           onKeyboardConnectionSelect: connectionMode
             ? onKeyboardConnectionSelect
             : undefined,
@@ -1184,7 +1196,8 @@ function WhiteboardCanvas({
     () => visibleEdges.find(({ id }) => id === selectedEdgeId) ?? null,
     [selectedEdgeId, visibleEdges],
   );
-  const selectedNodeCount = visibleNodes.filter(({ selected }) => selected).length;
+  const selectedNodes = visibleNodes.filter(({ selected }) => selected);
+  const selectedNodeCount = selectedNodes.length;
   const selectedAnnotations = selectedEdge
     ? annotationDrafts.get(selectedEdge.id) ?? selectedEdge.data
     : undefined;
@@ -1261,6 +1274,9 @@ function WhiteboardCanvas({
 
   return (
     <section className="whiteboard" aria-label="Paper canvas" ref={canvasRef}>
+      {githubPaper && <PaperGithubDialog key={githubPaper.id} paper={githubPaper}
+        onClose={() => setGithubPaper(null)}
+        onSave={saveGithub} />}
       <div className="whiteboard__views" role="toolbar" aria-label="白板视图">
         <button
           type="button"
@@ -1308,6 +1324,10 @@ function WhiteboardCanvas({
         >
           重新整理布局
         </button>
+        {selectedNodeCount === 1 && <button type="button" disabled={deletionPending}
+          onClick={() => setGithubPaper(selectedNodes[0].data.paper)}>
+          {selectedNodes[0].data.paper.githubUrl ? "编辑 GitHub 仓库" : selectedNodes[0].data.paper.codeReview ? "查看代码审查" : "添加 GitHub 仓库"}
+        </button>}
         {selectedNodeCount > 0 && (
           <button type="button" disabled={deletionPending}
             title="只移除白板卡片及其连线，论文和 PDF 保留在文库，可再次拖入"

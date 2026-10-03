@@ -74,6 +74,7 @@ textarea {
 }
 
 .paper-card {
+  position: relative;
   display: flex;
   gap: 13px;
   align-items: flex-start;
@@ -181,6 +182,62 @@ textarea {
 .paper-card__content {
   min-width: 0;
 }
+
+.paper-card__github {
+  position: absolute;
+  top: 8px;
+  right: 7px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  min-width: 32px;
+  min-height: 28px;
+  padding: 5px 3px;
+  border: 0;
+  border-radius: 7px;
+  color: #858b95;
+  background: transparent;
+  cursor: pointer;
+}
+
+.paper-card.has-github { padding-right: 52px; }
+
+.paper-card__github.has-repository {
+  color: #267447;
+  background: #e8f4ec;
+}
+
+.paper-card__github:hover { background: #dde8e1; color: #245c3b; }
+.paper-card__github:focus-visible { outline: 2px solid #2877ca; outline-offset: 2px; }
+.paper-card__github svg { width: 17px; height: 17px; }
+.paper-card__github span { font-size: 9px; font-weight: 600; white-space: nowrap; }
+
+.paper-github-dialog {
+  width: min(400px, calc(100vw - 32px));
+  padding: 24px;
+  border: 1px solid #d9dfe6;
+  border-radius: 16px;
+  color: #2f302c;
+  background: #fafbf9;
+  box-shadow: 0 20px 80px #22304933;
+}
+.paper-github-dialog::backdrop { background: #22304944; }
+.paper-github-dialog h2 { margin: 0; font-size: 17px; }
+.paper-github-dialog__paper { color: #656d78; overflow-wrap: anywhere; }
+.paper-github-dialog label { display: grid; gap: 7px; margin-top: 16px; }
+.paper-github-dialog input {
+  width: 100%; padding: 9px 10px; border: 1px solid #cdd4dc; border-radius: 7px;
+}
+.paper-github-dialog__hint { color: #656d78; line-height: 1.6; font-size: 11px; }
+.paper-github-dialog a { color: #2565a6; }
+.paper-github-dialog__review { padding: 12px; background: #f2f6ef; border-radius: 8px; font-size: 12px; }
+.paper-github-dialog__review p { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.6; }
+.paper-github-dialog [role="alert"] { color: #a33131; line-height: 1.5; }
+.paper-github-dialog__actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
+.paper-github-dialog button { padding: 7px 16px; border: 1px solid #cdd4dc; border-radius: 7px; cursor: pointer; }
+.paper-github-dialog button[type="submit"] { color: white; background: #267447; border-color: #267447; }
+.paper-github-dialog button:disabled { opacity: 0.5; cursor: default; }
 
 .paper-card h2 {
   display: -webkit-box;

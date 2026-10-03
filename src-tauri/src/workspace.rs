@@ -9,7 +9,7 @@
 //! Transports notify when it is true, including off-board metadata changes.
 //! `origin` belongs only to those notifications and conveys no authority.
 
-use crate::research::{self, ContextIntent, EdgeResearch, PaperResearch, ResearchBatch};
+use crate::research::{self, CodeReviewUpdate, ContextIntent, EdgeResearch, PaperCodeReview, PaperResearch, ResearchBatch};
 use rusqlite::{params, Connection, OptionalExtension, Row, Transaction, TransactionBehavior};
 use serde::{Deserialize, Serialize};
 use std::{
@@ -29,6 +29,9 @@ pub const WORKSPACE_CONFLICT: &str = "WORKSPACE_CONFLICT";
 pub enum WorkspaceRequest {
     ImportResearchBatch {
         batch: ResearchBatch,
+    },
+    SavePaperCodeReviews {
+        reviews: Vec<CodeReviewUpdate>,
     },
     ReadResearchContext {
         intent: ContextIntent,
@@ -63,6 +66,11 @@ pub enum WorkspaceRequest {
     UpdatePaperTitle {
         paper_id: String,
         title: String,
+    },
+    UpdatePaperGithub {
+        paper_id: String,
+        github_url: Option<String>,
+        github_stars: Option<i64>,
     },
     CreatePaperNode {
         paper_id: String,
@@ -115,6 +123,12 @@ pub struct Paper {
     pub file_path: Option<String>,
     pub domain_id: Option<String>,
     pub created_at: i64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub github_url: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub github_stars: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub code_review: Option<PaperCodeReview>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub research: Option<PaperResearch>,
 }
@@ -307,7 +321,10 @@ fn paper(row: &Row<'_>) -> rusqlite::Result<Paper> {
         file_path: row.get("file_path")?,
         domain_id: row.get("domain_id")?,
         created_at: row.get("created_at")?,
-        research: research::metadata(row)?,
+        github_url: row.get("github_url")?,
+        github_stars: row.get("github_stars")?,
+        code_review: research::metadata(row, "code_review")?,
+        research: research::metadata(row, "research")?,
     })
 }
 
@@ -342,7 +359,7 @@ fn edge(row: &Row<'_>) -> rusqlite::Result<BoardEdgeRecord> {
         relation,
         explanation: row.get("explanation")?,
         evidence: row.get("evidence")?,
-        research: research::metadata(row)?,
+        research: research::metadata(row, "research")?,
     })
 }
 
@@ -356,14 +373,14 @@ fn domain(row: &Row<'_>) -> rusqlite::Result<PaperDomain> {
 }
 
 const SELECT_NODES: &str = "SELECT n.id AS node_id, n.board_id, n.x, n.y, n.width, n.height,
-    p.id, p.title, p.authors, p.year, p.file_path, p.domain_id, p.created_at,
+    p.id, p.title, p.authors, p.year, p.file_path, p.domain_id, p.created_at, p.github_url, p.github_stars, p.code_review,
     (SELECT metadata FROM research_papers WHERE paper_id=p.id) AS research
     FROM board_nodes n JOIN papers p ON p.id = n.paper_id WHERE n.board_id = ?1";
 const SELECT_EDGES: &str = "SELECT id, board_id, source_node_id, target_node_id,
     relation_type, explanation, evidence,
     (SELECT metadata FROM research_edges WHERE edge_id=board_edges.id) AS research
     FROM board_edges WHERE board_id = ?1";
-const SELECT_PAPERS: &str = "SELECT id, title, authors, year, file_path, domain_id, created_at,
+const SELECT_PAPERS: &str = "SELECT id, title, authors, year, file_path, domain_id, created_at, github_url, github_stars, code_review,
     (SELECT metadata FROM research_papers WHERE paper_id=papers.id) AS research FROM papers";
 
 pub(crate) fn get_paper(db: &Connection, id: &str) -> Result<Option<Paper>, String> {
@@ -439,6 +456,7 @@ fn apply(db: &Transaction<'_>, request: WorkspaceRequest) -> Result<WorkspaceVal
     use WorkspaceRequest::*;
     match request {
         ImportResearchBatch { batch } => return research::import(db, batch).map(WorkspaceValue::Research),
+        SavePaperCodeReviews { reviews } => return research::review_code(db, reviews).map(WorkspaceValue::Research),
         ReadResearchContext { intent, paper_ids } => return research::context(db, intent, paper_ids).map(WorkspaceValue::Research),
         ListResearchBatches {} => return research::batches(db).map(WorkspaceValue::Research),
         UndoResearchBatch { batch_id } => return research::undo(db, &batch_id).map(WorkspaceValue::Research),
@@ -491,6 +509,15 @@ fn apply(db: &Transaction<'_>, request: WorkspaceRequest) -> Result<WorkspaceVal
             if title.trim().is_empty() { return Err("Paper title must not be empty.".into()); }
             update_existing(db, "UPDATE papers SET title = ?1 WHERE id = ?2 AND title IS NOT ?1",
                 params![title, paper_id], PAPER_EXISTS, &paper_id,
+                "Paper not found.")?;
+        }
+        UpdatePaperGithub { paper_id, github_url, github_stars } => {
+            identifier(&paper_id)?;
+            research::validate_github(github_url.as_deref(), github_stars)?;
+            update_existing(db, "UPDATE papers SET github_url = ?1, github_stars = ?2,
+                code_review = CASE WHEN github_url IS ?1 THEN code_review ELSE NULL END
+                WHERE id = ?3 AND (github_url IS NOT ?1 OR github_stars IS NOT ?2)",
+                params![github_url, github_stars, paper_id], PAPER_EXISTS, &paper_id,
                 "Paper not found.")?;
         }
         CreatePaperNode { paper_id, position } => {

@@ -266,6 +266,16 @@ pub fn migrations() -> Vec<Migration> {
             description: "pin online PDF document identity independently of paper metadata",
             sql: include_str!("../migrations/0020_paper_pdf_documents.sql"),
         },
+        Migration {
+            version: 21,
+            description: "record paper GitHub repositories and star counts",
+            sql: include_str!("../migrations/0021_paper_github.sql"),
+        },
+        Migration {
+            version: 22,
+            description: "record evidence from AI paper code reviews",
+            sql: include_str!("../migrations/0022_paper_code_review.sql"),
+        },
     ]
 }
 

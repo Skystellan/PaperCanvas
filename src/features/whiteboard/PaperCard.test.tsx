@@ -65,6 +65,42 @@ function createProps(
 }
 
 describe("PaperCard", () => {
+  it("omits the GitHub icon and its reserved space when no repository is recorded", () => {
+    render(<PaperCard {...createProps(false)} />);
+    expect(screen.queryByRole("button", { name: /GitHub/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("article")).not.toHaveClass("has-github");
+  });
+
+  it("opens a recorded repository without selecting, dragging or opening the paper", () => {
+    const props = createProps(false);
+    props.data.paper.githubUrl = "https://github.com/example/code";
+    props.data.onEditGithub = vi.fn();
+    props.data.onKeyboardConnectionSelect = vi.fn();
+    const onNodeClick = vi.fn();
+    const onOpenPaper = vi.fn();
+    render(<div onClick={onNodeClick} onDoubleClick={onOpenPaper}><PaperCard {...props} /></div>);
+    const badge = screen.getByRole("button", { name: /已记录 GitHub 仓库/ });
+    expect(badge).toHaveClass("has-repository");
+    expect(badge).toHaveClass("nodrag", "nopan");
+    fireEvent.keyDown(badge, { key: "Enter" });
+    fireEvent.click(badge);
+    fireEvent.doubleClick(badge);
+    expect(props.data.onEditGithub).toHaveBeenCalledWith(props.data.paper);
+    expect(props.data.onKeyboardConnectionSelect).not.toHaveBeenCalled();
+    expect(onNodeClick).not.toHaveBeenCalled();
+    expect(onOpenPaper).not.toHaveBeenCalled();
+  });
+
+  it.each([null, 0, 1250])("shows a known repository with optional stars %s", (stars) => {
+    const props = createProps(false);
+    props.data.paper.githubUrl = "https://github.com/example/code";
+    props.data.paper.githubStars = stars;
+    render(<PaperCard {...props} />);
+    const badge = screen.getByRole("button", { name: /已记录 GitHub 仓库/ });
+    expect(badge).toHaveClass("has-repository");
+    if (stars === null) expect(badge).not.toHaveTextContent("★");
+    else expect(badge).toHaveTextContent(stars === 0 ? "★ 0" : "★ 1.3K");
+  });
   it("shows paper metadata", () => {
     render(<PaperCard {...createProps(false)} />);
 

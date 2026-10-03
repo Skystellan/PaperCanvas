@@ -319,3 +319,20 @@ async fn resolver_large_synthetic_pdf_returns_only_path() {
             .is_err());
     }
 }
+
+#[tokio::test]
+async fn github_metadata_survives_backend_restart_and_is_loaded_on_the_canvas() {
+    let temp = Temp::new();
+    let backend = Backend::open(temp.0.clone()).await.unwrap();
+    backend.dispatch("workspace_command", &json!({"request":{
+        "type":"update_paper_github","paperId":"paper-attention",
+        "githubUrl":"https://github.com/example/code","githubStars":1250
+    }})).unwrap();
+    drop(backend);
+    let reopened = Backend::open(temp.0.clone()).await.unwrap();
+    let board = reopened.dispatch("workspace_command", &json!({"request":{"type":"load_board"}})).unwrap();
+    let paper = &board["value"]["nodes"].as_array().unwrap().iter()
+        .find(|node| node["paper"]["id"] == "paper-attention").unwrap()["paper"];
+    assert_eq!(paper["githubUrl"], "https://github.com/example/code");
+    assert_eq!(paper["githubStars"], 1250);
+}

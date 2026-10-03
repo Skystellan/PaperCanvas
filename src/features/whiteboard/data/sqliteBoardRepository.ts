@@ -29,6 +29,10 @@ export class SqliteBoardRepository implements BoardRepository {
     return this.run({ type: "load_board" }, true);
   }
 
+  async updatePaperGithub(paperId: string, githubUrl: string | null, githubStars: number | null): Promise<void> {
+    await this.run({ type: "update_paper_github", paperId, githubUrl, githubStars });
+  }
+
   async saveNodePositions(updates: NodePositionUpdate[]): Promise<void> {
     if (updates.length) await this.run({ type: "save_node_positions", updates });
   }

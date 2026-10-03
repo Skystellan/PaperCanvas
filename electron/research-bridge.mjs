@@ -5,13 +5,13 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { MAX_RESEARCH_MESSAGE_BYTES, RESEARCH_DESCRIPTOR } from './research-bridge-client.mjs';
 
-const TOOLS = new Set(['import_research_batch', 'read_research_context']);
+const TOOLS = new Set(['import_research_batch', 'read_research_context', 'save_paper_code_reviews']);
 
 export function validateResearchTool(tool, args) {
   if (!TOOLS.has(tool)) throw new Error('Unknown research tool.');
   if (!args || typeof args !== 'object' || Array.isArray(args)) throw new Error('Tool arguments must be an object.');
   if (tool === 'read_research_context') {
-    if (!['selected_papers', 'gap_analysis'].includes(args.intent)) throw new Error('Context requires an explicit selected_papers or gap_analysis intent.');
+    if (!['selected_papers', 'gap_analysis', 'code_review'].includes(args.intent)) throw new Error('Context requires an explicit selected_papers, gap_analysis or code_review intent.');
     if (args.paperIds !== undefined && (!Array.isArray(args.paperIds) || args.paperIds.length > 100 || args.paperIds.some(id => typeof id !== 'string' || !id.trim() || id.length > 200))) {
       throw new Error('Invalid paperIds.');
     }

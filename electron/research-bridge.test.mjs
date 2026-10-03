@@ -64,3 +64,14 @@ test('desktop requests wait for readiness and reject pending calls on reload', a
 test('missing app profile gives a useful connection error', async () => {
   await assert.rejects(callResearchTool('import_research_batch', {}, { dataDirectory: path.join(tmpdir(), 'pc-does-not-exist') }), /APP_NOT_RUNNING/);
 });
+
+test('code review reads and writes use the same authenticated bridge for any paper IDs', async t => {
+  const calls = [];
+  const dataDirectory = await fixture(t, async (tool, args) => { calls.push({ tool, args }); return { updatedPapers: 1 }; });
+  await callResearchTool('read_research_context', { intent: 'code_review', paperIds: ['imported-paper'] }, { dataDirectory });
+  const args = { reviews: [{ paperId: 'imported-paper', expectedGithubUrl: null, githubUrl: null,
+    codeReview: { status: 'not_found', evidenceUrl: 'https://example.org/paper', evidence: 'No implementation found on checked sources.' } }] };
+  assert.deepEqual(await callResearchTool('save_paper_code_reviews', args, { dataDirectory }), { updatedPapers: 1 });
+  assert.deepEqual(calls.map(call => call.tool), ['read_research_context', 'save_paper_code_reviews']);
+  assert.deepEqual(calls[1].args, args);
+});

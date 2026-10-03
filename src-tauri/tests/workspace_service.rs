@@ -606,7 +606,8 @@ fn migration_preserves_legacy_reverse_edges_and_every_existing_table() {
     );
     db.execute_batch(migrations().iter().find(|m| m.version == 19).unwrap().sql)
         .unwrap();
-    assert_eq!(revision(&db), 0);
+    // This fixture deliberately stops at v19 to compare its original schema.
+    assert_eq!(db.query_row("SELECT revision FROM workspace_revision", [], |row| row.get::<_, i64>(0)).unwrap(), 0);
     for (source, target) in [
         ("node-attention", "node-bert"),
         ("node-bert", "node-attention"),

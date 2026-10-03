@@ -1,4 +1,20 @@
 export type ResearchIntent = "independent" | "selected_papers" | "gap_analysis";
+export type ResearchContextIntent = "selected_papers" | "gap_analysis" | "code_review";
+export const codeStatusLabels = {
+  official: "官方代码", third_party: "第三方复现", not_found: "暂未找到代码", not_released: "明确未发布",
+};
+export interface CodeReview {
+  status: keyof typeof codeStatusLabels;
+  evidenceUrl: string;
+  evidence: string;
+}
+export interface CodeReviewUpdate {
+  paperId: string;
+  expectedGithubUrl: string | null;
+  githubUrl: string | null;
+  githubStars?: number;
+  codeReview: CodeReview;
+}
 export type ResearchRelation = "related" | "extends" | "compares" | "uses" | "cites" | "supports" | "challenges";
 
 export interface ResearchBatchInput {
@@ -8,6 +24,7 @@ export interface ResearchBatchInput {
   papers: Array<{
     ref: string; title: string; url: string; authors?: string; year?: number;
     doi?: string; arxivId?: string; abstract?: string; reason?: string; group?: string;
+    githubUrl?: string; githubStars?: number;
   }>;
   edges?: Array<{
     sourceRef: string; targetRef: string; kind: ResearchRelation;
