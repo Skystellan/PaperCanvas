@@ -3,7 +3,7 @@ import { createInterface } from 'node:readline';
 
 // A private pipe keeps PDF and database operations in the local Rust backend.
 export class Backend {
-  constructor(binary, dataDirectory) {
+  constructor(binary, dataDirectory, onWorkspaceChange = () => {}) {
     this.pending = new Map();
     this.sequence = 0;
     this.child = spawn(binary, ['--data-dir', dataDirectory], {
@@ -19,7 +19,12 @@ export class Backend {
       if (!pending) return;
       this.pending.delete(message.id);
       if (message.error !== undefined) pending.reject(new Error(message.error));
-      else pending.resolve(message.result);
+      else {
+        pending.resolve(message.result);
+        if (pending.command === 'workspace_command' && message.result?.changed) {
+          onWorkspaceChange({ revision: message.result.revision, origin: pending.origin ?? null });
+        }
+      }
     });
     // Never forward potentially sensitive backend diagnostics to remote web pages.
     this.child.stderr.resume();
@@ -32,7 +37,7 @@ export class Backend {
     if (this.failure) return Promise.reject(this.failure);
     const id = ++this.sequence;
     return new Promise((resolve, reject) => {
-      this.pending.set(id, { resolve, reject });
+      this.pending.set(id, { resolve, reject, command, origin: args.origin });
       this.child.stdin.write(`${JSON.stringify({ id, command, args })}\n`, (error) => {
         if (error) { this.pending.delete(id); reject(error); }
       });

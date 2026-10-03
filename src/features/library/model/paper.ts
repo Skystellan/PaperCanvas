@@ -1,3 +1,5 @@
+import type { ResearchPaper } from "../../research/research";
+
 export interface Paper {
   id: string;
   title: string;
@@ -6,4 +8,5 @@ export interface Paper {
   filePath: string | null;
   domainId: string | null;
   createdAt: number;
+  research?: ResearchPaper;
 }

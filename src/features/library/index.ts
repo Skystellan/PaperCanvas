@@ -9,10 +9,7 @@ export {
 } from "./data/sqlitePaperDomainRepository";
 export type { Paper } from "./model/paper";
 export type { PaperDomain } from "./model/paperDomain";
-export {
-  MAX_PAPER_DOMAIN_NAME_LENGTH,
-  normalizePaperDomainName,
-} from "./model/paperDomain";
+export { MAX_PAPER_DOMAIN_NAME_LENGTH } from "./model/paperDomain";
 export type { PaperDropIntent } from "./model/paperDropIntent";
 export type { PaperCatalogChange } from "./model/paperCatalogChange";
 export type {

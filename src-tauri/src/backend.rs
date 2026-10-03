@@ -1,5 +1,5 @@
 // JSON-lines desktop transport. Ordinary commands run in arrival order on one worker.
-use crate::{markdown_notes, web_chat};
+use crate::{markdown_notes, online_pdf, web_chat, workspace};
 use rusqlite::{
     params_from_iter,
     types::{Value as SqlValue, ValueRef},
@@ -100,6 +100,44 @@ impl Backend {
         let papers = self.data_dir.join("papers");
         let database = self.data_dir.join("papercanvas.db");
         match command {
+            "online_pdf_info" => {
+                serde_json::to_value(online_pdf::info(&self.db, string(args, "paperId")?)?)
+                    .map_err(err)
+            }
+            "pin_online_pdf" => serde_json::to_value(online_pdf::pin(
+                &self.db,
+                string(args, "paperId")?,
+                string(args, "url")?,
+                string(args, "sha256")?,
+            )?)
+            .map_err(err),
+            "save_online_pdf" => serde_json::to_value(online_pdf::save(
+                &self.db,
+                &papers,
+                string(args, "paperId")?,
+                Path::new(string(args, "sourcePath")?),
+                string(args, "url")?,
+                string(args, "sha256")?,
+            )?)
+            .map_err(err),
+            "workspace_command" => {
+                #[derive(Deserialize)]
+                #[serde(rename_all = "camelCase")]
+                struct Args {
+                    request: workspace::WorkspaceRequest,
+                    expected_revision: Option<i64>,
+                    // Parsed for the transport contract, never used as authority.
+                    #[serde(rename = "origin")]
+                    _origin: Option<String>,
+                }
+                let args: Args = serde_json::from_value(args.clone()).map_err(err)?;
+                serde_json::to_value(workspace::execute(
+                    &self.db,
+                    args.request,
+                    args.expected_revision,
+                )?)
+                .map_err(err)
+            }
             "database_load" => Ok(json!("sqlite:papercanvas.db")),
             "database_select" | "database_execute" => {
                 let values = match args.get("values") {

@@ -1,6 +1,6 @@
 [package]
 name = "paper-canvas"
-version = "0.2.11"
+version = "0.3.0"
 license = "MIT"
 description = "A local-first paper whiteboard"
 edition = "2021"
@@ -29,6 +29,7 @@ tauri-plugin-fs = { version = "2", optional = true }
 tauri-plugin-sql = { version = "2", features = ["sqlite"], optional = true }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+sha2 = "=0.10.9"
 url = "2"
 rusqlite = { version = "0.31", features = ["bundled"] }
 uuid = { version = "1", features = ["v4"] }

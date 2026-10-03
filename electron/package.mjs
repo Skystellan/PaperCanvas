@@ -7,6 +7,7 @@ import { cp, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { build } from 'esbuild';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const stage = await mkdtemp(path.join(tmpdir(), 'papercanvas-chromium-'));
@@ -22,6 +23,17 @@ try {
   await cp(path.join(root, 'electron'), path.join(stage, 'electron'), {
     recursive: true, filter: (source) => !source.endsWith('.test.mjs'),
   });
+  const mcpBundle = path.join(stage, 'papercanvas-mcp.mjs');
+  await build({ entryPoints: [path.join(root, 'mcp/server.mjs')], outfile: mcpBundle,
+    bundle: true, platform: 'node', format: 'esm', target: 'node22',
+    banner: { js: 'import { createRequire as __createRequire } from "node:module"; const require = __createRequire(import.meta.url);' },
+  });
+  // Packaged smoke tests exercise the shipped MCP entry without repository dependencies.
+  await build({ entryPoints: [path.join(root, 'electron/research-smoke.mjs')],
+    outfile: path.join(stage, 'electron/research-smoke.mjs'), bundle: true,
+    platform: 'node', format: 'esm', target: 'node22', external: ['electron'],
+    banner: { js: 'import { createRequire as __createRequire } from "node:module"; const require = __createRequire(import.meta.url);' },
+  });
   if (['win32', 'linux'].includes(process.platform)) await prepareUpdaterStage(stage);
   if (process.platform === 'linux') await cp(path.join(root, 'src-tauri/icons/icon.png'), path.join(stage, 'icon.png'));
   const paths = await packager({
@@ -35,7 +47,7 @@ try {
       SUEnableAutomaticChecks: false, SUSendProfileInfo: false,
       SUVerifyUpdateBeforeExtraction: true, SURequireSignedFeed: true,
     } : undefined,
-    extraResource: [path.join(root, 'src-tauri/target/release',
+    extraResource: [mcpBundle, path.join(root, 'src-tauri/target/release',
       `paper-canvas-backend${process.platform === 'win32' ? '.exe' : ''}`)],
   });
   for (const output of paths) {

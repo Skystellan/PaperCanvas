@@ -62,6 +62,9 @@ export const PaperCard = memo(function PaperCard({
       <div className="paper-card__content">
         <h2>{data.paper.title}</h2>
         {metadata && <p>{metadata}</p>}
+        {data.paper.research && <small className="paper-card__research" title={data.paper.research.reason}>
+          AI 初筛{data.paper.research.group ? ` · ${data.paper.research.group}` : ""}
+        </small>}
       </div>
       <Handle
         type="source"

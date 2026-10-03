@@ -68,6 +68,7 @@ import {
   localLayoutNodeIds,
 } from "./model/obsidianForceLayout";
 import "./whiteboardInteractions.css";
+import { researchBasisLabels, researchRelationLabels } from "../research/research";
 
 export { PAPER_DRAG_MIME };
 
@@ -83,6 +84,10 @@ export interface WhiteboardProps {
   paperCatalogChange?: PaperCatalogChange | null;
   repository?: BoardRepository;
   onOpenPaper?: (paper: Paper) => void;
+  onSelectedPapersChange?: (paperIds: string[]) => void;
+  onSnapshotLoaded?: (catalogRevision: number) => void;
+  onSnapshotFailed?: () => void;
+  researchFocus?: { paperIds: string[]; revision: number } | null;
   onPaperDropComplete?: () => void;
   paperDropIntent?: PaperDropIntent | null;
   paperFocusRequest?: { paperId: string; revision: number } | null;
@@ -149,6 +154,10 @@ function WhiteboardCanvas({
   onPaperDropComplete,
   paperDropIntent,
   paperFocusRequest,
+  onSelectedPapersChange,
+  onSnapshotLoaded,
+  onSnapshotFailed,
+  researchFocus,
 }: Required<Pick<WhiteboardProps, "repository" | "domainRepository">> &
   Pick<
     WhiteboardProps,
@@ -159,12 +168,17 @@ function WhiteboardCanvas({
     | "paperFocusRequest"
     | "domains"
     | "active"
+    | "onSelectedPapersChange"
+    | "onSnapshotLoaded"
+    | "onSnapshotFailed"
+    | "researchFocus"
   >) {
   const { deleteElements, fitView, setCenter, screenToFlowPosition } = useReactFlow<PaperFlowNode, PaperFlowEdge>();
   const [nodes, setNodes] = useState<PaperFlowNode[]>([]);
   const [edges, setEdges] = useState<PaperFlowEdge[]>([]);
   const [loadState, setLoadState] = useState<LoadState>("loading");
   const [loadAttempt, setLoadAttempt] = useState(0);
+  const [loadCatalogRevision, setLoadCatalogRevision] = useState(paperCatalogChange?.revision ?? 0);
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [actionError, setActionError] = useState<ActionError>(null);
   const [scope, setScope] = useState<WhiteboardScope>(ALL_SCOPE);
@@ -208,6 +222,7 @@ function WhiteboardCanvas({
   const pendingConnections = useRef(new Set<string>());
   const pendingFitNodeIds = useRef<readonly string[] | null>(null);
   const handledFocusRevision = useRef<number | null>(null);
+  const handledResearchFocus = useRef<number | null>(null);
   const forceLayout = useRef<
     ReturnType<typeof createObsidianForceLayout> | null
   >(null);
@@ -218,7 +233,7 @@ function WhiteboardCanvas({
   const dragSessionNodeIds = useRef(new Set<string>());
   const handledCatalogRevision = useRef<number | null>(
     paperCatalogChange?.kind === "deleted" ||
-      (paperCatalogChange?.kind as string | undefined) === "organized"
+      paperCatalogChange?.kind === "organized" || paperCatalogChange?.kind === "external"
       ? (paperCatalogChange?.revision ?? null)
       : null,
   );
@@ -237,6 +252,21 @@ function WhiteboardCanvas({
     edgesRef.current = nextEdges;
     if (isMounted.current) setEdges(nextEdges);
   }, []);
+
+  const onSelectionChange = useCallback(({ nodes: selected }: { nodes: PaperFlowNode[] }) => {
+    onSelectedPapersChange?.(selected.map(node => node.data.paper.id));
+  }, [onSelectedPapersChange]);
+
+  useEffect(() => {
+    if (!researchFocus || !active || loadState !== "ready" ||
+      loadCatalogRevision < researchFocus.revision || handledResearchFocus.current === researchFocus.revision) return;
+    if (scope.kind !== "all") return;
+    const ids = new Set(researchFocus.paperIds);
+    const targets = nodes.filter(node => ids.has(node.data.paper.id));
+    if (!targets.length) return;
+    handledResearchFocus.current = researchFocus.revision;
+    void fitView({ nodes: targets, padding: 0.25, maxZoom: 1.1 });
+  }, [active, fitView, loadCatalogRevision, loadState, nodes, researchFocus, scope.kind]);
 
   const updateSaveState = useCallback((nextState: SaveState) => {
     saveStateRef.current = nextState;
@@ -257,14 +287,15 @@ function WhiteboardCanvas({
   }, []);
 
   useEffect(() => {
-    const kind = paperCatalogChange?.kind as string | undefined;
+    const kind = paperCatalogChange?.kind;
     if (
-      (kind !== "deleted" && kind !== "organized") ||
+      (kind !== "deleted" && kind !== "organized" && kind !== "external") ||
       paperCatalogChange?.revision === handledCatalogRevision.current
     ) {
       return;
     }
     handledCatalogRevision.current = paperCatalogChange?.revision ?? null;
+    setLoadCatalogRevision(paperCatalogChange?.revision ?? 0);
     setLoadAttempt((attempt) => attempt + 1);
   }, [paperCatalogChange?.kind, paperCatalogChange?.revision]);
 
@@ -350,12 +381,14 @@ function WhiteboardCanvas({
         setSelectedEdgeId(null);
         updateSaveState("idle");
         setLoadState("ready");
+        if (researchFocus && loadCatalogRevision >= researchFocus.revision && handledResearchFocus.current !== researchFocus.revision) setScope(ALL_SCOPE);
+        onSnapshotLoaded?.(loadCatalogRevision);
         if (layoutChanged) {
           void enqueuePositionSnapshot(toPositionUpdates(loadedNodes), layoutRevision.current).catch(() => undefined);
         }
       },
       () => {
-        if (isActive && isMounted.current) setLoadState("error");
+        if (isActive && isMounted.current) { setLoadState("error"); onSnapshotFailed?.(); }
       },
     );
     return () => {
@@ -364,6 +397,10 @@ function WhiteboardCanvas({
   }, [
     enqueuePositionSnapshot,
     loadAttempt,
+    loadCatalogRevision,
+    onSnapshotLoaded,
+    onSnapshotFailed,
+    researchFocus,
     replaceEdges,
     replaceNodes,
     repository,
@@ -1283,6 +1320,9 @@ function WhiteboardCanvas({
       {selectedEdge && (
         <aside className="whiteboard__edge-editor" role="dialog" aria-label="连线备注">
           <h2>连线备注</h2>
+          {selectedEdge.data?.research && <p className="research-suggestion">
+            AI 建议 · {researchRelationLabels[selectedEdge.data.research.kind]} · 基于{researchBasisLabels[selectedEdge.data.research.basis]}
+          </p>}
           <div className="whiteboard__edge-color-field">
             <span>连线颜色</span>
             <div className="whiteboard__edge-relations" role="group" aria-label="连线颜色">
@@ -1343,6 +1383,7 @@ function WhiteboardCanvas({
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
           onNodesChange={onNodesChange}
+          onSelectionChange={onSelectionChange}
           onEdgesChange={onEdgesChange}
           onNodeDragStart={onNodeDragStart}
           onNodeDrag={onNodeDrag}
@@ -1429,11 +1470,19 @@ export function Whiteboard({
   onPaperDropComplete,
   paperDropIntent,
   paperFocusRequest,
+  onSelectedPapersChange,
+  onSnapshotLoaded,
+  onSnapshotFailed,
+  researchFocus,
 }: WhiteboardProps) {
   return (
     <ReactFlowProvider>
       <WhiteboardCanvas
         active={active}
+        onSelectedPapersChange={onSelectedPapersChange}
+        onSnapshotLoaded={onSnapshotLoaded}
+        onSnapshotFailed={onSnapshotFailed}
+        researchFocus={researchFocus}
         domainRepository={domainRepository}
         domains={domains}
         paperCatalogChange={paperCatalogChange}

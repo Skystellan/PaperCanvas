@@ -1,13 +1,13 @@
+#[cfg(feature = "tauri-shell")]
+use rusqlite::OpenFlags;
 use rusqlite::{Connection, OptionalExtension};
+#[cfg(feature = "tauri-shell")]
+use std::time::Duration;
 use std::{
     fs,
     io::{self, Write},
     path::{Path, PathBuf},
 };
-#[cfg(feature = "tauri-shell")]
-use rusqlite::OpenFlags;
-#[cfg(feature = "tauri-shell")]
-use std::time::Duration;
 #[cfg(feature = "tauri-shell")]
 use tauri::{AppHandle, Manager, Webview};
 #[cfg(feature = "tauri-shell")]

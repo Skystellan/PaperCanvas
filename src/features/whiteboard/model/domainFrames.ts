@@ -22,8 +22,13 @@ export interface DomainFrame {
 
 // Repair intersecting saved groups without imposing a movement boundary.
 export function withDomainRegions(nodes: readonly PaperFlowNode[]): PaperFlowNode[] {
+  // Imported groups have their own saved placement, independent of library domains.
+  // Combining them into the old unclassified bounding box would push existing groups.
+  const independent = nodes.filter(node => node.data.paper.research && node.data.paper.domainId === null);
+  const independentIds = new Set(independent.map(node => node.id));
   const groups = new Map<string | null, PaperFlowNode[]>();
   for (const node of nodes) {
+    if (independentIds.has(node.id)) continue;
     const id = node.data.paper.domainId;
     const group = groups.get(id) ?? [];
     group.push(node);
@@ -31,8 +36,8 @@ export function withDomainRegions(nodes: readonly PaperFlowNode[]): PaperFlowNod
   }
   if (groups.size < 2) return [...nodes];
 
-  const positioned = new Map<string, PaperFlowNode>();
-  const placed: NodeRectangle[] = [];
+  const positioned = new Map<string, PaperFlowNode>(independent.map(node => [node.id, node]));
+  const placed: NodeRectangle[] = independent.map(toNodeRectangle);
   for (const [id, group] of groups) {
     const rectangles = group.map(toNodeRectangle);
     const x = Math.min(...rectangles.map((node) => node.position.x)) - 48;

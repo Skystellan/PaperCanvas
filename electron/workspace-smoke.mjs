@@ -47,6 +47,32 @@ export async function workspaceSmoke({ wc, backend, paper, dataDirectory, evalua
   await click('Back to canvas');
   await until(`!document.querySelector('.paper-reader')`, 'canvas return');
 
+  // Exercise a second caller through the real business service and desktop event.
+  // No renderer callback or manual reload should be needed to refresh the library.
+  const command = (request, expectedRevision) => backend.call('workspace_command', {
+    request, expectedRevision, origin: 'smoke-external-client',
+  });
+  await evaluate(`window.workspaceEvents = [];
+    window.stopWorkspaceEvents = window.paperCanvas.on('workspace-changed', change => {
+      if (change.origin === 'smoke-external-client') window.workspaceEvents.push(change);
+    }); void 0;`);
+  const snapshot = await command({ type: 'load_board' });
+  const created = await command({ type: 'create_domain', name: 'External smoke domain' }, snapshot.revision);
+  assert.equal(created.changed, true);
+  await until(`document.querySelector('.paper-library').textContent.includes('External smoke domain')`, 'external domain appeared');
+  await assert.rejects(command({ type: 'rename_domain', domainId: created.value.id, name: 'Stale rename' }, snapshot.revision), /WORKSPACE_CONFLICT/);
+  assert.equal((await command({ type: 'list_domains' })).value.find(domain => domain.id === created.value.id).name, 'External smoke domain');
+  assert.equal(await evaluate('window.workspaceEvents.length'), 1, 'Reads and failed writes must not notify');
+  const renamed = await command({ type: 'rename_domain', domainId: created.value.id, name: 'External renamed domain' });
+  await until(`document.querySelector('.paper-library').textContent.includes('External renamed domain')`, 'external rename appeared');
+  const noOp = await command({ type: 'rename_domain', domainId: created.value.id, name: 'External renamed domain' }, renamed.revision);
+  assert.equal(noOp.changed, false);
+  assert.equal(await evaluate('window.workspaceEvents.length'), 2, 'No-op writes must not notify');
+  await command({ type: 'delete_domain', domainId: created.value.id });
+  await until(`!document.querySelector('.paper-library').textContent.includes('External renamed domain')`, 'external domain removed');
+  assert.equal(await evaluate(`!!document.querySelector('.workspace-error')`), false);
+  await evaluate('window.stopWorkspaceEvents(); void 0;');
+
   await backend.call('database_execute', { query: 'INSERT INTO board_nodes(id,board_id,paper_id,x,y,width,height) VALUES(?,?,?,?,?,?,?)', values: ['smoke-paper-node','board-default',paper.id,500,450,280,128] });
   await backend.call('database_execute', { query: 'INSERT INTO board_edges(id,board_id,source_node_id,target_node_id,created_at,evidence) VALUES(?,?,?,?,?,?)', values: ['smoke-edge','board-default','smoke-paper-node','node-attention',1,'Paper 1, page 3, Table 1'] });
   await reload();

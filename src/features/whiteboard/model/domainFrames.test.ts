@@ -29,6 +29,13 @@ function node(
 }
 
 describe("computeDomainFrames", () => {
+  it("keeps independent research imports from expanding the old unclassified region", () => {
+    const imported = node("imported", null, 1600, 0);
+    imported.data.paper.research = { doi: null, arxivId: null, url: "https://example.org/p", abstract: "", reason: "", group: "New direction", batchId: "batch" };
+    const nodes = [node("loose", null, 0, 0), node("domain", "domain-a", 600, 0), imported];
+    expect(withDomainRegions(nodes).map(item => item.position)).toEqual(nodes.map(item => item.position));
+  });
+
   it("expands and shrinks the region with its nodes instead of retaining a fixed drag extent", () => {
     const nodes = withDomainRegions([
       node("a", "domain-a", 0, 0), node("b", "domain-a", 400, 180),

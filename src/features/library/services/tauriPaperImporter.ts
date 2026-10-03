@@ -1,4 +1,4 @@
-import { getDatabase } from "../../../data/sqliteDatabase";
+import { executeWorkspaceCommand } from "../../../data/workspaceClient";
 import { invoke } from "../../../platform/core";
 import { open } from "../../../platform/dialog";
 
@@ -147,12 +147,8 @@ export class TauriPaperImporter implements PaperImporter {
     try {
       const title = await readPdfTitle(paper.filePath!);
       if (title && title !== paper.title) {
-        const database = await getDatabase();
-        const result = await database.execute(
-          "UPDATE papers SET title = $1 WHERE id = $2",
-          [title, paper.id],
-        );
-        if (result.rowsAffected === 1) return { ...paper, title };
+        await executeWorkspaceCommand({ type: "update_paper_title", paperId: paper.id, title });
+        return { ...paper, title };
       }
     } catch {
       // The PDF is already committed. Optional title extraction must not turn

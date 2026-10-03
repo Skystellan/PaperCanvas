@@ -2,12 +2,15 @@ import { app, BrowserWindow, dialog, ipcMain, Menu, net, protocol, session, shel
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { Backend } from './backend.mjs';
 import { Chats, CHAT_PARTITION } from './chats.mjs';
 import { APP_URL, assetPath, canWriteChatClipboard, isHttps, isLocalFrame } from './security.mjs';
 import { UpdateChecker } from './updates.mjs';
 import { createNativeUpdater } from './native-updates.mjs';
+import { createRendererResearchRequests, startResearchBridge } from './research-bridge.mjs';
+import { createOnlinePdfSessions } from './online-pdf.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const dataDirectory = process.env.PAPERCANVAS_DATA_DIR || path.join(
@@ -25,8 +28,13 @@ let chats;
 let allowClose = false;
 let installOnClose = null;
 let layoutQueue = Promise.resolve();
+let researchBridge;
+let onlinePdfs;
+let onlinePdfFixture;
+const researchRequests = createRendererResearchRequests(emit);
 const fileGrants = new Set();
 const commands = new Set([
+  'workspace_command',
   'database_load', 'database_select', 'database_execute',
   'load_markdown_note', 'save_markdown_note', 'list_paper_web_chats', 'save_paper_web_chat',
   'reconcile_pdf_storage',
@@ -38,6 +46,34 @@ function emit(event, payload) {
 
 async function invoke(command, args) {
   switch (command) {
+    case 'open_online_pdf':
+      return onlinePdfs.open(args);
+    case 'release_online_pdf':
+      onlinePdfs.release(args.requestId);
+      return;
+    case 'save_online_pdf': {
+      const document = onlinePdfs.get(args.requestId);
+      // Staging only happens after an explicit save. Rust attaches these bytes to
+      // the existing paper under its transaction and managed-file safeguards.
+      const temporary = await mkdtemp(path.join(tmpdir(), 'papercanvas-offline-'));
+      try {
+        const sourcePath = path.join(temporary, 'source.pdf');
+        await writeFile(sourcePath, document.bytes, { mode: 0o600, flag: 'wx' });
+        return await backend.call('save_online_pdf', { paperId: document.paperId, sourcePath, url: document.url, sha256: document.sha256 });
+      } finally { await rm(temporary, { recursive: true, force: true }); }
+    }
+    case 'open_research_source': {
+      const url = new URL(args.url);
+      if (!['https:', 'http:'].includes(url.protocol) || url.username || url.password) throw new Error('Invalid paper source URL.');
+      await shell.openExternal(url.href);
+      return;
+    }
+    case 'research_bridge_ready':
+      researchRequests.setReady(true);
+      return;
+    case 'research_tool_reply':
+      researchRequests.reply(args);
+      return;
     case 'read_file': {
       // Stream PDF bytes through Chromium rather than expanding them into a JSON number array.
       const file = await backend.call('resolve_pdf_path', args);
@@ -154,7 +190,18 @@ else {
   const binary = app.isPackaged
     ? path.join(process.resourcesPath, backendName)
     : path.join(root, 'src-tauri/target/debug', backendName);
-  backend = new Backend(binary, dataDirectory);
+  backend = new Backend(binary, dataDirectory, (change) => emit('workspace-changed', change));
+  const pdfSession = session.fromPartition('papercanvas-online-pdf', { cache: false });
+  let fetchPdf = pdfSession.fetch.bind(pdfSession);
+  if (process.env.PAPERCANVAS_SMOKE === '1' && process.env.PAPERCANVAS_ONLINE_PDF_SMOKE === '1') {
+    onlinePdfFixture = (await import('./online-pdf-smoke.mjs')).createOnlinePdfFixture();
+    fetchPdf = onlinePdfFixture.fetchPdf;
+  }
+  onlinePdfs = createOnlinePdfSessions({
+    getSource: paperId => backend.call('online_pdf_info', { paperId }),
+    pinSource: args => backend.call('pin_online_pdf', args),
+    fetchPdf,
+  });
   chats = new Chats(mainWindow, backend, emit);
   ipcMain.handle('paper-canvas:invoke', async (event, command, args = {}) => {
     if (!isLocalFrame(event, mainWindow)) return { error: 'Only the local reader can access PaperCanvas.' };
@@ -172,6 +219,7 @@ else {
       if (isHttps(url)) void shell.openExternal(url);
     }
   });
+  mainWindow.webContents.on('did-start-loading', () => { researchRequests.reset(); onlinePdfs.close(); });
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     if (isHttps(url)) void shell.openExternal(url);
     return { action: 'deny' };
@@ -179,7 +227,12 @@ else {
   mainWindow.on('close', (event) => {
     if (!allowClose) { event.preventDefault(); emit('native-close-requested'); }
   });
-  mainWindow.on('closed', () => { chats.close(); backend.close(); });
+  mainWindow.on('closed', () => {
+    onlinePdfs.close();
+    researchRequests.reset();
+    void researchBridge?.close().catch(() => {});
+    chats.close(); backend.close();
+  });
   mainWindow.once('ready-to-show', () => mainWindow.show());
   const showUpdateDialog = (options) => mainWindow.isDestroyed()
     ? Promise.resolve({ response: 1 }) : dialog.showMessageBox(mainWindow, options);
@@ -219,6 +272,7 @@ else {
   ]));
   if (process.env.PAPERCANVAS_SMOKE === '1') console.log('Smoke loading reader');
   await mainWindow.loadURL(APP_URL);
+  researchBridge = await startResearchBridge({ dataDirectory, callTool: (tool, args) => researchRequests.request(tool, args) });
   void updates.check();
   if (process.env.PAPERCANVAS_SMOKE === '1') {
     try {
@@ -227,12 +281,12 @@ else {
         await linuxUpdateSmoke({ dataDirectory, requestInstall });
       } else {
         const { smoke } = await import('./smoke.mjs');
-        await smoke({ window: mainWindow, backend, chats, dataDirectory, chatSession });
+        await smoke({ window: mainWindow, backend, chats, dataDirectory, chatSession, onlinePdfFixture });
       }
       backend.close();
       app.exit(0);
     } catch (error) {
-      console.error(error);
+      console.error('Desktop smoke failed:', error?.stack || error?.message || error);
       await writeFile(path.join(dataDirectory, 'failure.png'), (await mainWindow.webContents.capturePage()).toPNG());
       backend.close();
       app.exit(1);

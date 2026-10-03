@@ -1,10 +1,10 @@
 use rusqlite::{params, Connection};
-use serde::Serialize;
 #[cfg(feature = "tauri-shell")]
 use serde::Deserialize;
-use std::time::{SystemTime, UNIX_EPOCH};
+use serde::Serialize;
 #[cfg(feature = "tauri-shell")]
 use std::time::Duration;
+use std::time::{SystemTime, UNIX_EPOCH};
 #[cfg(feature = "tauri-shell")]
 use tauri::{
     webview::WebviewBuilder, AppHandle, Emitter, LogicalPosition, LogicalSize, Manager, Rect,

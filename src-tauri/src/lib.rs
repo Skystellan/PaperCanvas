@@ -1,7 +1,10 @@
 pub mod backend;
 mod markdown_notes;
+mod online_pdf;
 mod paper_import;
+pub mod research;
 mod web_chat;
+pub mod workspace;
 
 pub use paper_import::{
     delete_paper_from_library, import_pdf_into_library, import_pdf_into_library_with_domain,
@@ -248,18 +251,36 @@ pub fn migrations() -> Vec<Migration> {
             description: "store manually supplied Mermaid mind maps",
             sql: include_str!("../migrations/0017_paper_mermaid_maps.sql"),
         },
+        Migration {
+            version: 18,
+            description: "track default board snapshot revisions",
+            sql: include_str!("../migrations/0018_workspace_revision.sql"),
+        },
+        Migration {
+            version: 19,
+            description: "store research imports, identities and safe undo snapshots",
+            sql: include_str!("../migrations/0019_research.sql"),
+        },
+        Migration {
+            version: 20,
+            description: "pin online PDF document identity independently of paper metadata",
+            sql: include_str!("../migrations/0020_paper_pdf_documents.sql"),
+        },
     ]
 }
 
 #[cfg(feature = "tauri-shell")]
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let migrations = migrations().into_iter().map(|m| tauri_plugin_sql::Migration {
-        version: m.version,
-        description: m.description,
-        sql: m.sql,
-        kind: tauri_plugin_sql::MigrationKind::Up,
-    }).collect();
+    let migrations = migrations()
+        .into_iter()
+        .map(|m| tauri_plugin_sql::Migration {
+            version: m.version,
+            description: m.description,
+            sql: m.sql,
+            kind: tauri_plugin_sql::MigrationKind::Up,
+        })
+        .collect();
     tauri::Builder::default()
         .manage(markdown_notes::NoteFileState::default())
         .manage(web_chat::WebChatState::default())
@@ -271,6 +292,7 @@ pub fn run() {
                 .build(),
         )
         .invoke_handler(tauri::generate_handler![
+            workspace::workspace_command,
             markdown_notes::load_markdown_note,
             markdown_notes::save_markdown_note,
             markdown_notes::reveal_markdown_note,

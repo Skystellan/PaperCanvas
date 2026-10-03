@@ -132,6 +132,21 @@ describe("PdfViewer", () => {
     vi.stubGlobal("IntersectionObserver", ImmediateIntersectionObserver);
   });
 
+  it("renders an in-memory PDF without reading or detaching the caller's buffer", async () => {
+    const pdf = createPdf();
+    const readFile = vi.fn();
+    const data = new Uint8Array([37, 80, 68, 70]);
+    const memoryDocument = { key: "papers/online.pdf", data };
+    const view = render(<PdfViewer filePath={null} memoryDocument={memoryDocument} readPdfFile={readFile} pdfJs={pdf.adapter} />);
+    await waitFor(() => expect(pdf.document.getPage).toHaveBeenCalled());
+    expect(readFile).not.toHaveBeenCalled();
+    const loaded = vi.mocked(pdf.adapter.getDocument).mock.calls[0][0].data;
+    expect(loaded).toEqual(data);
+    expect(loaded.buffer).not.toBe(data.buffer);
+    view.unmount();
+    expect(pdf.loadingTask.destroy).toHaveBeenCalled();
+  });
+
   it("reads an app-owned PDF and renders every page at HiDPI", async () => {
     const pdf = createPdf(2);
     const readFile = vi.fn().mockResolvedValue(new Uint8Array([37, 80, 68, 70]));

@@ -57,6 +57,7 @@ const defaultImporter = new TauriPaperImporter();
 const defaultMutator = new TauriPaperLibraryMutator();
 
 export interface PaperLibraryProps {
+  externalRevision?: number;
   domainRepository?: PaperDomainRepository;
   repository?: PaperRepository;
   importer?: PaperImporter;
@@ -354,6 +355,7 @@ export function PaperLibrary({
   onOrganizationChanged,
   selectedPaperId,
   trackPersistenceOperation,
+  externalRevision = 0,
 }: PaperLibraryProps) {
   const [maxWidth, setMaxWidth] = useState(maximumWidth);
   const [width, setWidth] = useState(storedWidth);
@@ -474,7 +476,7 @@ export function PaperLibrary({
     return () => {
       active = false;
     };
-  }, [domainRepository, reconcileStorageOnce, repository]);
+  }, [domainRepository, externalRevision, reconcileStorageOnce, repository]);
 
   const completeImport = useCallback(
     (operation: () => Promise<Paper[]>): Promise<void> => {

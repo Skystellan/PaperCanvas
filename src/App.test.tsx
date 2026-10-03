@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { render, screen } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, expect, it, vi } from "vitest";
 import type { Paper } from "./features/library";
@@ -15,6 +15,8 @@ const paper: Paper = {
 };
 
 const catalog = vi.hoisted(() => ({ getById: vi.fn() }));
+const workspace = vi.hoisted(() => ({ listen: vi.fn(), stop: vi.fn() }));
+vi.mock("./data/workspaceClient", () => ({ listenForExternalWorkspaceChanges: workspace.listen }));
 
 const persistence = vi.hoisted(() => ({
   flushPending: vi.fn(),
@@ -181,11 +183,37 @@ vi.mock("./features/ai", () => ({
 import App from "./App";
 
 beforeEach(() => {
+  workspace.listen.mockReset().mockResolvedValue(workspace.stop);
+  workspace.stop.mockReset();
   catalog.getById.mockReset().mockResolvedValue(paper);
   persistence.flushPending.mockReset().mockResolvedValue(undefined);
   persistence.trackOperation
     .mockReset()
     .mockImplementation((operation: Promise<unknown>) => operation);
+});
+
+it("flushes local drafts before applying an external workspace change", async () => {
+  let finish!: () => void;
+  persistence.flushPending.mockReturnValue(new Promise<void>((resolve) => { finish = resolve; }));
+  const view = render(<App />);
+  act(() => workspace.listen.mock.calls[0][0]());
+  await waitFor(() => expect(persistence.flushPending).toHaveBeenCalledOnce());
+  expect(screen.getByLabelText("Canvas catalog change")).toHaveTextContent("none");
+  await act(async () => finish());
+  expect(screen.getByLabelText("Canvas catalog change")).toHaveTextContent("external:1");
+  view.unmount();
+  await waitFor(() => expect(workspace.stop).toHaveBeenCalledOnce());
+});
+
+it("keeps unsaved UI state when an external change conflicts with its save", async () => {
+  persistence.flushPending.mockRejectedValue(new Error("WORKSPACE_CONFLICT"));
+  const user = userEvent.setup();
+  render(<App />);
+  await user.type(screen.getByLabelText("Canvas memory"), "unsaved layout");
+  act(() => workspace.listen.mock.calls[0][0]());
+  expect(await screen.findByRole("alert")).toHaveTextContent("当前未保存内容已保留");
+  expect(screen.getByLabelText("Canvas memory")).toHaveValue("unsaved layout");
+  expect(screen.getByLabelText("Canvas catalog change")).toHaveTextContent("none");
 });
 
 it("composes the local Library and canvas inside one persistence coordinator", () => {

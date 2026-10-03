@@ -1,17 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { WorkspaceCommandRunner } from "../../../data/workspaceClient";
 
 const tauri = vi.hoisted(() => ({
   invoke: vi.fn(),
   open: vi.fn(),
   readPdfTitle: vi.fn(),
-  execute: vi.fn(),
+  executeWorkspaceCommand: vi.fn<WorkspaceCommandRunner>(),
 }));
 
-vi.mock("@tauri-apps/api/core", () => ({ invoke: tauri.invoke }));
-vi.mock("@tauri-apps/plugin-dialog", () => ({ open: tauri.open }));
+vi.mock("../../../platform/core", () => ({ invoke: tauri.invoke }));
+vi.mock("../../../platform/dialog", () => ({ open: tauri.open }));
 vi.mock("./pdfTitle", () => ({ readPdfTitle: tauri.readPdfTitle }));
-vi.mock("../../../data/sqliteDatabase", () => ({
-  getDatabase: async () => ({ execute: tauri.execute }),
+vi.mock("../../../data/workspaceClient", () => ({
+  executeWorkspaceCommand: tauri.executeWorkspaceCommand,
 }));
 
 import {
@@ -43,7 +44,7 @@ describe("TauriPaperImporter", () => {
     tauri.invoke.mockReset();
     tauri.open.mockReset();
     tauri.readPdfTitle.mockReset().mockResolvedValue(null);
-    tauri.execute.mockReset().mockResolvedValue({ rowsAffected: 1 });
+    tauri.executeWorkspaceCommand.mockReset().mockResolvedValue({ revision: 2, value: null });
   });
 
   it("persists the PDF title instead of its arXiv filename before returning the paper", async () => {
@@ -53,28 +54,78 @@ describe("TauriPaperImporter", () => {
     const papers = await new TauriPaperImporter().importPaths(["/tmp/2303.08774v2.pdf"]);
 
     expect(papers[0].title).toBe("A Researcher's Guide to Transformers");
+    expect(tauri.invoke).toHaveBeenCalledExactlyOnceWith("import_pdf", {
+      sourcePath: "/tmp/2303.08774v2.pdf",
+      domainId: null,
+    });
     expect(tauri.readPdfTitle).toHaveBeenCalledWith(importedPaper.filePath);
-    expect(tauri.execute).toHaveBeenCalledWith(
-      "UPDATE papers SET title = $1 WHERE id = $2",
-      ["A Researcher's Guide to Transformers", importedPaper.id],
-    );
+    expect(tauri.executeWorkspaceCommand).toHaveBeenCalledExactlyOnceWith({
+      type: "update_paper_title",
+      paperId: importedPaper.id,
+      title: "A Researcher's Guide to Transformers",
+    });
   });
 
-  it.each(["missing", "unreadable", "save failed"])(
+  it.each(["missing", "unchanged", "unreadable", "save failed"])(
     "keeps the committed import and filename when its title is %s",
     async (failure) => {
       tauri.invoke.mockResolvedValue(importedPaper);
+      if (failure === "unchanged") tauri.readPdfTitle.mockResolvedValue(importedPaper.title);
       if (failure === "unreadable") tauri.readPdfTitle.mockRejectedValue(new Error("PDF parsing failed"));
       if (failure === "save failed") {
         tauri.readPdfTitle.mockResolvedValue("Extracted title");
-        tauri.execute.mockRejectedValue(new Error("database unavailable"));
+        tauri.executeWorkspaceCommand.mockRejectedValue(new Error("workspace unavailable"));
       }
 
       await expect(new TauriPaperImporter().importPaths(["/tmp/paper.pdf"]))
         .resolves.toEqual([importedPaper]);
-      if (failure !== "save failed") expect(tauri.execute).not.toHaveBeenCalled();
+      expect(tauri.invoke).toHaveBeenCalledOnce();
+      if (failure === "save failed") {
+        expect(tauri.executeWorkspaceCommand).toHaveBeenCalledExactlyOnceWith({
+          type: "update_paper_title", paperId: importedPaper.id, title: "Extracted title",
+        });
+      } else {
+        expect(tauri.executeWorkspaceCommand).not.toHaveBeenCalled();
+      }
     },
   );
+
+  it("waits for title persistence before returning the updated paper", async () => {
+    tauri.invoke.mockResolvedValue(importedPaper);
+    tauri.readPdfTitle.mockResolvedValue("Extracted title");
+    let finishSave!: () => void;
+    tauri.executeWorkspaceCommand.mockReturnValue(new Promise((resolve) => {
+      finishSave = () => resolve({ revision: 2, value: null });
+    }));
+    const completed = vi.fn();
+    const importing = new TauriPaperImporter().importPaths(["/tmp/paper.pdf"]);
+    void importing.then(completed);
+
+    await vi.waitFor(() => expect(tauri.executeWorkspaceCommand).toHaveBeenCalledOnce());
+    expect(completed).not.toHaveBeenCalled();
+
+    finishSave();
+    await expect(importing).resolves.toEqual([{ ...importedPaper, title: "Extracted title" }]);
+  });
+
+  it("continues a batch after optional title persistence fails", async () => {
+    tauri.invoke
+      .mockResolvedValueOnce(importedPaper)
+      .mockResolvedValueOnce(secondImportedPaper);
+    tauri.readPdfTitle
+      .mockResolvedValueOnce("First extracted title")
+      .mockResolvedValueOnce("Second extracted title");
+    tauri.executeWorkspaceCommand.mockRejectedValueOnce(new Error("workspace unavailable"));
+
+    await expect(new TauriPaperImporter().importPaths(["/tmp/one.pdf", "/tmp/two.pdf"]))
+      .resolves.toEqual([importedPaper, { ...secondImportedPaper, title: "Second extracted title" }]);
+
+    expect(tauri.invoke).toHaveBeenCalledTimes(2);
+    expect(tauri.executeWorkspaceCommand.mock.calls).toEqual([
+      [{ type: "update_paper_title", paperId: importedPaper.id, title: "First extracted title" }],
+      [{ type: "update_paper_title", paperId: secondImportedPaper.id, title: "Second extracted title" }],
+    ]);
+  });
 
   it("opens a multi-select PDF picker and imports every selected path", async () => {
     tauri.open.mockResolvedValue([

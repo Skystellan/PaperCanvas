@@ -1,4 +1,5 @@
 import type { Edge } from "@xyflow/react";
+import type { ResearchEdge } from "../../research/research";
 
 export interface BoardEdgeAnnotations {
   explanation: string;
@@ -11,12 +12,14 @@ export interface BoardEdgeRecord extends BoardEdgeAnnotations {
   sourceNodeId: string;
   targetNodeId: string;
   relation: BoardEdgeRelation;
+  research?: ResearchEdge;
 }
 
 export type BoardEdgeRelation = "support" | "challenge" | null;
 
 interface PaperEdgeData extends Record<string, unknown>, BoardEdgeAnnotations {
   relation: BoardEdgeRelation;
+  research?: ResearchEdge;
 }
 
 export type PaperFlowEdge = Edge<PaperEdgeData>;
@@ -108,7 +111,8 @@ export function toFlowEdge(record: BoardEdgeRecord): PaperFlowEdge {
     source: record.sourceNodeId,
     target: record.targetNodeId,
     type: "paper",
-    data: { relation: null, explanation: record.explanation, evidence: record.evidence },
+    data: { relation: null, explanation: record.explanation, evidence: record.evidence,
+      ...(record.research ? { research: record.research } : {}) },
   }, record.relation ?? null);
 }
 

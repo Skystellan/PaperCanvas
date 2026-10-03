@@ -36,6 +36,7 @@ import type { NoteRepository } from "./model/noteAutosaveController";
 import { useAutosavingNote } from "./useAutosavingNote";
 import { usePdfHighlights } from "./usePdfHighlights";
 import "./reader.css";
+import { ResearchPdfReader } from "../research/ResearchPdfReader";
 
 import { loadReaderState, saveReaderState, type PdfReadingLocation, type ReaderWorkspace } from "./model/readerState";
 import { highlightMarkdown, type NoteCitation } from "./model/noteCitation";
@@ -57,6 +58,7 @@ export interface PaperReaderProps {
   discussion?: ReactNode;
   paper: Paper;
   onBack: () => void | Promise<void>;
+  onPaperUpdated?: (paper: Paper) => void;
   highlightRepository?: PdfHighlightRepository;
   mindMapRepository?: MindMapRepository;
   noteRepository?: NoteRepository;
@@ -75,6 +77,7 @@ function PaperReaderSession({
   mindMapRepository,
   noteRepository = markdownNoteRepository,
   onBack,
+  onPaperUpdated,
   paper,
   pdfJs,
   readPdfFile,
@@ -294,7 +297,16 @@ function PaperReaderSession({
           } as CSSProperties
         }
       >
-        <PdfViewer
+        {paper.research ? <ResearchPdfReader paper={paper} onPaperUpdated={onPaperUpdated} viewerProps={{
+          initialLocation: savedState.location,
+          onLocationChange: saveLocation,
+          navigationTarget: citationTarget,
+          focusedHighlightId: selectedHighlightId,
+          highlights,
+          pdfJs,
+          readPdfFile,
+          selectionActions,
+        }} /> : <PdfViewer
           filePath={paper.filePath}
           initialLocation={savedState.location}
           onLocationChange={saveLocation}
@@ -304,7 +316,7 @@ function PaperReaderSession({
           pdfJs={pdfJs}
           readPdfFile={readPdfFile}
           selectionActions={selectionActions}
-        />
+        />}
         {isSidebarOpen && (
           <div
             aria-label="Resize reader sidebar"

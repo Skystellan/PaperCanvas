@@ -2519,11 +2519,12 @@ dependencies = [
 
 [[package]]
 name = "paper-canvas"
-version = "0.2.11"
+version = "0.3.0"
 dependencies = [
  "rusqlite",
  "serde",
  "serde_json",
+ "sha2",
  "sqlx",
  "tauri",
  "tauri-build",

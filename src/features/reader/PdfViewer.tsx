@@ -183,6 +183,7 @@ export type PdfFileReader = (
 
 export interface PdfViewerProps {
   filePath: string | null;
+  memoryDocument?: { key: string; data: Uint8Array };
   initialLocation?: PdfReadingLocation;
   onLocationChange?: (location: PdfReadingLocation) => void;
   navigationTarget?: NoteCitation | null;
@@ -575,6 +576,7 @@ function PdfPageCanvas({
 
 export function PdfViewer({
   filePath,
+  memoryDocument,
   initialLocation,
   onLocationChange,
   navigationTarget,
@@ -585,7 +587,8 @@ export function PdfViewer({
   selectionActions,
   viewerRuntimeFactory = createPdfViewerRuntime,
 }: PdfViewerProps) {
-  if (!filePath) {
+  const documentKey = memoryDocument?.key ?? filePath;
+  if (!documentKey) {
     return (
       <section className="pdf-viewer pdf-viewer--empty" aria-label="PDF viewer">
         <p role="alert">This legacy paper has no local PDF.</p>
@@ -595,13 +598,15 @@ export function PdfViewer({
 
   return (
     <PdfViewerFile
-      filePath={filePath}
+      filePath={memoryDocument ? null : filePath}
+      memoryDocument={memoryDocument}
+      documentKey={documentKey}
       initialLocation={initialLocation}
       onLocationChange={onLocationChange}
       navigationTarget={navigationTarget}
       focusedHighlightId={focusedHighlightId}
       highlights={highlights}
-      key={filePath}
+      key={documentKey}
       pdfJs={pdfJs}
       readPdfFile={readPdfFile}
       selectionActions={selectionActions}
@@ -913,6 +918,8 @@ const OfficialPdfPages = memo(function OfficialPdfPages({
 
 function PdfViewerFile({
   filePath,
+  memoryDocument,
+  documentKey,
   initialLocation,
   onLocationChange,
   navigationTarget,
@@ -923,7 +930,9 @@ function PdfViewerFile({
   selectionActions = {},
   viewerRuntimeFactory,
 }: {
-  filePath: string;
+  filePath: string | null;
+  memoryDocument?: { key: string; data: Uint8Array };
+  documentKey: string;
   initialLocation?: PdfReadingLocation;
   onLocationChange?: (location: PdfReadingLocation) => void;
   navigationTarget?: NoteCitation | null;
@@ -964,7 +973,9 @@ function PdfViewerFile({
     void (async () => {
       try {
         const [data, adapter] = await Promise.all([
-          readPdfFile(filePath, { baseDir: BaseDirectory.AppData }),
+          // PDF.js transfers its buffer to a worker; keep the caller's in-memory
+          // document intact so switching to metadata and back can render again.
+          memoryDocument ? Promise.resolve(memoryDocument.data.slice()) : readPdfFile(filePath!, { baseDir: BaseDirectory.AppData }),
           pdfJs ? Promise.resolve(pdfJs) : loadDefaultPdfJs(),
         ]);
         if (!active) return;
@@ -1011,7 +1022,7 @@ function PdfViewerFile({
       if (loadingTask) ignoreCleanupFailure(loadingTask.destroy());
       if (loadedDocument) ignoreCleanupFailure(loadedDocument.destroy());
     };
-  }, [filePath, initialLocation, pdfJs, readPdfFile]);
+  }, [filePath, memoryDocument, initialLocation, pdfJs, readPdfFile]);
 
   const registerPage = useCallback(
     (pageNumber: number): RefCallback<HTMLDivElement> =>
@@ -1584,7 +1595,7 @@ function PdfViewerFile({
           </div>
         </div>
       ) : null}
-      {officialRuntime && document && <PdfOutline runtime={officialRuntime} currentPage={currentPage} filePath={filePath} pageCount={document.numPages} />}
+      {officialRuntime && document && <PdfOutline runtime={officialRuntime} currentPage={currentPage} filePath={documentKey} pageCount={document.numPages} />}
     </section>
   );
 }

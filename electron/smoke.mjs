@@ -3,11 +3,11 @@ import { once } from 'node:events';
 import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
-import { app, clipboard, ClipboardItem } from 'electron';
+import { app, clipboard, ClipboardItem, nativeImage } from 'electron';
 
 // Fresh database and chat profile. PDF defaults to synthetic content; an explicit
 // PAPERCANVAS_SMOKE_PDF path imports a copy for local performance measurements.
-function pdfFixture() {
+export function pdfFixture() {
   const objects = ['<< /Type /Catalog /Pages 2 0 R >>', '', '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>'];
   const kids = [];
   const pageCount = process.env.PAPERCANVAS_PERFORMANCE === '1' ? 150 : 20;
@@ -36,21 +36,32 @@ function pdfFixture() {
   return pdf + `trailer\n<< /Size ${offsets.length} /Root 1 0 R >>\nstartxref\n${start}\n%%EOF`;
 }
 
-export async function smoke({ window, backend, chats, dataDirectory, chatSession }) {
+export async function smoke({ window, backend, chats, dataDirectory, chatSession, onlinePdfFixture }) {
   assert.match(dataDirectory, /papercanvas-smoke-/);
   assert.equal(app.commandLine.hasSwitch('no-sandbox'), false, 'The packaged launcher must preserve Chromium sandboxing');
   // Real mouse/trackpad input must not mix with the scripted input schedule.
   window.setIgnoreMouseEvents(true);
   const wc = window.webContents;
+  // The user can cover the test window while working. Keep scripted paint waits
+  // running instead of suspending requestAnimationFrame when it is backgrounded.
+  wc.setBackgroundThrottling(false);
   const evaluate = async (script) => {
+    let stage = 'script';
+    let timeout;
     try {
-      const result = await wc.executeJavaScript(script);
-      // React commits synthetic input asynchronously; the next action must see it.
-      await wc.executeJavaScript('new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))');
-      return result;
+      return await Promise.race([
+        (async () => {
+          const result = await wc.executeJavaScript(script);
+          stage = 'paint';
+          // React commits synthetic input asynchronously; the next action must see it.
+          await wc.executeJavaScript('new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))');
+          return result;
+        })(),
+        new Promise((_, reject) => { timeout = setTimeout(() => reject(new Error(`Renderer ${stage} timed out`)), 10_000); }),
+      ]);
     } catch (error) {
       throw new Error(`${script.slice(0, 90)}: ${error.message}`);
-    }
+    } finally { clearTimeout(timeout); }
   };
   const errors = [];
   wc.on('console-message', (event) => { if (event.level === 'error') errors.push(event.message); });
@@ -63,6 +74,16 @@ export async function smoke({ window, backend, chats, dataDirectory, chatSession
     throw new Error(`Timed out: ${label}; renderer errors: ${errors.join('; ')}`);
   }
   await until('!!window.paperCanvas', 'preload');
+  if (process.env.PAPERCANVAS_ONLINE_PDF_SMOKE === '1') {
+    const { onlinePdfSmoke } = await import('./online-pdf-smoke.mjs');
+    await onlinePdfSmoke({ wc, backend, dataDirectory, evaluate, until, fixture: onlinePdfFixture });
+    return;
+  }
+  if (process.env.PAPERCANVAS_RESEARCH_SMOKE === '1') {
+    const { researchSmoke } = await import('./research-smoke.mjs');
+    await researchSmoke({ wc, backend, dataDirectory, evaluate, until });
+    return;
+  }
   if (['1', 'star'].includes(process.env.PAPERCANVAS_WHITEBOARD_SMOKE)) {
     const reload = async () => {
       const ready = once(wc, 'did-finish-load');
@@ -194,7 +215,9 @@ export async function smoke({ window, backend, chats, dataDirectory, chatSession
     for (let i=0; i<30 && await guest.executeJavaScript(`document.querySelector('textarea').value`) !== 'PaperCanvas clipboard fixture'; i++) await delay(50);
     assert.equal(await guest.executeJavaScript(`document.querySelector('textarea').value`), 'PaperCanvas clipboard fixture');
     await guest.executeJavaScript(`window.pastedImage=false; document.addEventListener('paste',event=>{window.pastedImage=[...event.clipboardData.items].some(item=>item.type==='image/png')},{once:true})`);
-    const png = (await guest.capturePage({ x: 0, y: 0, width: 1, height: 1 })).toPNG();
+    // This checks image pasting, not screen capture. A hidden guest may have no
+    // compositor surface and capturePage then fails with UnknownVizError.
+    const png = nativeImage.createFromBitmap(Buffer.from([0, 0, 0, 255]), { width: 1, height: 1 }).toPNG();
     await clipboard.write([new ClipboardItem({ 'image/png': new Blob([png], { type: 'image/png' }) })]);
     guest.paste();
     for (let i=0; i<30 && !(await guest.executeJavaScript('window.pastedImage')); i++) await delay(50);

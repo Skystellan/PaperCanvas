@@ -12,7 +12,7 @@ export default defineConfig(async () => ({
     environment: "jsdom",
     // Browser tests must use jsdom storage, not Node's process-wide Web Storage.
     execArgv: ["--no-experimental-webstorage"],
-    exclude: ["electron/**", "release/**", "node_modules/**", "dist/**"],
+    exclude: ["electron/**", "mcp/**", "release/**", "node_modules/**", "dist/**"],
     setupFiles: ["./src/test/setup.ts"],
     coverage: {
       provider: "v8",

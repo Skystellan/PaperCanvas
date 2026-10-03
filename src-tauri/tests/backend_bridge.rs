@@ -10,7 +10,8 @@ use std::{
 struct Temp(PathBuf);
 impl Temp {
     fn new() -> Self {
-        let p = std::env::temp_dir().join(format!("paper-backend-论文 空格-{}", uuid::Uuid::new_v4()));
+        let p =
+            std::env::temp_dir().join(format!("paper-backend-论文 空格-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir(&p).unwrap();
         Self(p)
     }
@@ -101,10 +102,75 @@ fn json_lines_bridge_import_notes_sql_and_safe_files() {
         result
     };
     assert!(call("database_load", json!({})).get("result").is_some());
+    let snapshot = call(
+        "workspace_command",
+        json!({"request":{"type":"load_board"}}),
+    );
+    assert_eq!(snapshot["result"]["changed"], false);
+    assert_eq!(
+        snapshot["result"]["value"]["nodes"][0]["boardId"],
+        "board-default"
+    );
+    let revision = snapshot["result"]["revision"].as_i64().unwrap();
+    let moved = call(
+        "workspace_command",
+        json!({
+            "request":{"type":"save_node_positions","updates":[{"id":"node-attention","x":7,"y":8}]},
+            "expectedRevision":revision,"origin":"client-one"
+        }),
+    );
+    assert_eq!(moved["result"]["value"], Value::Null);
+    assert_eq!(moved["result"]["changed"], true);
+    assert_eq!(moved["result"]["revision"], revision + 1);
+    assert_eq!(
+        call(
+            "workspace_command",
+            json!({
+                "request":{"type":"save_node_positions","updates":[{"id":"node-attention","x":90,"y":90}]},
+                "expectedRevision":revision,"origin":"main"
+            })
+        )["error"],
+        "WORKSPACE_CONFLICT"
+    );
+    for args in [
+        json!({"request":{"type":"unknown"}}),
+        json!({"request":{"type":"save_node_positions","updates":[{"id":"node-attention","x":"7","y":8}]}}),
+        json!({"request":{"type":"load_board"},"expectedRevision":"0"}),
+        json!({"request":{"type":"load_board"},"origin":true}),
+    ] {
+        assert!(call("workspace_command", args).get("error").is_some());
+    }
     let paper = call("import_pdf", json!({"sourcePath":source}));
     assert!(paper.get("error").is_none(), "{paper}");
     let paper_id = paper["result"]["id"].as_str().unwrap();
     let file_path = paper["result"]["filePath"].as_str().unwrap();
+    let renamed = call(
+        "workspace_command",
+        json!({
+            "request":{"type":"update_paper_title","paperId":paper_id,"title":"Imported title"},
+            "expectedRevision":revision+1
+        }),
+    );
+    assert_eq!(renamed["result"]["changed"], true);
+    assert_eq!(renamed["result"]["revision"], revision + 1);
+    assert_eq!(
+        call(
+            "workspace_command",
+            json!({
+                "request":{"type":"update_paper_title","paperId":paper_id,"title":"Imported title"}
+            })
+        )["result"]["changed"],
+        false
+    );
+    assert_eq!(
+        call(
+            "workspace_command",
+            json!({
+                "request":{"type":"get_paper","id":paper_id}
+            })
+        )["result"]["value"]["filePath"],
+        file_path
+    );
     assert!(call("read_file", json!({"path":file_path}))["result"].is_array());
     assert_eq!(
         call("resolve_pdf_path", json!({"path":file_path}))["result"],

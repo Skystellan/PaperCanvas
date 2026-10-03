@@ -23,12 +23,17 @@ Electron 后端使用 `--no-default-features`，无需 Tauri/WebKit 开发包；
 ## 项目结构
 
 - `src/features/`：论文库、白板、阅读器、思维导图、AI 和保存协调逻辑。
-- `src/data/`：共享 SQLite 接口。
+- `src/data/`：共享业务命令客户端与现有 SQLite 接口。
 - `electron/`：当前 Chromium 桌面窗口、内嵌网页和本地进程桥接。
+- `mcp/`：论文初筛 MCP 的官方 SDK stdio 适配、客户端连接说明与协议测试。
 - `src/platform/`：共享前端使用的桌面能力适配。
 - `src-tauri/src/`：共享 Rust 存储、PDF 导入，以及原 Tauri 桌面壳。
 - `src-tauri/migrations/`：SQLite 迁移；已有迁移保持不变，以新增迁移扩展数据结构。
-- `docs/`：人工验证记录，注意各记录的日期和验证边界。
+- `docs/`：架构说明与人工验证记录，注意各记录的日期和验证边界。
+
+扩展论文库、领域和画布时，先阅读 [工作区架构与扩展边界](docs/architecture.md)。
+持久化规则放在 Rust 工作区服务中，UI 与 MCP 工具入口复用同一套操作。
+研究工具的配置与意图边界见 [MCP 连接说明](mcp/README.md)。
 
 ## 提交改动
 
@@ -59,5 +64,12 @@ cargo test --manifest-path src-tauri/Cargo.toml --no-default-features --all-targ
 进行对应的实机验证，并在 PR 中说明未验证的部分。
 `npm run chromium:test` 检查桌面边界；`npm run chromium:smoke` 使用隔离临时
 资料目录和本地网页测试窗口与 PDF，不会验证真实账号登录。
+研究功能另运行 `npm run test:mcp` 和 `PAPERCANVAS_RESEARCH_SMOKE=1 npm run chromium:smoke`
+（PowerShell 使用 `$env:PAPERCANVAS_RESEARCH_SMOKE='1'` 后运行）。它使用真实 MCP 子进程和本地桌面，
+不调用真实搜索。前端测试排除 `electron/**` 和 `mcp/**`，这两类测试由 Node 测试运行器执行。
+
+在线阅读另运行 `PAPERCANVAS_ONLINE_PDF_SMOKE=1 npm run chromium:smoke`。使用合成网络
+响应和真实 PDF.js / Rust 后端，检查导入不获取 PDF、内存预览、内容变更拒绝、显式离线保存、
+原论文及批注保留，以及保存后断网可读；不依赖 arXiv 服务是否可用。
 
 不要提交登录凭据、环境密钥、私人 PDF、应用数据库或构建输出。
