@@ -224,13 +224,13 @@ test('CLI argument errors use stderr, leaving protocol stdout clean', async () =
 
 test('packaged MCP bundle runs outside the repo, including symlinked temporary paths', async (t) => {
   const directory = await mkdtemp(path.join(tmpdir(), 'papercanvas-mcp-test-'));
-  t.after(() => rm(directory, { recursive: true, force: true }));
+  const client = new Client({ name: 'packaged-test', version: '1.0.0' });
+  // Windows holds a process's working directory open until the child exits.
+  t.after(async () => { await client.close(); await rm(directory, { recursive: true, force: true }); });
   const outfile = path.join(directory, 'papercanvas-mcp.mjs');
   await build({ entryPoints: [serverPath], outfile, bundle: true, platform: 'node', format: 'esm', target: 'node22',
     banner: { js: 'import { createRequire as __createRequire } from "node:module"; const require = __createRequire(import.meta.url);' },
   });
-  const client = new Client({ name: 'packaged-test', version: '1.0.0' });
-  t.after(() => client.close());
   await client.connect(new StdioClientTransport({ command: process.execPath, args: [outfile, '--data-dir', directory], cwd: directory }));
   assert.equal((await client.listTools()).tools.length, 2);
   const result = await client.callTool({ name: 'import_research_batch', arguments: batch });
