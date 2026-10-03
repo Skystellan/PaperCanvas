@@ -72,6 +72,11 @@ pub enum WorkspaceRequest {
         github_url: Option<String>,
         github_stars: Option<i64>,
     },
+    UpdatePaperGithubStars {
+        paper_id: String,
+        github_url: String,
+        github_stars: i64,
+    },
     CreatePaperNode {
         paper_id: String,
         position: Position,
@@ -519,6 +524,14 @@ fn apply(db: &Transaction<'_>, request: WorkspaceRequest) -> Result<WorkspaceVal
                 WHERE id = ?3 AND (github_url IS NOT ?1 OR github_stars IS NOT ?2)",
                 params![github_url, github_stars, paper_id], PAPER_EXISTS, &paper_id,
                 "Paper not found.")?;
+        }
+        UpdatePaperGithubStars { paper_id, github_url, github_stars } => {
+            identifier(&paper_id)?;
+            research::validate_github(Some(&github_url), Some(github_stars))?;
+            // A late refresh must never restore a repository that was edited or removed.
+            db.execute("UPDATE papers SET github_stars = ?1
+                WHERE id = ?2 AND github_url = ?3 AND github_stars IS NOT ?1",
+                params![github_stars, paper_id, github_url]).map_err(err)?;
         }
         CreatePaperNode { paper_id, position } => {
             identifier(&paper_id)?;

@@ -46,6 +46,39 @@ fn create_edge(db: &Connection) -> Value {
     )
 }
 
+#[test]
+fn github_star_refresh_persists_only_for_the_same_repository_without_changing_its_review() {
+    let db = database();
+    let url = "https://github.com/example/code";
+    ok(&db, json!({"type":"save_paper_code_reviews","reviews":[{
+        "paperId":"paper-attention", "expectedGithubUrl":null, "githubUrl":url, "githubStars":42,
+        "codeReview":{"status":"official", "evidenceUrl":"https://example.org/paper", "evidence":"The paper links this implementation."}
+    }]}));
+    let get = json!({"type":"get_paper","id":"paper-attention"});
+    let review = ok(&db, get.clone())["value"]["codeReview"].clone();
+    let refresh = json!({"type":"update_paper_github_stars","paperId":"paper-attention","githubUrl":url,"githubStars":0});
+    assert_eq!(ok(&db, refresh.clone())["changed"], true);
+    let saved = ok(&db, get.clone());
+    assert_eq!(saved["value"]["githubUrl"], url);
+    assert_eq!(saved["value"]["githubStars"], 0);
+    assert_eq!(saved["value"]["codeReview"], review);
+    assert_eq!(ok(&db, refresh.clone())["changed"], false);
+
+    for github_stars in [json!(-1), json!(9_007_199_254_740_992i64)] {
+        let mut invalid = refresh.clone();
+        invalid["githubStars"] = github_stars;
+        assert!(call(&db, invalid, None).is_err());
+        assert_eq!(ok(&db, get.clone()), saved);
+    }
+
+    for new_url in [json!("https://github.com/example/new"), Value::Null] {
+        ok(&db, json!({"type":"update_paper_github","paperId":"paper-attention","githubUrl":new_url,"githubStars":null}));
+        let before = ok(&db, get.clone());
+        assert_eq!(ok(&db, refresh.clone())["changed"], false);
+        assert_eq!(ok(&db, get.clone()), before, "A late response must not restore the old link or its Stars");
+    }
+}
+
 struct Temp(PathBuf);
 impl Temp {
     fn new() -> Self {

@@ -50,10 +50,10 @@ export const PaperCard = memo(function PaperCard({
         type="button"
         className="paper-card__github nodrag nopan has-repository"
         aria-label={`${data.paper.title}：${githubLabel}`}
-        title={`${githubLabel}；点击查看并刷新 Stars`}
+        title={`${githubLabel}；打开 GitHub，Stars 自动刷新`}
         onClick={(event) => {
           event.stopPropagation();
-          data.onEditGithub?.(data.paper);
+          data.onOpenGithub?.(data.paper);
         }}
         onDoubleClick={(event) => event.stopPropagation()}
         onKeyDown={(event) => event.stopPropagation()}

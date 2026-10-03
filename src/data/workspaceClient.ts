@@ -20,6 +20,7 @@ export type WorkspaceRequest =
   | { type: "assign_paper"; paperId: string; domainId: string | null }
   | { type: "update_paper_title"; paperId: string; title: string }
   | { type: "update_paper_github"; paperId: string; githubUrl: string | null; githubStars: number | null }
+  | { type: "update_paper_github_stars"; paperId: string; githubUrl: string; githubStars: number }
   | { type: "create_paper_node"; paperId: string; position: { x: number; y: number } }
   | { type: "create_edge"; sourceNodeId: string; targetNodeId: string }
   | { type: "update_edge_relation"; edgeId: string; relation: BoardEdgeRelation }

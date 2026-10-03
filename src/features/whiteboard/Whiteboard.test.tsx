@@ -501,6 +501,7 @@ function createRepository() {
     updateEdgeRelation: vi.fn().mockResolvedValue(undefined),
     updateEdgeAnnotations: vi.fn().mockResolvedValue(undefined),
     updatePaperGithub: vi.fn().mockResolvedValue(undefined),
+    updatePaperGithubStars: vi.fn().mockResolvedValue(undefined),
     deleteNodes: vi.fn().mockResolvedValue(undefined),
     deleteEdges: vi.fn().mockResolvedValue(undefined),
   };

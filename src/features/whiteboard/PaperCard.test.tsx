@@ -74,7 +74,7 @@ describe("PaperCard", () => {
   it("opens a recorded repository without selecting, dragging or opening the paper", () => {
     const props = createProps(false);
     props.data.paper.githubUrl = "https://github.com/example/code";
-    props.data.onEditGithub = vi.fn();
+    props.data.onOpenGithub = vi.fn();
     props.data.onKeyboardConnectionSelect = vi.fn();
     const onNodeClick = vi.fn();
     const onOpenPaper = vi.fn();
@@ -85,7 +85,7 @@ describe("PaperCard", () => {
     fireEvent.keyDown(badge, { key: "Enter" });
     fireEvent.click(badge);
     fireEvent.doubleClick(badge);
-    expect(props.data.onEditGithub).toHaveBeenCalledWith(props.data.paper);
+    expect(props.data.onOpenGithub).toHaveBeenCalledWith(props.data.paper);
     expect(props.data.onKeyboardConnectionSelect).not.toHaveBeenCalled();
     expect(onNodeClick).not.toHaveBeenCalled();
     expect(onOpenPaper).not.toHaveBeenCalled();

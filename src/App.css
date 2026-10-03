@@ -230,9 +230,6 @@ textarea {
   width: 100%; padding: 9px 10px; border: 1px solid #cdd4dc; border-radius: 7px;
 }
 .paper-github-dialog__hint { color: #656d78; line-height: 1.6; font-size: 11px; }
-.paper-github-dialog a { color: #2565a6; }
-.paper-github-dialog__review { padding: 12px; background: #f2f6ef; border-radius: 8px; font-size: 12px; }
-.paper-github-dialog__review p { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.6; }
 .paper-github-dialog [role="alert"] { color: #a33131; line-height: 1.5; }
 .paper-github-dialog__actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
 .paper-github-dialog button { padding: 7px 16px; border: 1px solid #cdd4dc; border-radius: 7px; cursor: pointer; }

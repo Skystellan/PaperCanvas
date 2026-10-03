@@ -19,7 +19,7 @@ export interface BoardNodeRecord {
 
 export interface PaperNodeData extends Record<string, unknown> {
   onKeyboardConnectionSelect?: (nodeId: string) => void;
-  onEditGithub?: (paper: Paper) => void;
+  onOpenGithub?: (paper: Paper) => void;
   paper: PaperSummary;
 }
 

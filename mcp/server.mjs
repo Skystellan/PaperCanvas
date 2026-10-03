@@ -26,7 +26,7 @@ const codeReviewsSchema = z.strictObject({
     codeReview: z.strictObject({
       status: z.enum(['official', 'third_party', 'not_found', 'not_released']).describe('official requires author/paper evidence; third_party is an independent implementation; not_found is inconclusive; not_released requires an explicit author statement.'),
       evidenceUrl: sourceUrl.describe('Source actually consulted: paper, author project page or repository. No invented URLs.'),
-      evidence: text(4000).describe('Explain the paper/repository match and what implementation was inspected. For not_found, describe sources checked and limits; search failure alone is not a review.'),
+      evidence: text(4000).describe('One concise sentence explaining the verified paper/implementation match, or the limits of a not_found conclusion. Do not store a browsing log, file list or step-by-step investigation. Search failure alone is not a review.'),
     }),
   }).refine(review => ['official', 'third_party'].includes(review.codeReview.status) === (review.githubUrl !== null),
     'Repository must be present exactly for official/third_party reviews')

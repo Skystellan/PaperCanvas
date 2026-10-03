@@ -12,6 +12,7 @@ export interface BoardSnapshot {
 export interface BoardRepository {
   loadBoard(): Promise<BoardSnapshot>;
   updatePaperGithub(paperId: string, githubUrl: string | null, githubStars: number | null): Promise<void>;
+  updatePaperGithubStars(paperId: string, githubUrl: string, githubStars: number): Promise<void>;
   saveNodePositions(updates: NodePositionUpdate[]): Promise<void>;
   createPaperNode(
     paperId: string,

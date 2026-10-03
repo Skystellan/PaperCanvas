@@ -34,6 +34,8 @@ import {
 import { usePersistenceWriter } from "../persistence";
 import { PaperCard } from "./PaperCard";
 import { PaperGithubDialog } from "./PaperGithubDialog";
+import { invoke } from "../../platform/core";
+import { fetchGithubStars } from "../library/services/githubRepository";
 import { PaperEdge } from "./PaperEdge";
 import type { BoardRepository } from "./data/boardRepository";
 import {
@@ -100,7 +102,7 @@ export type WhiteboardScope =
 
 type LoadState = "loading" | "ready" | "error";
 type SaveState = "idle" | "error";
-type ActionError = "paper" | "connection" | "deletion" | null;
+type ActionError = "paper" | "connection" | "deletion" | "github" | null;
 
 const ALL_SCOPE: WhiteboardScope = { kind: "all" };
 
@@ -189,6 +191,7 @@ function WhiteboardCanvas({
   );
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
   const [githubPaper, setGithubPaper] = useState<Paper | null>(null);
+  const githubRefreshes = useRef(new Set<string>());
   const [relationUpdatePending, setRelationUpdatePending] = useState(false);
   const [deletionPending, setDeletionPending] = useState(false);
   const deletionPendingRef = useRef(false);
@@ -1151,12 +1154,40 @@ function WhiteboardCanvas({
     [flush, repository, trackMutation],
   );
 
-  const saveGithub = useCallback(async (githubUrl: string | null, githubStars: number | null) => {
+  const openGithub = useCallback((paper: Paper) => {
+    const githubUrl = paper.githubUrl;
+    if (!githubUrl) return;
+    setActionError(null);
+    if (window.paperCanvas) {
+      void invoke("open_research_source", { url: githubUrl }).catch(() => {
+        if (isMounted.current) setActionError("github");
+      });
+    } else {
+      window.open(githubUrl, "_blank", "noopener,noreferrer");
+    }
+
+    const key = `${paper.id}:${githubUrl}`;
+    if (githubRefreshes.current.has(key)) return;
+    githubRefreshes.current.add(key);
+    void (async () => {
+      const githubStars = await fetchGithubStars(githubUrl);
+      await trackMutation(repository.updatePaperGithubStars(paper.id, githubUrl, githubStars));
+      replaceNodes(nodesRef.current.map(node => node.data.paper.id === paper.id && node.data.paper.githubUrl === githubUrl
+        ? { ...node, data: { ...node.data, paper: { ...node.data.paper, githubStars } } }
+        : node));
+    })().catch(() => {
+      // Keep the cached count on network or persistence failure; retry on the next click.
+    }).finally(() => { githubRefreshes.current.delete(key); });
+  }, [repository, replaceNodes, trackMutation]);
+
+  const saveGithub = useCallback(async (githubUrl: string | null) => {
     if (!githubPaper) return;
-    await trackMutation(repository.updatePaperGithub(githubPaper.id, githubUrl, githubStars));
+    const current = nodesRef.current.find(node => node.data.paper.id === githubPaper.id)?.data.paper;
+    if (current && (current.githubUrl ?? null) === githubUrl) return;
+    await trackMutation(repository.updatePaperGithub(githubPaper.id, githubUrl, null));
     replaceNodes(nodesRef.current.map(node => node.data.paper.id === githubPaper.id
-      ? { ...node, data: { ...node.data, paper: { ...node.data.paper, githubUrl, githubStars,
-        codeReview: (node.data.paper.githubUrl ?? null) === githubUrl ? node.data.paper.codeReview : undefined } } }
+      ? { ...node, data: { ...node.data, paper: { ...node.data.paper, githubUrl, githubStars: null,
+        codeReview: undefined } } }
       : node));
   }, [githubPaper, repository, replaceNodes, trackMutation]);
 
@@ -1173,13 +1204,13 @@ function WhiteboardCanvas({
           .join(" "),
         data: {
           ...node.data,
-          onEditGithub: setGithubPaper,
+          onOpenGithub: openGithub,
           onKeyboardConnectionSelect: connectionMode
             ? onKeyboardConnectionSelect
             : undefined,
         },
       }));
-  }, [connectionMode, connectionSourceId, nodes, onKeyboardConnectionSelect, resolvedScope]);
+  }, [connectionMode, connectionSourceId, nodes, onKeyboardConnectionSelect, openGithub, resolvedScope]);
   const visibleNodeIds = useMemo(
     () => new Set(visibleNodes.map(({ id }) => id)),
     [visibleNodes],
@@ -1326,7 +1357,7 @@ function WhiteboardCanvas({
         </button>
         {selectedNodeCount === 1 && <button type="button" disabled={deletionPending}
           onClick={() => setGithubPaper(selectedNodes[0].data.paper)}>
-          {selectedNodes[0].data.paper.githubUrl ? "编辑 GitHub 仓库" : selectedNodes[0].data.paper.codeReview ? "查看代码审查" : "添加 GitHub 仓库"}
+          {selectedNodes[0].data.paper.githubUrl ? "编辑 GitHub 仓库" : "添加 GitHub 仓库"}
         </button>}
         {selectedNodeCount > 0 && (
           <button type="button" disabled={deletionPending}
@@ -1467,6 +1498,8 @@ function WhiteboardCanvas({
             ? "The paper card was not added. Try dropping it again."
             : actionError === "deletion"
             ? "The selected cards could not be removed. Try again."
+            : actionError === "github"
+            ? "无法打开 GitHub，请重试。"
             : "The paper connection was not saved. Try again."}
         </div>
       )}
