@@ -3,10 +3,16 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const tauri = vi.hoisted(() => ({
   invoke: vi.fn(),
   open: vi.fn(),
+  readPdfTitle: vi.fn(),
+  execute: vi.fn(),
 }));
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: tauri.invoke }));
 vi.mock("@tauri-apps/plugin-dialog", () => ({ open: tauri.open }));
+vi.mock("./pdfTitle", () => ({ readPdfTitle: tauri.readPdfTitle }));
+vi.mock("../../../data/sqliteDatabase", () => ({
+  getDatabase: async () => ({ execute: tauri.execute }),
+}));
 
 import {
   PaperBatchImportError,
@@ -36,7 +42,39 @@ describe("TauriPaperImporter", () => {
   beforeEach(() => {
     tauri.invoke.mockReset();
     tauri.open.mockReset();
+    tauri.readPdfTitle.mockReset().mockResolvedValue(null);
+    tauri.execute.mockReset().mockResolvedValue({ rowsAffected: 1 });
   });
+
+  it("persists the PDF title instead of its arXiv filename before returning the paper", async () => {
+    tauri.invoke.mockResolvedValue({ ...importedPaper, title: "2303.08774v2" });
+    tauri.readPdfTitle.mockResolvedValue("A Researcher's Guide to Transformers");
+
+    const papers = await new TauriPaperImporter().importPaths(["/tmp/2303.08774v2.pdf"]);
+
+    expect(papers[0].title).toBe("A Researcher's Guide to Transformers");
+    expect(tauri.readPdfTitle).toHaveBeenCalledWith(importedPaper.filePath);
+    expect(tauri.execute).toHaveBeenCalledWith(
+      "UPDATE papers SET title = $1 WHERE id = $2",
+      ["A Researcher's Guide to Transformers", importedPaper.id],
+    );
+  });
+
+  it.each(["missing", "unreadable", "save failed"])(
+    "keeps the committed import and filename when its title is %s",
+    async (failure) => {
+      tauri.invoke.mockResolvedValue(importedPaper);
+      if (failure === "unreadable") tauri.readPdfTitle.mockRejectedValue(new Error("PDF parsing failed"));
+      if (failure === "save failed") {
+        tauri.readPdfTitle.mockResolvedValue("Extracted title");
+        tauri.execute.mockRejectedValue(new Error("database unavailable"));
+      }
+
+      await expect(new TauriPaperImporter().importPaths(["/tmp/paper.pdf"]))
+        .resolves.toEqual([importedPaper]);
+      if (failure !== "save failed") expect(tauri.execute).not.toHaveBeenCalled();
+    },
+  );
 
   it("opens a multi-select PDF picker and imports every selected path", async () => {
     tauri.open.mockResolvedValue([

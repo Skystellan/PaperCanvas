@@ -1,8 +1,10 @@
+import { getDatabase } from "../../../data/sqliteDatabase";
 import { invoke } from "../../../platform/core";
 import { open } from "../../../platform/dialog";
 
 import type { Paper } from "../model/paper";
 import type { PaperImporter, PaperImportOptions } from "./paperImporter";
+import { readPdfTitle } from "./pdfTitle";
 
 const IMPORT_ERROR_MESSAGE = "无法导入 PDF，请确认文件有效且未损坏。";
 
@@ -128,17 +130,34 @@ export class TauriPaperImporter implements PaperImporter {
     sourcePath: string,
     domainId: string | null,
   ): Promise<Paper> {
+    let paper: Paper;
     try {
       const result = await invoke<unknown>("import_pdf", {
         sourcePath,
         domainId,
       });
-      return parseImportedPaper(result);
+      paper = parseImportedPaper(result);
     } catch (error) {
       if (error instanceof PaperImportError) {
         throw error;
       }
       throw new PaperImportError(IMPORT_ERROR_MESSAGE);
     }
+
+    try {
+      const title = await readPdfTitle(paper.filePath!);
+      if (title && title !== paper.title) {
+        const database = await getDatabase();
+        const result = await database.execute(
+          "UPDATE papers SET title = $1 WHERE id = $2",
+          [title, paper.id],
+        );
+        if (result.rowsAffected === 1) return { ...paper, title };
+      }
+    } catch {
+      // The PDF is already committed. Optional title extraction must not turn
+      // a successful import into a failed batch or encourage duplicate imports.
+    }
+    return paper;
   }
 }

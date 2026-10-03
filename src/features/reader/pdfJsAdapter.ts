@@ -13,14 +13,18 @@ GlobalWorkerOptions.workerSrc = workerUrl;
 const MAX_IMAGE_PIXELS = 32 * 1024 * 1024;
 const MAX_CANVAS_BYTES = 128 * 1024 * 1024;
 
+export function loadPdfDocument(data: Uint8Array) {
+  return getDocument({
+    canvasMaxAreaInBytes: MAX_CANVAS_BYTES,
+    data,
+    disableAutoFetch: true,
+    maxImageSize: MAX_IMAGE_PIXELS,
+  });
+}
+
 export const browserPdfJsAdapter: PdfJsAdapter = {
   getDocument: ({ data }) => {
-    const task = getDocument({
-      canvasMaxAreaInBytes: MAX_CANVAS_BYTES,
-      data,
-      disableAutoFetch: true,
-      maxImageSize: MAX_IMAGE_PIXELS,
-    });
+    const task = loadPdfDocument(data);
     return {
       destroy: () => task.destroy(),
       promise: task.promise.then((document) => ({
