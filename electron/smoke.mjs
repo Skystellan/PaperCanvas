@@ -147,9 +147,9 @@ export async function smoke({ window, backend, chats, dataDirectory, chatSession
   await until(`!!document.querySelector('button[aria-label^="Open Chat fixture"]')`, 'recent discussion');
   await evaluate(`document.querySelector('button[aria-label^="Open Chat fixture"]').click()`);
   await until(`!!document.querySelector('.pdfViewer .page canvas')?.width`, 'real PDF.js render');
-  await until(`!!document.querySelector('.web-chat-login-help')?.textContent.includes('请在应用内完成登录')`, 'initial sign-in guidance');
+  await until(`!!document.querySelector('.web-chat-login-help')?.textContent.includes('先为 ChatGPT 账号创建密码')`, 'initial sign-in guidance');
   await writeFile(path.join(dataDirectory, 'initial-login-help.png'), (await wc.capturePage()).toPNG());
-  await evaluate(`[...document.querySelectorAll('button')].find(b => b.textContent==='关闭提示，继续在应用内登录').click()`);
+  await evaluate(`[...document.querySelectorAll('button')].find(b => b.textContent==='知道了').click()`);
   await until(`!document.querySelector('.web-chat-login-help')`, 'dismissed sign-in guidance');
   const zoom = await evaluate(`(async () => {
     const label = () => [...document.querySelectorAll('.pdf-viewer__toolbar span')].map(e=>e.textContent).find(t=>t.endsWith('%'));
@@ -254,9 +254,9 @@ export async function smoke({ window, backend, chats, dataDirectory, chatSession
     await guest.executeJavaScript(script);
     await until(`!!document.querySelector('.web-chat-login-help')`, 'Google login help');
     assert.equal(guest.getURL(), 'https://chatgpt.com/');
-    assert.equal(await evaluate(`document.querySelector('.web-chat-login-help').textContent.includes('不会同步')`), true);
+    assert.equal(await evaluate(`document.querySelector('.web-chat-login-help').textContent.includes('在下方内嵌窗口使用账号邮箱和密码登录')`), true);
     await writeFile(path.join(dataDirectory, 'google-login-help.png'), (await wc.capturePage()).toPNG());
-    await evaluate(`[...document.querySelectorAll('button')].find(b => b.textContent==='关闭提示，继续在应用内登录').click()`);
+    await evaluate(`[...document.querySelectorAll('button')].find(b => b.textContent==='知道了').click()`);
   }
   const { workspaceSmoke } = await import('./workspace-smoke.mjs');
   const workspace = await workspaceSmoke({ wc, backend, paper, dataDirectory, evaluate, until, chats, chat });
