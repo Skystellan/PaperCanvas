@@ -67,6 +67,72 @@ function segmentsCross(
 }
 
 describe("createObsidianForceLayout", () => {
+  it("keeps cards clear when a triangle and its neighboring connections settle", () => {
+    let nodes = [node("a", 340, 320), node("b", 800, 0), node("hub", 580, 550),
+      node("c", 830, 770), node("d", 0, 970)];
+    const edges = [edge("hub", "d"), edge("a", "hub"), edge("a", "c"),
+      edge("c", "hub"), edge("hub", "b"), edge("a", "b")];
+    // Re-running the toolbar layout must not restore the obstructed triangle.
+    for (let cycle = 0; cycle < 2; cycle++) {
+      const layout = createObsidianForceLayout(nodes, edges);
+      layout.settle();
+      expect(layout.isSettled()).toBe(true);
+      const positions = layout.positions();
+      for (const { source, target } of edges) {
+        const a = positions.get(source)!;
+        const b = positions.get(target)!;
+        const dx = b.x - a.x;
+        const dy = b.y - a.y;
+        const length = Math.hypot(dx, dy);
+        for (const card of nodes) {
+          if (card.id === source || card.id === target) continue;
+          const point = positions.get(card.id)!;
+          const t = ((point.x - a.x) * dx + (point.y - a.y) * dy) / (length * length);
+          if (t <= 0 || t >= 1) continue;
+          const distance = Math.abs((point.x - a.x) * dy - (point.y - a.y) * dx) / length;
+          const halfExtent = (Math.abs(dy) * 140 + Math.abs(dx) * 64) / length;
+          expect(distance - halfExtent, `${card.id} obstructs ${source} → ${target}`).toBeGreaterThan(12);
+        }
+      }
+      nodes = nodes.map(card => ({ ...card, position: positions.get(card.id)! }));
+    }
+  });
+
+  it.each([
+    { count: 3, angle: 0 },
+    { count: 4, angle: 0 },
+    { count: 8, angle: 0 },
+    { count: 8, angle: Math.PI / 4 },
+    { count: 8, angle: Math.PI / 2 },
+  ])("separates $count overlapping rays after placing their hub (angle: $angle)", ({ count, angle }) => {
+    const leaves = Array.from({ length: count }, (_, i) => node(`leaf-${i}`,
+      Math.cos(angle) * (i + 1) * 420, Math.sin(angle) * (i + 1) * 420));
+    const layout = createObsidianForceLayout([node("hub", 0), ...leaves],
+      leaves.map(leaf => edge("hub", leaf.id)));
+    layout.pin("hub", { x: 0, y: 0 });
+    layout.release("hub");
+    layout.settle();
+    const positions = layout.positions();
+    expect(positions.get("hub")).toEqual({ x: 0, y: 0 });
+    // Equal-sized cards have the same center offsets, so these differences also
+    // measure center-to-center lines. Leave visible space around unrelated cards.
+    for (const target of leaves) {
+      const end = positions.get(target.id)!;
+      const length = Math.hypot(end.x, end.y);
+      expect(length).toBeLessThan(850);
+      for (const other of leaves) {
+        if (other === target) continue;
+        const card = positions.get(other.id)!;
+        const t = (card.x * end.x + card.y * end.y) / (length * length);
+        if (t <= 0 || t >= 1) continue;
+        const distance = Math.abs(card.x * end.y - card.y * end.x) / length;
+        const halfExtent = (Math.abs(end.y) * 140 + Math.abs(end.x) * 64) / length;
+        expect(distance - halfExtent, `${other.id} obstructs hub → ${target.id}`).toBeGreaterThan(16);
+      }
+    }
+    expect(layout.isSettled()).toBe(true);
+  });
+
   it.each([false, true])("settles a loose star into a compact, evenly spaced ring (drag: %s)", (drag) => {
     const leaves = Array.from({ length: 8 }, (_, i) => node(`leaf-${i}`,
       Math.cos(i * Math.PI / 4) * 700, Math.sin(i * Math.PI / 4) * 700));

@@ -33,19 +33,30 @@ function separation(a: Link, b: Link, axis: Axis) {
 }
 
 export function createEdgeRepulsion(nodes: Node[], links: Link[]) {
+  // Only disconnected networks can slide apart without their other links pulling back.
+  const parents = new Map(nodes.map(node => [node, node]));
+  const component = (node: Node): Node => {
+    const parent = parents.get(node)!;
+    if (parent === node) return node;
+    const root = component(parent);
+    parents.set(node, root);
+    return root;
+  };
+  for (const { source, target } of links) parents.set(component(source), component(target));
   // ponytail: pair scans suit small paper boards; use a spatial index if dense
   // graphs make this a measured bottleneck.
   const pairs = links.flatMap((a, i) => links.slice(i + 1).flatMap(b =>
-    a.source === b.source || a.source === b.target || a.target === b.source || a.target === b.target
+    component(a.source) === component(b.source)
       ? [] : [{ a, b, direction: undefined as Axis | undefined }]));
   const nodeLinks = nodes.flatMap(node => links.flatMap(link =>
     node === link.source || node === link.target ? [] : [{ node, link, side: 0 }]));
 
-  return (strength: number) => {
+  return (strength: number, clearanceStrength: number) => {
     const separating = new Map<Node, Set<Link>>();
     // Keep each pair's chosen escape direction for the entire relaxation.
     // Rechoosing it near an intersection makes forces flip and nodes jitter.
     for (const pair of pairs) {
+      if (strength === 0) break;
       const { a, b } = pair;
       if (!pair.direction) {
         let distance = Infinity;
@@ -82,6 +93,8 @@ export function createEdgeRepulsion(nodes: Node[], links: Link[]) {
     // that share a hub). This makes their actual endpoints easier to follow.
     for (const item of nodeLinks) {
       const { node, link } = item;
+      // Once uncrossing ends, escape to the nearest side instead of an obsolete one.
+      if (strength === 0) item.side = 0;
       // A crossing pair moves both endpoints to the same side. Let that finish
       // before individual card clearance can pull an endpoint the opposite way.
       if (separating.get(node)?.has(link)) { item.side = 0; continue; }
@@ -96,7 +109,7 @@ export function createEdgeRepulsion(nodes: Node[], links: Link[]) {
       const clearance = (Math.abs(normal.x) * node.width + Math.abs(normal.y) * node.height) / 2 + 28;
       if (Math.abs(distance) >= clearance && item.side === 0) continue;
       item.side ||= Math.abs(distance) > 0.01 ? Math.sign(distance) : node.id < link.source.id ? -1 : 1;
-      const impulse = Math.min(1.2, Math.max(0, clearance - distance * item.side) * 0.018) * strength;
+      const impulse = Math.min(3.2, Math.max(0, clearance - distance * item.side) * 0.06) * clearanceStrength;
       push(node, normal, impulse * item.side);
       push(link.source, normal, -impulse * item.side * (1 - t));
       push(link.target, normal, -impulse * item.side * t);

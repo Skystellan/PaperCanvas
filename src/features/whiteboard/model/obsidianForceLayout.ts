@@ -116,6 +116,8 @@ export function createObsidianForceLayout(
   const releasedNodeIds = new Set<string>();
   let draggingLayout = false;
   const RELAXATION_FRAMES = 360;
+  // Finish card clearance after uncrossing and ordinary link shortening have stopped.
+  const CLEARANCE_FRAMES = 180;
   let relaxationFrame = -1;
   let quietFrames = 0;
   const simulations = [...groups.entries()]
@@ -182,6 +184,9 @@ export function createObsidianForceLayout(
         }];
       });
       simulation.force("neighbor-direction", () => {
+        // Once the drag has settled, let readability open crowded rays. Restoring
+        // their original angles here would keep pulling cards back onto links.
+        if (relaxationFrame >= 0) return;
         for (const { hub, neighbor, angle, weight } of neighborDirections) {
           if (!pinnedNodeIds.has(hub.id) && !releasedNodeIds.has(hub.id)) continue;
           if (neighbor.fx != null || neighbor.fy != null) continue;
@@ -214,7 +219,7 @@ export function createObsidianForceLayout(
           const excess = distance - preferred;
           if (excess <= 0) continue;
           // Small excesses yield to clearance; severely stretched links recover faster.
-          const compactStrength = pinnedNodeIds.size > 0 ? 0 : 0.004;
+          const compactStrength = pinnedNodeIds.size > 0 || relaxationFrame >= RELAXATION_FRAMES ? 0 : 0.004;
           const overstretch = Math.max(0, distance - OBSIDIAN_LINK_DISTANCE * 2);
           const impulse = ((excess - overstretch) * compactStrength + overstretch * 0.025) / distance;
           // As with d3's links, let peripheral cards do most of the adjusting.
@@ -228,13 +233,17 @@ export function createObsidianForceLayout(
       simulation.force("readability", () => {
         if (relaxationFrame < 0 || pinnedNodeIds.size > 0) return;
         const ramp = Math.min(1, relaxationFrame / 45, (RELAXATION_FRAMES - relaxationFrame) / 90);
-        repulsion(Math.max(0, ramp));
+        // Finish clearance on its own before easing out, so shortening cannot undo it.
+        const clearanceRamp = Math.min(1, relaxationFrame / 45, (RELAXATION_FRAMES + CLEARANCE_FRAMES - relaxationFrame) / 20);
+        repulsion(Math.max(0, ramp), Math.max(0, clearanceRamp));
       });
       simulation.force("speed-limit", () => {
         const limit = (relaxationFrame < 0 ? 8 : 2.4) / 0.6;
         for (const node of group) {
-          node.vx = node.previousVx + (node.vx! - node.previousVx) / node.mass;
-          node.vy = node.previousVy + (node.vy! - node.previousVy) / node.mass;
+          // A crowded hub must be able to clear a line before the final phase ends.
+          const mass = relaxationFrame >= RELAXATION_FRAMES ? 1 : node.mass;
+          node.vx = node.previousVx + (node.vx! - node.previousVx) / mass;
+          node.vy = node.previousVy + (node.vy! - node.previousVy) / mass;
           const speed = Math.hypot(node.vx ?? 0, node.vy ?? 0);
           if (speed > limit) {
             node.vx! *= limit / speed;
@@ -307,10 +316,10 @@ export function createObsidianForceLayout(
       }
       for (const { simulation } of simulations) simulation.tick();
       separateRegions();
-      if (relaxationFrame >= 0 && relaxationFrame < RELAXATION_FRAMES) relaxationFrame += 1;
+      if (relaxationFrame >= 0 && relaxationFrame < RELAXATION_FRAMES + CLEARANCE_FRAMES) relaxationFrame += 1;
     }
   };
-  const isSettled = () => !regionsMoving && (!needsRelaxation || relaxationFrame >= RELAXATION_FRAMES) &&
+  const isSettled = () => !regionsMoving && (!needsRelaxation || relaxationFrame >= RELAXATION_FRAMES + CLEARANCE_FRAMES) &&
     simulations.every(({ simulation }) => simulation.alpha() <= simulation.alphaMin());
   const positions = () =>
     new Map(
